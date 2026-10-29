@@ -4,6 +4,12 @@ Juice replaces the row under your Claude Code prompt with little batteries. Each
 
 ![claude-juice: your Claude usage at a glance. A battery-style status line for Claude Code, showing Memory, Session, Fable and Weekly with reset countdowns.](docs/images/hero.png)
 
+<p align="center">
+  <a href="https://zdraveski.github.io/claude-juice/web/"><img src="docs/images/open-customizer.png" alt="Open the live customizer" width="340"></a>
+  <br>
+  <sub>Try every look, layout and colour with a live preview, right in your browser. Ctrl+click (Cmd+click on a Mac) opens it in a new tab.</sub>
+</p>
+
 ## What the batteries mean
 
 ![Reading the status line, left to right: the model, the effort level from low to max, Memory (room used in this chat), Session (your 5-hour limit), the countdown to its reset, Fable (its own weekly limit), Weekly (your weekly limit), and ! or !! when it is going fast or nearly out.](docs/images/anatomy.png)
@@ -105,9 +111,17 @@ Type `/juice` and then say what you want, in your own words. For example:
 - `/juice show the reset times only when something needs attention`
 - `/juice make it a panel`
 
-Prefer to click? Open the customizer web page at https://zdraveski.github.io/claude-juice/web/. You can try every look, layout and colour with a live preview. It gives you one line to paste into Claude Code.
+### Prefer to click?
 
-![The juice customizer web page: a live preview of the status line, options for plan, model, window size, dark or light terminal and situation, and the ready-made looks to start from.](docs/images/customizer.png)
+**[Open the live customizer](https://zdraveski.github.io/claude-juice/web/)**. Try every look, layout and colour with a live preview, then copy one line into Claude Code. Nothing to install.
+
+<p align="center">
+  <a href="https://zdraveski.github.io/claude-juice/web/"><img src="docs/images/open-customizer.png" alt="Open the live customizer" width="340"></a>
+  <br>
+  <sub>Try every look, layout and colour with a live preview, right in your browser. Ctrl+click (Cmd+click on a Mac) opens it in a new tab.</sub>
+</p>
+
+[![The juice customizer web page: a live preview of the status line, options for plan, model, window size, dark or light terminal and situation, and the ready-made looks to start from.](docs/images/customizer.png)](https://zdraveski.github.io/claude-juice/web/)
 
 ## Undo
 
