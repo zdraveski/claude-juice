@@ -101,6 +101,30 @@ test('a share link brings the same settings back', async () => {
   assert.equal(await cmd(other.page), want);
 });
 
+test('Copy buttons put exactly the shown text on the clipboard', async () => {
+  const { page } = await open();
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
+  const clip = () => page.evaluate(() => navigator.clipboard.readText());
+  for (const id of ['install1', 'install2', 'install3', 'cmd']) {
+    await page.click(`[data-copy=${id}]`);
+    assert.equal(await clip(), await page.textContent(`#${id}`), id);
+  }
+  assert.match(await page.textContent('#toast'), /Copied/);
+  await page.click('#link');
+  assert.equal(await clip(), page.url());
+});
+
+test('dragging a battery row reorders it, and so do the arrow buttons', async () => {
+  const { page } = await open();
+  const order = () => page.$$eval('[data-bat]', (rows) => rows.map((r) => r.dataset.bat));
+  assert.deepEqual(await order(), ['memory', 'session', 'fable', 'week']);
+  await page.dragAndDrop('[data-bat=week]', '[data-bat=memory]');
+  assert.deepEqual(await order(), ['week', 'memory', 'session', 'fable']);
+  assert.match(await cmd(page), /show=model,effort,week,memory,session,fable,budget /);
+  await page.click('[data-move=session][data-dir="-1"]');
+  assert.deepEqual(await order(), ['week', 'session', 'memory', 'fable']);
+});
+
 test('light terminal, and no sideways scrolling on a phone', async () => {
   const { page } = await open(390);
   await page.click('[data-view=term] [data-v=light]');
