@@ -2,13 +2,13 @@
 
 - [x] `/plugin marketplace add zdraveski/claude-juice` then `/plugin install juice@juice` succeeds (2026-10-29, Windows).
 - [x] Typing `/juice` resolves to this plugin's skill (shows as `juice:juice`).
-- [ ] `${CLAUDE_PLUGIN_ROOT}` is expanded in the Bash call and runs without a permission prompt.
+- [ ] `${CLAUDE_PLUGIN_ROOT}` is expanded in the Bash call and runs without a permission prompt. (Expansion confirmed 2026-10-29; the prompt part needs a session in normal permission mode, since auto mode approves on its own.)
 - [ ] `/juice setup` shows the status line, and the old entry is in `juice-backup.json`.
-- [ ] `/juice make it the panel layout` sets `layout: 'panel'` in `juice.json` and the status line changes.
+- [x] `/juice make it the panel layout` sets `layout: 'panel'` in `juice.json` and the status line changes (2026-10-29).
 - [ ] `/juice restore` brings the previous status line back.
 - [ ] When `setup` answers exit 2, `/juice` explains it and asks before running `setup --yes`.
-- [ ] `/juice badges add ...` shows the exact command and waits for a yes.
-- [ ] `badges add` triggers Claude Code's own permission prompt.
+- [x] `/juice badges add ...` shows the exact command and waits for a yes; nothing is added without it (2026-10-29).
+- [ ] `badges add` triggers Claude Code's own permission prompt. (Needs a session in normal permission mode; auto mode ran it without asking.)
 - [ ] On macOS, the Keychain prompt for Fable appears only after `fable=on`.
 - [ ] On macOS and Linux, a hung badge command is killed with its child processes after 2 seconds (check that no stray processes are left).
 - [x] In the web customizer, drag-and-drop reorder, the arrow buttons, every Copy button and Copy link work (automated in `scripts/check-customizer.js`).
