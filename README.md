@@ -6,6 +6,8 @@ Juice replaces the row under your Claude Code prompt with little batteries. Each
 
 ## What the batteries mean
 
+![Reading the status line, left to right: the model, the effort level from low to max, Memory (room used in this chat), Session (your 5-hour limit), the countdown to its reset, Fable (its own weekly limit), Weekly (your weekly limit), and ! or !! when it is going fast or nearly out.](docs/images/anatomy.png)
+
 | Battery | What it shows |
 |---|---|
 | **Memory** | How much of this chat's room is used. When it fills up, Claude summarises the chat to make space. |
@@ -22,6 +24,8 @@ The colours for Session, Weekly and Fable weekly follow how fast you are going, 
 - **Red** with **!!** means almost empty, or on track to run out before it resets.
 
 The Fable bar is violet while it is fine, so the frontier model stands apart. When it goes fast or runs low, it turns amber or red with ! or !! like the others.
+
+![Colours tell you how it is going: green means plenty left, amber with ! means going a bit fast, red with !! means nearly out, and Fable is violet while it is fine.](docs/images/colours.png)
 
 Next to each battery, juice counts down to its reset, for example "resets in 1h 31m" or "resets in 2d 5h".
 
@@ -57,6 +61,8 @@ Pick the one you like. The status bar is the default.
 
 A look picks the layout, the colours and what shows, all in one go. Your badges and Fable setting stay as they are. Pick one, then change anything you like.
 
+![The 12 ready-made looks, each drawn as it really looks: Juice, Just the basics, Spotlight, Everything, Retro phone, Quiet, Night owl, Easy to see, Colour-blind friendly, Works everywhere, Cost watcher and Fable first.](docs/images/looks.png)
+
 | Look | What it is |
 |---|---|
 | **Juice** | The standard look. Also takes you back to it. |
@@ -73,6 +79,8 @@ A look picks the layout, the colours and what shows, all in one go. Your badges 
 | **Fable first** | The Fable battery leads, and lights up while you use Fable. |
 
 There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose. Or make your own in the customizer.
+
+![The 13 colour sets on a dark terminal, each showing a fine battery, an amber one with ! and a red one with !!.](docs/images/colour-sets.png)
 
 ## Install
 
@@ -98,6 +106,8 @@ Type `/juice` and then say what you want, in your own words. For example:
 - `/juice make it a panel`
 
 Prefer to click? Open the customizer web page at https://zdraveski.github.io/claude-juice/web/. You can try every look, layout and colour with a live preview. It gives you one line to paste into Claude Code.
+
+![The juice customizer web page: a live preview of the status line, options for plan, model, window size, dark or light terminal and situation, and the ready-made looks to start from.](docs/images/customizer.png)
 
 ## Undo
 
