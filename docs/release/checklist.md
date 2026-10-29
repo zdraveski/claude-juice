@@ -21,6 +21,7 @@
 # Terminal matrix (KIRE, needs real terminals)
 
 For each, check dark and light: "rounded ends OK" and "truecolor OK". Save no screenshots.
+Run `node scripts/terminal-check.js` in the terminal and answer its five questions; it also prints what juice picks there on its own.
 
 - [ ] VS Code on Windows: dark / light, rounded ends OK / truecolor OK
 - [ ] VS Code on macOS: dark / light, rounded ends OK / truecolor OK
