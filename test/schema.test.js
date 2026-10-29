@@ -1,0 +1,161 @@
+import './helpers.js';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { DEFAULTS, LAYOUT_IDS, PRESET_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, decodeLink, CUSTOMIZER_URL } from '../src/schema.js';
+
+const A = { plentyLeft: '#11AA22', goingFast: '#223344', almostEmpty: '#abcdef', accent: '#000000' };
+const custom = { dark: A, light: { ...A, accent: '#ffffff' } };
+
+test('ids and url', () => {
+  assert.deepEqual(LAYOUT_IDS, ['bar', 'segments', 'focus', 'panel']);
+  assert.deepEqual(PRESET_IDS, ['claude', 'frost', 'calm', 'safe', 'bold', 'ocean', 'midnight', 'vampire', 'candy', 'forest', 'sunset', 'solar', 'rose']);
+  assert.match(CUSTOMIZER_URL, /^https:\/\//);
+});
+
+test('sanitize defaults and unknown keys', () => {
+  assert.deepEqual(sanitize({}, { allowBadges: true }).settings, DEFAULTS);
+  const r = sanitize({ layout: 'xyz', foo: 1 }, { allowBadges: true });
+  assert.equal(r.settings.layout, 'bar');
+  assert.ok(!('foo' in r.settings));
+  assert.equal(r.warnings.length, 1);
+  assert.match(r.warnings[0], /layout/);
+});
+
+test('sanitize non-objects give defaults', () => {
+  for (const x of [null, 'x', 5, []]) assert.deepEqual(sanitize(x, { allowBadges: true }).settings, DEFAULTS);
+});
+
+test('sanitize show', () => {
+  const r = sanitize({ show: ['week', 'memory', 'week', 'nope'] }, { allowBadges: true });
+  assert.deepEqual(r.settings.show, ['week', 'memory']);
+  assert.deepEqual(sanitize({ show: 'week' }, { allowBadges: true }).settings.show, DEFAULTS.show);
+});
+
+test('sanitize colours', () => {
+  assert.deepEqual(sanitize({ colors: custom }, { allowBadges: true }).settings.colors, custom);
+  assert.equal(sanitize({ colors: 'bold' }, { allowBadges: true }).settings.colors, 'bold');
+  const bad = sanitize({ colors: { dark: { ...A, accent: '#12345' }, light: A } }, { allowBadges: true });
+  assert.equal(bad.settings.colors, 'claude');
+  assert.equal(bad.warnings.length, 1);
+  assert.equal(sanitize({ colors: 'nope' }, { allowBadges: true }).settings.colors, 'claude');
+});
+
+test('sanitize other enums fall back', () => {
+  const r = sanitize({ cost: 'x', ends: 'x', terminal: 'x', refills: 'x', fable: 'x' }, { allowBadges: true });
+  assert.deepEqual(r.settings, DEFAULTS);
+  assert.equal(r.warnings.length, 5);
+  const old = sanitize({ clock: '24h' }, { allowBadges: true });
+  assert.deepEqual([old.settings, old.warnings], [DEFAULTS, []], 'an old clock setting is ignored quietly');
+  assert.ok(!('clock' in DEFAULTS));
+});
+
+test('sanitize badges', () => {
+  const x = { badges: [{ command: 'echo hi' }] };
+  assert.deepEqual(sanitize(x, { allowBadges: false }).settings.badges, []);
+  assert.deepEqual(sanitize(x, { allowBadges: true }).settings.badges, [{ command: 'echo hi' }]);
+  const bad = sanitize({ badges: [{ command: '' }, { command: 'a'.repeat(501) }, { command: 5 }, 'x', { command: 'ok' }] }, { allowBadges: true });
+  assert.deepEqual(bad.settings.badges, [{ command: 'ok' }]);
+});
+
+test('applySet', () => {
+  const r = applySet(DEFAULTS, ['layout=panel', 'ends=plain']);
+  assert.deepEqual(r.changed, ['layout', 'ends']);
+  assert.equal(r.settings.layout, 'panel');
+  assert.equal(DEFAULTS.layout, 'bar');
+  assert.deepEqual(applySet(DEFAULTS, ['layout=bar']).changed, []);
+  assert.deepEqual(applySet(DEFAULTS, ['show=week,memory,week']).settings.show, ['week', 'memory']);
+  assert.throws(() => applySet(DEFAULTS, ['badges=x']), { message: 'Badges can only be added with /juice badges add' });
+});
+
+const LOOK_KEYS = ['layout', 'show', 'colors', 'cost', 'refills', 'ends'];
+
+test('looks: twelve, each sets exactly the six look keys to valid values', () => {
+  assert.deepEqual(LOOKS.map((l) => l.id), ['juice', 'basics', 'spotlight', 'everything', 'retro', 'quiet', 'nightowl', 'easy', 'colorblind', 'anywhere', 'costwatch', 'fablefirst']);
+  for (const l of LOOKS) {
+    assert.ok(l.name && l.note, l.id);
+    assert.deepEqual(Object.keys(l.set).sort(), [...LOOK_KEYS].sort(), l.id);
+    const r = sanitize(l.set, { allowBadges: false });
+    assert.deepEqual(r.warnings, [], l.id);
+    for (const k of LOOK_KEYS) assert.deepEqual(r.settings[k], l.set[k], `${l.id}.${k}`);
+  }
+  const juice = LOOKS.find((l) => l.id === 'juice').set;
+  for (const k of LOOK_KEYS) assert.deepEqual(juice[k], DEFAULTS[k], k);
+});
+
+test('applySet look: sets the six keys, leaves the rest, later pairs win', () => {
+  const quiet = LOOKS.find((l) => l.id === 'quiet').set;
+  const start = { ...DEFAULTS, terminal: 'light', fable: 'off' };
+  const r = applySet(start, ['look=quiet']);
+  for (const k of LOOK_KEYS) assert.deepEqual(r.settings[k], quiet[k], k);
+  assert.equal(r.settings.terminal, 'light');
+  assert.equal(r.settings.fable, 'off');
+  assert.deepEqual(r.changed, ['show', 'colors', 'refills']);
+  assert.equal(applySet(start, ['look=quiet', 'colors=ocean']).settings.colors, 'ocean');
+  const back = applySet(r.settings, ['look=juice']);
+  for (const k of LOOK_KEYS) assert.deepEqual(back.settings[k], DEFAULTS[k], k);
+  back.settings.show.push('x');
+  assert.ok(!LOOKS.find((l) => l.id === 'juice').set.show.includes('x'), 'look data must not be shared');
+});
+
+test('applySet unknown look keeps settings and warns', () => {
+  const r = applySet(DEFAULTS, ['look=nope']);
+  assert.deepEqual(r.changed, []);
+  assert.deepEqual(r.settings, DEFAULTS);
+  assert.match(r.warnings[0], /look: 'nope' isn't a look/);
+});
+
+test('applySet bad values and keys keep current value', () => {
+  const r = applySet(DEFAULTS, ['layout=xyz', 'nope=1', 'noequals', 'ends=plain']);
+  assert.equal(r.settings.layout, 'bar');
+  assert.deepEqual(r.changed, ['ends']);
+  assert.equal(r.warnings.length, 3);
+  assert.deepEqual(applySet(DEFAULTS, ['show=nope']).changed, []);
+  assert.equal(applySet(DEFAULTS, ['colors=dark:#12,#1,#1,#1/light:#1']).settings.colors, 'claude');
+});
+
+test('applySet colours', () => {
+  assert.equal(applySet(DEFAULTS, ['colors=calm']).settings.colors, 'calm');
+  const w = 'colors=dark:#11aa22,#223344,#abcdef,#000000/light:#11aa22,#223344,#abcdef,#ffffff';
+  assert.deepEqual(applySet(DEFAULTS, [w]).settings.colors, {
+    dark: { plentyLeft: '#11aa22', goingFast: '#223344', almostEmpty: '#abcdef', accent: '#000000' },
+    light: { plentyLeft: '#11aa22', goingFast: '#223344', almostEmpty: '#abcdef', accent: '#ffffff' },
+  });
+});
+
+test('toCommand', () => {
+  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget cost=auto colors=claude ends=auto terminal=auto refills=always fable=auto');
+});
+
+test('toCommand round-trips through applySet, custom colours too', () => {
+  const s = { ...DEFAULTS, layout: 'focus', show: ['week', 'model'], cost: 'on', colors: { dark: A, light: custom.light }, ends: 'round', terminal: 'light', refills: 'warnings', fable: 'off' };
+  const lower = applySet(DEFAULTS, toCommand(s).split(' ').slice(2)).settings;
+  assert.deepEqual(lower, sanitize(s, { allowBadges: true }).settings);
+  assert.equal(toCommand(s).split(' ').length, 10);
+});
+
+test('links', () => {
+  const s = { ...DEFAULTS, layout: 'panel', colors: custom, badges: [{ command: 'echo hi' }] };
+  const p = encodeLink(s);
+  assert.match(p, /^[A-Za-z0-9_-]+$/);
+  const want = { ...s, badges: [] };
+  assert.deepEqual(decodeLink(p), want);
+  assert.deepEqual(decodeLink('#c=' + p), want);
+  assert.deepEqual(decodeLink('###'), DEFAULTS);
+  assert.deepEqual(decodeLink(''), DEFAULTS);
+  assert.deepEqual(decodeLink(undefined), DEFAULTS);
+  assert.deepEqual(decodeLink(encodeLink({ ...DEFAULTS, show: ['model', 'ünï'] })).show, ['model']);
+});
+
+test('links never carry badges even if hand-built', () => {
+  const evil = btoa(JSON.stringify({ badges: [{ command: 'rm -rf /' }] })).replace(/=+$/, '');
+  assert.deepEqual(decodeLink(evil).badges, []);
+});
+
+test('applySet ignores prototype names and bare words without throwing', () => {
+  for (const p of ['constructor=x', '__proto__=x', 'toString=x', 'hasOwnProperty=x', 'valueOf=x', 'badgess', 'bare', '=x']) {
+    const r = applySet(DEFAULTS, [p]);
+    assert.deepEqual(r.changed, [], p);
+    assert.equal(r.warnings.length, 1, p);
+    assert.deepEqual(Object.keys(r.settings), Object.keys(DEFAULTS), p);
+  }
+});

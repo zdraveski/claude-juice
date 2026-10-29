@@ -1,0 +1,16 @@
+{
+  "session_id": "s-trouble",
+  "workspace": { "current_dir": "/work/app" },
+  "model": { "id": "claude-opus-5-5", "display_name": "Opus 5.5" },
+  "effort": { "level": "max" },
+  "cost": { "total_cost_usd": 11.2 },
+  "context_window": {
+    "context_window_size": 200000,
+    "used_percentage": 91,
+    "current_usage": { "input_tokens": 1000, "cache_creation_input_tokens": 2000, "cache_read_input_tokens": 3000 }
+  },
+  "rate_limits": {
+    "five_hour": { "used_percentage": 88, "resets_at": "now+7500" },
+    "seven_day": { "used_percentage": 95, "resets_at": "now+93600" }
+  }
+}

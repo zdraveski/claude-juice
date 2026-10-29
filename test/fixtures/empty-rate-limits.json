@@ -1,0 +1,9 @@
+{
+  "session_id": "s-empty",
+  "workspace": { "current_dir": "/work/app" },
+  "model": { "id": "claude-sonnet-5-5", "display_name": "Sonnet 5.5" },
+  "effort": { "level": "medium" },
+  "cost": { "total_cost_usd": 1.25 },
+  "context_window": { "context_window_size": 200000, "used_percentage": 20, "current_usage": null },
+  "rate_limits": {}
+}

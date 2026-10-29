@@ -1,0 +1,32 @@
+import { readFileSync, writeFileSync, renameSync, mkdirSync, unlinkSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+
+export function readJson(file) {
+  try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
+}
+
+const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+export const HOT_WRITE = { maxWaitMs: 30 };
+
+export function writeJsonAtomic(file, value, { maxWaitMs = 2500 } = {}) {
+  mkdirSync(dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+  writeFileSync(tmp, JSON.stringify(value, null, 2));
+  const start = Date.now();
+  for (;;) {
+    try { return renameSync(tmp, file); } catch (e) {
+      // Windows refuses a rename while another process has the target open.
+      if (Date.now() - start >= maxWaitMs) { try { unlinkSync(tmp); } catch {} throw e; }
+      pause(5 + Math.random() * 20);
+    }
+  }
+}
+
+export function takeLock(p, name, now, maxAgeMs = 30000) {
+  const file = join(p.cacheDir, `${name}.lock`);
+  const t = readJson(file);
+  if (typeof t === 'number' && now.getTime() - t < maxAgeMs) return false;
+  try { writeJsonAtomic(file, now.getTime(), HOT_WRITE); } catch { return false; } // no lock recorded, so no refresher
+  return true;
+}

@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Juice customizer</title>
+<link rel="icon" href="data:,">
+<style>
+:root{--page:#111110;--panel:#1a1918;--panel2:#211f1d;--line:#2c2a27;--ink:#efede9;--sub:#a29d95;--mute:#78736b;--clay:#e2885f;--clay-bg:#2d1f17;--warn:#f3c467}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 'Segoe UI',system-ui,-apple-system,sans-serif}
+button,select{font:inherit;color:inherit}
+.wrap{max-width:1280px;margin:0 auto;padding:0 32px}
+/* hero */
+.hero{padding:44px 0 18px}
+.kicker{display:inline-flex;gap:8px;align-items:center;color:var(--clay);font-weight:600;font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.kicker i{width:8px;height:8px;border-radius:2px;background:var(--clay);transform:rotate(45deg)}
+h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:10px 0;font-weight:650}
+.lede{color:var(--sub);font-size:17px;max-width:720px;margin:0}
+/* sticky preview */
+.stage{position:sticky;top:0;z-index:5;background:linear-gradient(var(--page) 85%,transparent);padding:12px 0 24px}
+.stagehead{display:flex;justify-content:space-between;align-items:flex-end;gap:10px 20px;flex-wrap:wrap;margin:0 0 10px}
+.stagehead h2{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:0 0 6px}
+.tools{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.tools .lab{color:var(--mute);font-size:12.5px;margin-right:-2px}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{all:unset;cursor:pointer;padding:5px 12px;border-radius:999px;color:var(--sub);font-size:13px;font-weight:500;white-space:nowrap}
+.seg button[aria-pressed=true]{background:#2f2c29;color:var(--ink)}
+select{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;color:var(--ink)}
+:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
+.win{border-radius:12px;overflow:hidden;border:1px solid var(--line);box-shadow:0 18px 50px rgba(0,0,0,.45);transition:max-width .25s cubic-bezier(.3,.7,.4,1)}
+.titlebar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#232120;color:#8a857d;font-size:12.5px;white-space:nowrap;overflow:hidden}
+.win.light .titlebar{background:#ecebe8;color:#77726b}
+.dots{display:flex;gap:6px}.dots i{width:10px;height:10px;border-radius:50%;background:#3a3734}.win.light .dots i{background:#d3d0ca}
+.titlebar .cols{margin-left:auto;font:12px Consolas,monospace;opacity:.8}
+.term{--tbg:#181818;--tfg:#cccccc;--rule:#3c3c3c;--ph:#6b6b6b;--chat:#9d9d9d;background:var(--tbg);color:var(--tfg);font:13.5px/1.28 Consolas,'Cascadia Mono',Menlo,monospace;padding:14px 18px 16px;overflow-x:auto}
+.win.light .term{--tbg:#ffffff;--tfg:#3b3b3b;--rule:#e3e3e3;--ph:#a0a0a0;--chat:#6f6f6f}
+.chat{color:var(--chat);margin:0 0 12px;white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.chat b{color:var(--tfg);font-weight:400}
+.rule{border-top:1px solid var(--rule)}
+.prompt{padding:6px 0;white-space:pre}.ph{color:var(--ph)}
+.out{padding-top:7px;min-height:1.28em}
+.ln{white-space:pre;height:1.28em}
+.cell{display:inline-block;width:1ch;height:1.28em;vertical-align:top}
+.fitnote{margin:9px 2px 0;font-size:13px;color:var(--sub);min-height:1.5em}
+.fitnote b{color:var(--warn);font-weight:600}
+/* controls */
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:18px;padding:6px 0 70px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;min-width:0}
+.c-looks,.c-layout{grid-column:span 12}.c-show{grid-column:span 5}.c-color{grid-column:span 7}.c-details{grid-column:span 5}.c-apply{grid-column:span 7}
+.card h3{margin:0 0 4px;font-size:17px;font-weight:600;display:flex;gap:10px;align-items:center}
+.step{font:600 12px/1 Consolas,monospace;color:var(--clay);background:var(--clay-bg);border-radius:6px;padding:5px 6px}
+.card > p{margin:0 0 16px;color:var(--sub);font-size:14px}
+.layouts,.looks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.looks{grid-template-columns:repeat(2,minmax(0,1fr))}
+.opt{all:unset;cursor:pointer;display:flex;flex-direction:column;min-width:0;background:var(--panel2);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;transition:border-color .15s,background .15s}
+.opt:hover{border-color:#4a4642}
+.opt[aria-pressed=true]{border-color:var(--clay);background:#26201c}
+.opt > strong{display:block;font-size:14.5px;font-weight:600}
+.opt > span{display:block;color:var(--sub);font-size:13px;margin-top:2px}
+.thumb{margin:0 0 10px;border-radius:8px;background:#181818;padding:8px 10px;height:74px;overflow:hidden;display:flex;align-items:center;-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent)}
+.thumb.light{background:#fff}
+.thumb > div{font:10.5px/1.28 Consolas,monospace;color:#ccc;width:max-content}
+.badge{display:inline-block;margin-left:6px;font-size:11px;font-weight:600;color:var(--clay);background:var(--clay-bg);padding:1px 7px;border-radius:999px;vertical-align:2px}
+/* what to show */
+.row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line);background:var(--panel)}
+.row:first-child{border-top:0}
+.row .txt{flex:1;min-width:0}
+.row .t{font-weight:550}.row .d{color:var(--mute);font-size:13px}
+.row .d em{font-style:normal;color:var(--warn)}
+.row.dragging{opacity:.45}
+.row.over{box-shadow:0 -2px 0 var(--clay)}
+.grip{cursor:grab;color:var(--mute);font-size:15px;letter-spacing:-2px;user-select:none;width:14px;flex:0 0 auto}
+.grip.none{cursor:default;visibility:hidden}
+.mv{all:unset;cursor:pointer;color:var(--mute);width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:12px}
+.mv:hover{background:#2a2825;color:var(--ink)}
+.mv[disabled]{opacity:.25;cursor:default;background:none}
+.sw{all:unset;cursor:pointer;flex:0 0 auto;width:42px;height:24px;border-radius:999px;background:#3a3734;position:relative;transition:background .15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#cfcac3;transition:transform .18s cubic-bezier(.3,.7,.4,1)}
+.sw[aria-checked=true]{background:var(--clay)}
+.sw[aria-checked=true]::after{transform:translateX(18px);background:#fff}
+.sw[disabled]{opacity:.35;cursor:not-allowed}
+/* colours */
+.presets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 16px}
+.preset .chips{display:flex;gap:5px;margin:0 0 8px}
+.preset .chips i{width:18px;height:18px;border-radius:5px}
+.customhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 8px;font-size:13.5px;color:var(--sub);flex-wrap:wrap}
+.custom{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.custom label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--sub)}
+.custom input{width:100%;height:34px;border:1px solid var(--line);border-radius:8px;background:none;padding:2px;cursor:pointer}
+.ratio{font-size:12px;color:var(--mute)}
+.ratio.bad{color:var(--warn);font-weight:600}
+.hint{color:var(--mute);font-size:12.5px;margin:10px 0 0}
+/* details */
+.drow{display:flex;justify-content:space-between;align-items:center;gap:10px 14px;padding:10px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.drow:first-child{border-top:0}
+.drow .t{font-weight:550}.drow .d{color:var(--mute);font-size:13px}
+/* use it */
+.sub{display:flex;gap:12px;margin:0 0 16px}
+.sub .num{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--sub);margin-top:1px}
+.sub .body{flex:1;min-width:0}
+.sub .t{font-weight:600;margin:0 0 6px}
+.cmd{display:flex;gap:8px;align-items:stretch;margin:0 0 8px}
+.cmd code{flex:1;min-width:0;background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:10px 13px;font:13px/1.5 Consolas,monospace;color:#e8e3dc;word-break:break-all}
+.btn{all:unset;cursor:pointer;background:var(--clay);color:#1a0f0a;font-weight:650;border-radius:10px;padding:0 16px;display:flex;align-items:center;font-size:13.5px;white-space:nowrap}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--sub);padding:7px 14px;font-weight:500;font-size:13px}
+.note{color:var(--mute);font-size:12.5px;margin:0}
+.tell{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--sub);font-size:14px;margin:0 0 4px}
+.tell code{color:var(--ink);font:13px Consolas,monospace;background:#0d0d0c;padding:2px 7px;border-radius:6px}
+details{margin-top:12px}
+summary{cursor:pointer;color:var(--sub);font-size:13.5px}
+pre{background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font:12.5px/1.5 Consolas,monospace;color:#d6d1ca;overflow:auto;margin:10px 0 0}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+.toast{color:var(--sub);font-size:13px}
+@media (max-width:1000px){.c-show,.c-color,.c-details,.c-apply{grid-column:span 12}.layouts,.looks{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){
+  .wrap{padding:0 16px}
+  .hero{padding:28px 0 10px}
+  h1{font-size:30px}.lede{font-size:15.5px}
+  .stage{position:static;padding-bottom:14px}
+  .term{font-size:11.5px;padding:12px 12px 14px}
+  .layouts,.looks,.presets{grid-template-columns:minmax(0,1fr)}
+  .custom{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card{padding:16px}
+  .cmd{flex-direction:column}.btn{justify-content:center;padding:10px 16px}
+}
+button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <span class="kicker"><i></i>Juice</span>
+    <h1>Make the status line yours</h1>
+    <p class="lede">Start from a ready-made look or build your own, then paste one line into Claude Code. The preview is drawn by the same code the status line uses, so what you see is what you get.</p>
+  </header>
+</div>
+
+<div class="stage"><div class="wrap">
+  <div class="stagehead">
+    <h2>Live preview</h2>
+    <div class="tools" role="group" aria-label="Preview as">
+      <span class="lab">Plan</span><div class="seg" role="group" aria-label="Plan" data-view="plan"><button data-v="pro">Pro</button><button data-v="max">Max</button><button data-v="payg">API key</button></div>
+      <label class="lab" for="model">Model</label><select id="model"><option value="Opus 5.5">Opus 5.5</option><option value="Sonnet 5.5">Sonnet 5.5</option><option value="Fable 5.1">Fable 5.1</option><option value="Haiku 5.5">Haiku 5.5</option></select>
+      <span class="lab">Window</span><div class="seg" role="group" aria-label="Window width" data-view="width"><button data-v="small">Small</button><button data-v="medium">Medium</button><button data-v="wide">Wide</button></div>
+      <div class="seg" role="group" aria-label="Terminal colour" data-view="term"><button data-v="dark">Dark</button><button data-v="light">Light</button></div>
+      <div class="seg" role="group" aria-label="Situation" data-view="state"><button data-v="quiet">Quiet</button><button data-v="busy">Busy</button><button data-v="trouble">About to run out</button></div>
+    </div>
+  </div>
+  <div class="win" id="win">
+    <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span id="wintitle">Claude Code — ~/my-project</span><span class="cols" id="cols"></span></div>
+    <div class="term">
+      <div class="chat"><b>●</b> I've added the dark mode toggle to the settings page and updated the tests.</div>
+      <div class="rule"></div><div class="prompt">&gt; <span class="ph">Try "make the header sticky"</span></div><div class="rule"></div>
+      <div class="out" id="out"></div>
+    </div>
+  </div>
+  <p class="fitnote" id="fitnote" aria-live="polite"></p>
+</div></div>
+
+<main class="wrap grid">
+  <section class="card c-looks">
+    <h3><span class="step">1</span>Start from a look</h3>
+    <p>One click sets the layout, the colours and what shows. Hover over one to see it in the preview, then change anything you like below.</p>
+    <div class="looks" id="looks"></div>
+  </section>
+
+  <section class="card c-layout">
+    <h3><span class="step">2</span>Layout</h3>
+    <p>How the batteries are arranged. Hover over one to see it in the preview, click to use it.</p>
+    <div class="layouts" id="layouts"></div>
+  </section>
+
+  <section class="card c-show">
+    <h3><span class="step">3</span>What to show</h3>
+    <p>Turn off what you don't need, and drag the batteries into the order you like.</p>
+    <div id="show"></div>
+  </section>
+
+  <section class="card c-color">
+    <h3><span class="step">4</span>Colours</h3>
+    <p>Green means plenty left, amber means going a bit fast, red means almost empty. Pick a set, or make your own.</p>
+    <div class="presets" id="presets"></div>
+    <div class="customhead"><span id="customfor"></span><span class="note">Each terminal colour keeps its own picks.</span></div>
+    <div class="custom" id="custom"></div>
+  </section>
+
+  <section class="card c-details">
+    <h3><span class="step">5</span>Details</h3>
+    <p>Small things that change how it reads.</p>
+    <div id="details"></div>
+  </section>
+
+  <section class="card c-apply">
+    <h3><span class="step">6</span>Use it</h3>
+    <p>Two steps in Claude Code. The status line changes as soon as you press Enter.</p>
+    <div class="sub"><span class="num">1</span><div class="body">
+      <div class="t">First time? Install it</div>
+      <div class="cmd"><code id="install1"></code><button class="btn ghost" type="button" data-copy="install1">Copy</button></div>
+      <div class="cmd"><code id="install2"></code><button class="btn ghost" type="button" data-copy="install2">Copy</button></div>
+      <div class="cmd"><code id="install3"></code><button class="btn ghost" type="button" data-copy="install3">Copy</button></div>
+    </div></div>
+    <div class="sub"><span class="num">2</span><div class="body">
+      <div class="t">Apply your settings</div>
+      <div class="cmd"><code id="cmd"></code><button class="btn" type="button" data-copy="cmd">Copy</button></div>
+    </div></div>
+    <div class="tell">Prefer to just say it? Type <code>/juice</code> and ask in your own words, like <code>/juice hide the cost and use bigger batteries</code>. <code>/juice customize</code> opens this page with your current settings.</div>
+    <details><summary>Show the settings file (for the technical folks)</summary><pre id="json"></pre></details>
+    <div class="foot"><span class="toast" id="toast" aria-live="polite"></span><span style="display:flex;gap:8px"><button class="btn ghost" id="link" type="button">Copy link to these settings</button><button class="btn ghost" id="reset" type="button">Reset to default</button></span></div>
+  </section>
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

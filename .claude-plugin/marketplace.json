@@ -1,0 +1,11 @@
+{
+  "name": "juice",
+  "owner": { "name": "KIRE" },
+  "plugins": [
+    {
+      "name": "juice",
+      "source": "./",
+      "description": "A battery-style status line for Claude Code that shows how much of your usage you have used, and when it resets."
+    }
+  ]
+}
