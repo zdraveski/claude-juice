@@ -13,7 +13,7 @@
 - [ ] On macOS and Linux, a hung badge command is killed with its child processes after 2 seconds (check that no stray processes are left).
 - [x] In the web customizer, drag-and-drop reorder, the arrow buttons, every Copy button and Copy link work (automated in `scripts/check-customizer.js`).
 - [x] On a Max account, the Fable battery appears and matches Anthropic's usage numbers (24% = 24%, 2026-10-29).
-- [ ] The status line works on Node 18 and Node 20.
+- [x] The status line works on Node 18 and Node 20: the full test suite, including the real launcher run, passes on 18.20.8 and 20.9.0 (official portable builds, Windows, 2026-10-29).
 - [x] `node scripts/check-customizer.js` passes all eight browser checks (needs Playwright: `npm i -g playwright`).
 - [x] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting (56 ms on a 2011 i5, 2026-10-29).
 - [ ] Bump `version` in `.claude-plugin/plugin.json` and `package.json` together on every release (Claude Code uses plugin.json's version to detect updates).
