@@ -2,7 +2,7 @@
 
 Juice replaces the row under your Claude Code prompt with little batteries. Each one shows how much of something you have **used**, counted the same way as Anthropic's usage page, and when it resets.
 
-![The default layout](docs/images/layout-bar.png)
+![claude-juice: your Claude usage at a glance. A battery-style status line for Claude Code, showing Memory, Session, Fable and Weekly with reset countdowns.](docs/images/hero.png)
 
 ## What the batteries mean
 
@@ -29,11 +29,17 @@ Memory is simpler: it just turns amber, then red, as the chat fills up.
 
 Pro and Max plans show the limits that apply to them. If you pay as you go with an API key, you see your cost instead.
 
+## What you get
+
+![Everything juice gives you: used % like Anthropic, a countdown to every reset, ! and !! warnings, a violet Fable battery, 12 ready-made looks, 13 colour sets, live numbers in every window, the /juice command, and a one-step undo.](docs/images/features.png)
+
 ## Four layouts
 
-Pick the one you like. The status bar is the default (shown at the top).
+Pick the one you like. The status bar is the default.
 
 **Status bar** keeps everything on one line.
+
+![Status bar](docs/images/layout-bar.png)
 
 **Classic segments** draws each battery as five bars, like an old phone.
 
