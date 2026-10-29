@@ -1,7 +1,7 @@
 # Manual checklist (inside Claude Code)
 
-- [ ] `/plugin marketplace add <path-to-this-repo>` then `/plugin install juice@juice` succeeds.
-- [ ] Typing `/juice` resolves to this plugin's skill (shows as `juice:juice` or `juice`).
+- [x] `/plugin marketplace add zdraveski/claude-juice` then `/plugin install juice@juice` succeeds (2026-10-29, Windows).
+- [x] Typing `/juice` resolves to this plugin's skill (shows as `juice:juice`).
 - [ ] `${CLAUDE_PLUGIN_ROOT}` is expanded in the Bash call and runs without a permission prompt.
 - [ ] `/juice setup` shows the status line, and the old entry is in `juice-backup.json`.
 - [ ] `/juice make it the panel layout` sets `layout: 'panel'` in `juice.json` and the status line changes.
@@ -12,10 +12,10 @@
 - [ ] On macOS, the Keychain prompt for Fable appears only after `fable=on`.
 - [ ] On macOS and Linux, a hung badge command is killed with its child processes after 2 seconds (check that no stray processes are left).
 - [ ] In the web customizer, drag-and-drop reorder and both Copy buttons work.
-- [ ] On a Max account, the Fable battery appears and matches claude.ai's usage page.
+- [x] On a Max account, the Fable battery appears and matches Anthropic's usage numbers (24% = 24%, 2026-10-29).
 - [ ] The status line works on Node 18 and Node 20.
-- [ ] `node scripts/check-customizer.js` passes all six browser checks (needs Playwright: `npm i -g playwright`).
-- [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting (56 ms on a 2011 i5, 2026-10-29).
+- [x] `node scripts/check-customizer.js` passes all six browser checks (needs Playwright: `npm i -g playwright`).
+- [x] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting (56 ms on a 2011 i5, 2026-10-29).
 - [ ] Bump `version` in `.claude-plugin/plugin.json` and `package.json` together on every release (Claude Code uses plugin.json's version to detect updates).
 
 # Terminal matrix (KIRE, needs real terminals)
