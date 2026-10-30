@@ -20,6 +20,11 @@ test('on pace to run out is crit', () => {
   assert.ok(!('runsOut' in A(88, 7500, H5)) && !('outAt' in A(88, 7500, H5)));
 });
 
+test('fast pace under half used is amber, not red', () => {
+  assert.equal(A(19, 537840, D7).level, 'warn'); // 19% a day into the week
+  assert.equal(A(50, 320000, D7).level, 'crit');
+});
+
 test('gates', () => {
   assert.equal(A(40, 17100, H5).level, 'ok');
   assert.equal(A(3, 9000, H5).level, 'ok');

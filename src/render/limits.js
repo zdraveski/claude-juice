@@ -12,7 +12,8 @@ export function assess(limit, now) {
     const elapsed = win - secsLeft;
     if (elapsed >= win * 0.1) projected = (used / elapsed) * win;
   }
-  out.level = used >= 90 || projected >= 100 ? 'crit' : projected >= 85 ? 'warn' : 'ok';
+  // Early pace is noisy (one busy day projects past 100%), so pace alone only reaches red once half is gone.
+  out.level = used >= 90 || (used >= 50 && projected >= 100) ? 'crit' : projected >= 85 ? 'warn' : 'ok';
   return out;
 }
 
