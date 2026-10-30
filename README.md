@@ -51,7 +51,7 @@ A thin line on these batteries marks where you would be if you used the limit ev
 
 The Fable bar is violet while it is fine, so you can tell it apart at a glance. When it goes fast or runs low, it turns amber or red with ! or !! like the others.
 
-![Colours tell you how it is going: green means plenty left, amber with ! means going a bit fast, red with !! means nearly out, and Fable is violet while it is fine.](docs/images/colours.png)
+![Colours tell you how it is going: green means plenty left, amber with ! means going a bit fast, red with !! means nearly out and says when it runs out, and Fable is violet while it is fine. A thin line on each battery marks an even pace.](docs/images/colours.png)
 
 Memory has no pace or reset. It turns amber, then red, as the chat fills up.
 

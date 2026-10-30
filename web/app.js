@@ -56,7 +56,8 @@ function glyph(ch, f, b0) {
   if (i >= 0) { const p = ((i + 1) / 8) * 100; return `linear-gradient(90deg,${f} ${p}%,${b} ${p}%)`; }
   i = LOWERS.indexOf(ch);
   if (i >= 0) { const p = ((i + 1) / 8) * 100; return `linear-gradient(0deg,${f} ${p}%,${b} ${p}%)`; }
-  if (ch === '│') return `linear-gradient(90deg,${b} 46%,${f} 46%,${f} 54%,${b} 54%)`;
+  // At least 1.5px wide, so the even-pace tick stays visible at normal zoom.
+  if (ch === '│') return `linear-gradient(90deg,${b} calc(50% - .75px),${f} calc(50% - .75px),${f} calc(50% + .75px),${b} calc(50% + .75px))`;
   if (ch === '') return `radial-gradient(ellipse 100% 50% at 100% 50%,${f} 97%,transparent 100%) ${b}`;
   if (ch === '') return `radial-gradient(ellipse 100% 50% at 0% 50%,${f} 97%,transparent 100%) ${b}`;
   return null;
