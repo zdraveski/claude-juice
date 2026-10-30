@@ -73,7 +73,7 @@ const spaced = (ctx, i) => (MARK[i.level] ? (ctx.fit.shortWords ? '' : ' ') + ma
 
 export const LAYOUTS = {
   bar: (data, ctx) => join([badges(data, ctx), head(data, ctx),
-    ...items(data, ctx).map((i) => name(ctx, i) + ' ' + batteryPct(ctx, i.used, paint(i), ctx.fit.small ? 5 : 7) + spaced(ctx, i) + withSay(ctx, i, ' ')),
+    ...items(data, ctx).map((i) => name(ctx, i) + ' ' + batteryPct(ctx, i.used, paint(i), ctx.fit.small ? 5 : 7, i.assessed?.elapsed) + spaced(ctx, i) + withSay(ctx, i, ' ')),
     cost(data, ctx)], ctx.fit.tight ? '  ' : '    '),
 
   segments: (data, ctx) => join([badges(data, ctx), head(data, ctx),
@@ -85,13 +85,13 @@ export const LAYOUTS = {
     if (!it.length) return join([badges(data, ctx), head(data, ctx), cost(data, ctx)]);
     const [big, ...rest] = it, bigNote = say(ctx, big), t = ctx.fit.tight;
     return join([badges(data, ctx), head(data, ctx, false),
-      name(ctx, big, true) + ' ' + battery(ctx, big.used, paint(big), ctx.fit.small ? 6 : 12) + ' ' + num(ctx, bold(`${big.used}% used`), big.level) + spaced(ctx, big) + (bigNote ? lbl(ctx, ' · ') + bigNote : ''),
+      name(ctx, big, true) + ' ' + battery(ctx, big.used, paint(big), ctx.fit.small ? 6 : 12, big.assessed?.elapsed) + ' ' + num(ctx, bold(`${big.used}% used`), big.level) + spaced(ctx, big) + (bigNote ? lbl(ctx, ' · ') + bigNote : ''),
       rest.map((i) => name(ctx, i) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i)).join(lbl(ctx, t ? ' · ' : '  ·  ')), cost(data, ctx)],
     lbl(ctx, t ? ' │ ' : '   │   '));
   },
 
   panel: (data, ctx) => {
-    const row = (i) => name(ctx, i, true) + ' '.repeat(Math.max(1, 13 - i.long.length)) + batteryLow(ctx, i.used, paint(i)) + '  ' + num(ctx, `${i.used}%`.padStart(4), i.level) + lbl(ctx, ' used ') + mark(ctx, i) + ' '.repeat(3 - MARK[i.level].length)
+    const row = (i) => name(ctx, i, true) + ' '.repeat(Math.max(1, 13 - i.long.length)) + batteryLow(ctx, i.used, paint(i), 14, i.assessed?.elapsed) + '  ' + num(ctx, `${i.used}%`.padStart(4), i.level) + lbl(ctx, ' used ') + mark(ctx, i) + ' '.repeat(3 - MARK[i.level].length)
       + (wants(ctx, i) ? say(ctx, i) : i.id === 'memory' ? lbl(ctx, 'in this chat') : '');
     return [join([badges(data, ctx), head(data, ctx), cost(data, ctx)], lbl(ctx, '     ·     ')), ...items(data, ctx).map(row)].filter(Boolean).join('\n');
   },

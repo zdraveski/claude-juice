@@ -1,7 +1,7 @@
 import { NOW, at } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { countdown, limitNote, memoryNote, LABELS, EFFORT } from '../src/render/words.js';
+import { countdown, clock, limitNote, memoryNote, LABELS, EFFORT } from '../src/render/words.js';
 import { assess } from '../src/render/limits.js';
 
 test('countdown: minutes, hours and minutes, or days and hours', () => {
@@ -30,8 +30,15 @@ test('limitNote: always the countdown, coloured by how it is going', () => {
   assert.deepEqual(limitNote({ level: 'warn', resetsAt: at(7800) }, NOW), { text: 'resets in 2h 10m', tone: 'watch' });
   const out = assess({ used: 88, resetsAt: at(7500), windowSec: win }, NOW);
   assert.equal(out.level, 'crit');
-  assert.deepEqual(limitNote(out, NOW), { text: 'resets in 2h 5m', tone: 'bad' });
-  assert.equal(limitNote(out, NOW, { squeezed: true }).text, 'resets 2h 5m');
+  assert.deepEqual(limitNote(out, NOW), { text: 'runs out ~2:44 PM · resets in 2h 5m', tone: 'bad' });
+  assert.equal(limitNote(out, NOW, { squeezed: true }).text, 'resets 2h 5m', 'a tight window keeps only the countdown');
+});
+
+test('clock: AM/PM today, month and day on another day', () => {
+  assert.equal(clock(at(1432), NOW), '2:44 PM');
+  assert.equal(clock(at(10 * 3600), NOW), 'Oct 29, 12:20 AM', 'after midnight is another day');
+  assert.equal(clock(at(4 * 86400 + 3600), NOW), 'Nov 1, 3:20 PM');
+  assert.equal(clock(at(-14 * 3600), NOW), '12:20 AM');
 });
 
 test('limitNote without a reset time falls back to words', () => {

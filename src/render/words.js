@@ -8,11 +8,23 @@ export function countdown(t, now) {
   return h ? (min ? `${h}h ${min}m` : `${h}h`) : `${min}m`;
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "2:44 PM" today, "Nov 1, 3:20 PM" on another day. A real date, never "tomorrow" or a weekday.
+export function clock(t, now) {
+  const d = new Date(Math.round(t.getTime() / 60000) * 60000), h = d.getHours();
+  const time = `${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+  return d.toDateString() === now.toDateString() ? time : `${MONTHS[d.getMonth()]} ${d.getDate()}, ${time}`;
+}
+
 const TONE = { ok: 'mute', warn: 'watch', crit: 'bad' };
 
-// The countdown is always shown and its colour does the warning; words only when there is no reset time.
+// The countdown is always shown and its colour does the warning; red also says when it runs out at this pace.
 export function limitNote(a, now, { squeezed = false } = {}) {
-  if (a.resetsAt) return { text: `resets ${squeezed ? '' : 'in '}${countdown(a.resetsAt, now)}`, tone: TONE[a.level] };
+  if (a.resetsAt) {
+    const left = `resets ${squeezed ? '' : 'in '}${countdown(a.resetsAt, now)}`;
+    return { text: a.outAt && !squeezed ? `runs out ~${clock(a.outAt, now)} · ${left}` : left, tone: TONE[a.level] };
+  }
   if (a.level === 'crit') return { text: squeezed ? 'low' : 'almost empty', tone: 'bad' };
   if (a.level === 'warn') return { text: squeezed ? 'fast' : 'a bit fast', tone: 'watch' };
   return { text: '', tone: 'mute' };

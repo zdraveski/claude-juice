@@ -45,7 +45,9 @@ The colours for Session, Weekly and Fable weekly depend on your pace as well as 
 
 - Green means plenty left.
 - Amber with ! means you are going a bit fast. At this pace you could run out before it resets.
-- Red with !! means almost empty, or more than half used and on track to run out before it resets.
+- Red with !! means almost empty, or more than half used and on track to run out before it resets. A red battery also says when it runs out at this pace, for example "runs out ~4:04 PM · resets in 2h 10m".
+
+A thin line on these batteries marks where you would be if you used the limit evenly. If the colour reaches past the line, you are going faster than that. Before the line, you have time to spare.
 
 The Fable bar is violet while it is fine, so you can tell it apart at a glance. When it goes fast or runs low, it turns amber or red with ! or !! like the others.
 

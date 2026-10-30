@@ -20,21 +20,32 @@ const cell = (ctx, c, cells, i) => {
   return bg(ctx.P.casing, fg(c, f >= 1 ? '█' : EIGHTH[Math.floor(f * 8)]));
 };
 
-export function battery(ctx, pct, level, w = 8) {
-  const c = tone(ctx, level), cells = (pct / 100) * w;
+// The even-pace tick: the cell where the fill would be now if the limit were used evenly (elapsed is 0..1).
+// Fill past the tick means going fast, which reads without colour.
+const tickAt = (elapsed, w) => (elapsed > 0 && elapsed < 1 ? Math.floor(elapsed * w) : -1);
+const tick = (ctx, c, cells, i) => (cells - i >= 0.5 ? bg(c, fg(ctx.P.casing, '│')) : bg(ctx.P.casing, fg(ctx.P.text, '│')));
+
+export function battery(ctx, pct, level, w = 8, elapsed) {
+  const c = tone(ctx, level), cells = (pct / 100) * w, t = tickAt(elapsed, w);
   let s = '';
-  for (let i = 0; i < w; i++) s += cell(ctx, c, cells, i);
+  for (let i = 0; i < w; i++) s += i === t ? tick(ctx, c, cells, i) : cell(ctx, c, cells, i);
   return shell(ctx, s, pct > 0 ? c : ctx.P.casing, pct >= 100 ? c : ctx.P.casing);
 }
 
-export function batteryPct(ctx, pct, level, w = 7) {
+export function batteryPct(ctx, pct, level, w = 7, elapsed) {
   const c = tone(ctx, level), text = `${pct}%`, cells = (pct / 100) * w, full = Math.round(cells), n = text.length, mid = Math.floor((w - n) / 2);
   // Keep the digits together: centre them unless the fill edge would cut through.
-  const t0 = full >= mid + n || full <= mid ? mid : w - full >= n ? full : 0, onFill = t0 + n <= full;
+  let t0 = full >= mid + n || full <= mid ? mid : w - full >= n ? full : 0, t = tickAt(elapsed, w);
+  // The tick never covers a digit: the digits move to the nearest spot clear of it and the fill edge, else the tick goes.
+  if (t >= t0 && t < t0 + n) {
+    const free = [...Array(w - n + 1).keys()].filter((k) => (k + n <= full || k >= full) && !(t >= k && t < k + n));
+    if (free.length) t0 = free.sort((a, b) => Math.abs(a - t0) - Math.abs(b - t0))[0]; else t = -1;
+  }
+  const onFill = t0 + n <= full;
   let s = '';
   for (let i = 0; i < w; i++) {
     if (i >= t0 && i < t0 + n) s += onFill ? bg(c, fg(inkOn(c), bold(text[i - t0]))) : bg(ctx.P.casing, fg(c, bold(text[i - t0])));
-    else s += cell(ctx, c, cells, i);
+    else s += i === t ? tick(ctx, c, cells, i) : cell(ctx, c, cells, i);
   }
   return shell(ctx, s, pct > 0 && (t0 > 0 || onFill) ? c : ctx.P.casing, pct >= 100 ? c : ctx.P.casing);
 }
@@ -46,9 +57,9 @@ export function batterySeg(ctx, pct, level, n = 5) {
   return shell(ctx, bg(ctx.P.casing, ' ') + s, ctx.P.casing, ctx.P.casing);
 }
 
-export function batteryLow(ctx, pct, level, w = 14) {
-  const lit = Math.round((pct / 100) * w);
+export function batteryLow(ctx, pct, level, w = 14, elapsed) {
+  const lit = Math.round((pct / 100) * w), t = tickAt(elapsed, w);
   let s = '';
-  for (let i = 0; i < w; i++) s += fg(i < lit ? tone(ctx, level) : ctx.P.casing, '▆');
+  for (let i = 0; i < w; i++) s += i === t ? fg(ctx.P.text, '│') : fg(i < lit ? tone(ctx, level) : ctx.P.casing, '▆');
   return s + fg(ctx.P.nub, '■');
 }

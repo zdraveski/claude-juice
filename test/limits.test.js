@@ -17,7 +17,20 @@ test('ok / warn / crit levels', () => {
 test('on pace to run out is crit', () => {
   assert.equal(A(88, 7500, H5).level, 'crit');
   assert.equal(A(95, 93600, D7).level, 'crit');
-  assert.ok(!('runsOut' in A(88, 7500, H5)) && !('outAt' in A(88, 7500, H5)));
+});
+
+test('red on pace says when it runs out; amber, green and a slow 90% do not', () => {
+  assert.equal(Math.round((A(88, 7500, H5).outAt - at(0)) / 1000), 1432); // 12% more at 88% per 10500s
+  assert.equal(A(19, 537840, D7).outAt, undefined);
+  assert.equal(A(12, 13680, H5).outAt, undefined);
+  assert.equal(A(92, 100, H5).outAt, undefined, 'slow enough to last until the reset');
+  assert.equal(A(100, 3600, H5).outAt, undefined, 'already out');
+});
+
+test('elapsed is the share of the window gone, for the even-pace tick', () => {
+  assert.equal(A(10, 9000, H5).elapsed, 0.5);
+  assert.equal(A(10, 9000, null).elapsed, undefined);
+  assert.equal(A(10, -60, H5).elapsed, undefined);
 });
 
 test('fast pace under half used is amber, not red', () => {

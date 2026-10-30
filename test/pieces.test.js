@@ -55,6 +55,29 @@ test('batteryPct: text on fill uses ink colour as its foreground', () => {
   for (const c of run) assert.deepEqual([c.bg, c.fg], [rgb(ctx.P.good, 48), rgb(inkOn(ctx.P.good), 38)]);
 });
 
+test('even-pace tick: one │ where the even pace would be, none without a window', () => {
+  const ctx = mk();
+  assert.equal(strip(battery(ctx, 19, 'warn', 10, 0.11)).indexOf('│'), 1);
+  assert.equal(strip(battery(ctx, 62, 'crit', 10, 0.57)).indexOf('│'), 5);
+  assert.ok(!strip(battery(ctx, 62, 'crit', 10)).includes('│'));
+  assert.ok(!strip(battery(ctx, 62, 'crit', 10, 0)).includes('│'), 'nothing to mark at the very start');
+  assert.equal(strip(batteryLow(ctx, 40, 'ok', 14, 0.5)).indexOf('│'), 7);
+});
+
+// 62% halfway through: the tick would land on the centred digits, so they move clear of it and of the fill edge.
+for (const [pct, w, tick] of [[62, 7, 0.57], [19, 7, 0.11], [35, 7, 0.5], [82, 7, 0.5]]) {
+  test(`batteryPct: ${pct}% with tick at ${tick} keeps the digits whole`, () => {
+    const body = strip(batteryPct(mk(), pct, 'ok', w, tick)).slice(0, w);
+    assert.ok(body.includes(`${pct}%`), body);
+    assert.equal(body.indexOf('│'), Math.floor(tick * w), body);
+  });
+}
+
+test('batteryPct: no room for both, the digits win', () => {
+  const body = strip(batteryPct(mk(), 60, 'ok', 5, 0.5)).slice(0, 5);
+  assert.ok(body.includes('60%') && !body.includes('│'), body);
+});
+
 test('batterySeg: 5 segments, 3 lit', () => {
   const ctx = mk(), s = batterySeg(ctx, 53, 'ok');
   assert.equal([...strip(s)].filter((c) => c === '▊').length, 5);
