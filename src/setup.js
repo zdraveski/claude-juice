@@ -19,9 +19,11 @@ const writeSettings = (p, v) => writeJsonAtomic(existsSync(p.claudeSettings) ? r
 // C:\ or c:\, and settings can be copied from another machine.
 const NODE = String.raw`(?:node|"(?:[^"]*[\\/])?node(?:js)?(?:\.exe)?"|\S*[\\/]node(?:js)?(?:\.exe)?)`;
 const JUICE_COMMAND = new RegExp(String.raw`^\s*(?:PATH="[^"]*"\s+)?${NODE}\s+"[^"]*[\\/]juice-statusline\.mjs"\s*$`, 'i');
-const isJuice = (statusLine) => typeof statusLine?.command === 'string' && JUICE_COMMAND.test(statusLine.command);
+export const isJuice = (statusLine) => typeof statusLine?.command === 'string' && JUICE_COMMAND.test(statusLine.command);
 // Windows paths ignore case and slash direction.
 const samePath = (a, b, platform) => (platform === 'win32' ? fwd(a).toLowerCase() === fwd(b).toLowerCase() : a === b);
+// Whether a juice line runs this config folder's launcher, whatever way it finds Node.
+export const runsLauncher = (p, command, platform) => samePath(command.replace(/^.*\s(?="[^"]*"\s*$)/, '').trim(), `"${fwd(p.launcherFile)}"`, platform);
 
 // Claude Code started from a desktop app on macOS or Linux runs the status line without the shell's PATH,
 // where Homebrew's or nvm's node is missing. So the folder of the first node on PATH goes in front of PATH:
@@ -44,7 +46,7 @@ const SHELL_UNSAFE = /[$`%]/;
 // Settings that beat the person's own: a project's .claude/settings(.local).json in this folder or any folder
 // above it, and disableAllHooks, which turns status lines off too. juice can't change those, but it can say so
 // instead of claiming success.
-function overrides(p, settings, cwd, platform) {
+export function overrides(p, settings, cwd, platform) {
   const out = [];
   if (settings.disableAllHooks === true) out.push("Your Claude Code settings turn hooks off (disableAllHooks), which hides status lines too, so juice won't show until that is turned back on.");
   // The person's own settings folders are not a project's: the config folder, and the home folder's .claude.
@@ -66,7 +68,7 @@ export class NeedsConfirm extends Error {}
 
 // Missing file counts as {}; anything unparseable or not an object aborts before we write anything.
 // PowerShell 5.1 writes a BOM, so strip one.
-function readClaudeSettings(p) {
+export function readClaudeSettings(p) {
   if (!existsSync(p.claudeSettings)) return {};
   let v;
   try { v = JSON.parse(readFileSync(p.claudeSettings, 'utf8').replace(/^﻿/, '')); } catch { v = null; }
@@ -122,7 +124,7 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   } else if (ours) {
     // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing;
     // one with the right launcher but an older way of finding Node just gets the current one.
-    const sameLauncher = samePath(settings.statusLine.command.replace(/^.*\s(?="[^"]*"\s*$)/, '').trim(), `"${fwd(p.launcherFile)}"`, platform);
+    const sameLauncher = runsLauncher(p, settings.statusLine.command, platform);
     writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: settings.statusLine.refreshInterval || REFRESH_SECONDS } });
     lines.push(sameLauncher ? 'juice is your status line, now set up to find Node even when Claude Code starts from an app.'
       : 'juice was your status line but pointed somewhere else, so it now points at this copy of juice.');

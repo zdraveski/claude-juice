@@ -141,6 +141,8 @@ In a narrow window juice makes room step by step: first badges, reset times, the
 
 ## If something looks wrong
 
+Type `/juice doctor` first. It checks, in plain words, whether juice is your status line, which juice it runs, whether drawing works with your settings, when juice last saw your limits, how the Fable battery is doing and the last problem the status line hit, and says what to do about each. It never shows your badge commands or another status line's command. If you ask for help, include what it says.
+
 - **The status line is empty.** Type `/juice setup` again; it repairs the line and says if a project setting or `disableAllHooks` is hiding it. If it is still empty, check that Node is installed (type `node --version` in a terminal; you need 18 or newer, from nodejs.org), then restart Claude Code.
 - **The text is hard to read on a light background.** Type `/juice my terminal is light`.
 - **You see boxes or question marks instead of round battery ends.** Type `/juice use plain ends`.

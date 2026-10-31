@@ -2,7 +2,7 @@
 import { join } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { paths } from './paths.js';
-import { readJson, takeLock } from './cache.js';
+import { readJson, takeLock, writeJsonAtomic, HOT_WRITE } from './cache.js';
 import { loadSettings } from './settings.js';
 import { fableEnabled } from './schema.js';
 import { detectTerminal, readClaudeTheme } from './terminal.js';
@@ -16,8 +16,9 @@ const quiet = (fn) => { try { fn(); } catch {} };
 
 export async function runStatusLine({ stdinText, env, now, platform, spawnDetached }) {
   const stdin = parse(stdinText);
+  let p;
   try {
-    const p = paths(env);
+    p = paths(env);
     const { settings } = loadSettings(p);
     // Saved first, so this refresh already counts what it just saw against what other sessions saw.
     const extras = { lastSeen: remember(stdin, p, now) };
@@ -50,7 +51,13 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
       });
     }
     return text;
-  } catch {
+  } catch (e) {
+    // Kept for /juice doctor: the message and juice's own file and line, never a full path.
+    if (p) quiet(() => writeJsonAtomic(join(p.cacheDir, 'last-error.json'), {
+      at: Date.now(),
+      message: String(e?.message ?? e).slice(0, 300),
+      where: /([\w.-]+\.js):(\d+)/.exec(String(e?.stack).split('\n').slice(1).join('\n'))?.slice(1).join(':') ?? null,
+    }, HOT_WRITE));
     const name = stdin?.model?.display_name;
     return typeof name === 'string' ? strip(name) : '';
   }

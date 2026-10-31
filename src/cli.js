@@ -12,7 +12,8 @@ import { refreshBadges, addBadge, listBadges, removeBadge, unapprovedBadges } fr
 import { install, restore, fwd, NeedsConfirm } from './setup.js';
 
 const ROOT = new URL('..', import.meta.url);
-const USAGE = 'Usage: juice set <key=value>... | get | looks | setup | restore | customize | badges add|list|remove | refresh-fable | refresh-badges <key>';
+const USAGE = 'Usage: juice set <key=value>... | get | looks | setup | restore | customize | doctor | badges add|list|remove | refresh-fable | refresh-badges <key>';
+const version = () => JSON.parse(readFileSync(new URL('package.json', ROOT), 'utf8')).version;
 // Claude Code shows command output as plain text, so the previews drop colour and the rounded-end glyphs.
 const PREVIEW = { columns: 160, theme: 'dark', ends: 'plain', colorDepth: 'none' };
 
@@ -49,6 +50,11 @@ export async function main(argv, io) {
         return 0;
       }
       case 'restore': restore(p).forEach(io.out); return 0;
+      case 'doctor': {
+        const { doctor } = await import('./doctor.js'); // pulls in the launcher and badges, which other commands never need
+        doctor(p, { env: io.env, platform: io.platform, now: io.now, cwd: process.cwd(), version: version() }).forEach(io.out);
+        return 0;
+      }
       case 'customize': {
         const url = `${CUSTOMIZER_URL}#c=${encodeLink(loadSettings(p).settings)}`;
         io.out(url);
@@ -88,8 +94,7 @@ export async function main(argv, io) {
       case 'refresh-fable': {
         const { settings } = loadSettings(p);
         if (fableEnabled(settings.fable, io.platform)) {
-          const { version } = JSON.parse(readFileSync(new URL('package.json', ROOT), 'utf8'));
-          await refreshFable({ p, platform: io.platform, env: io.env, now: io.now, version });
+          await refreshFable({ p, platform: io.platform, env: io.env, now: io.now, version: version() });
         }
         return 0;
       }

@@ -1,9 +1,9 @@
 ---
 name: juice
 description: Change how your battery status line looks, in plain words
-argument-hint: "[what you want, or looks | look <number> | setup | restore | customize]"
+argument-hint: "[what you want, or looks | look <number> | setup | restore | customize | doctor]"
 disable-model-invocation: true
-allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" get), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" looks), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" set *), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" customize), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" setup), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" restore), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" badges list), Bash(node --version), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" get), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" looks), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" set *), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" customize), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" setup), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" restore), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" badges list), PowerShell(node --version)
+allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" get), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" looks), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" set *), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" customize), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" setup), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" restore), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" doctor), Bash(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" badges list), Bash(node --version), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" get), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" looks), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" set *), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" customize), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" setup), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" restore), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" doctor), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js" badges list), PowerShell(node --version)
 ---
 
 You help a non-technical person manage their juice status line. Use plain words and no jargon. The user typed: $ARGUMENTS
@@ -23,6 +23,7 @@ Steps:
 
 2. If the request is `setup`, `restore`, `customize` or `get`, run `JUICE <that word>` and explain the result in plain words.
    - If `setup` answers with exit code 2, the person's status line changed since juice saved a copy. Explain that in plain words and ask whether juice may replace it. Run `JUICE setup --yes` only after they agree.
+   - If the request is `doctor`, or the person says juice is empty, wrong or not working: run `JUICE doctor`. Show its lines exactly as they are, inside a code block, then explain each line starting with `!` in one plain sentence with what to do. Offer to run any `/juice` fix it names; never run setup or restore without asking.
 
 3. If the request is `looks`, or the user wants to see or browse the looks: run `JUICE looks` and show its output exactly as it is, inside a code block. Then say in one sentence that the previews have no colour here, and that to try one they type `/juice look` and its number, for example `/juice look 7`, which switches their real status line straight away, so they can try one after another. (Typing it as a new `/juice` request keeps it from asking for permission each time.)
    - If the request is `look` with a number or a name, run `JUICE set 'look=<id>'` using this numbered list: 1 juice, 2 basics, 3 spotlight, 4 everything, 5 retro, 6 quiet, 7 nightowl, 8 easy, 9 colorblind, 10 anywhere, 11 costwatch, 12 fablefirst (the same order and ids, in parentheses, as `JUICE looks` prints). Confirm in one sentence and remind them they can type `/juice look` with another number.
