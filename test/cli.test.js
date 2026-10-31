@@ -62,7 +62,27 @@ test('setup asks for a refresh every minute, and adds it to an older juice insta
   assert.equal(r.code, 0);
   assert.equal(json(join(d, 'settings.json')).statusLine.refreshInterval, 60);
   assert.deepEqual(json(join(d, 'juice-backup.json')).statusLine, OLD.statusLine, 'the saved old line is untouched');
-  assert.match((await run(d, ['setup'])).out, /already your status line/);
+  assert.match((await run(d, ['setup'])).out, /already your status line\. Nothing changed\./);
+});
+
+// Switching between a checkout and the plugin store only rewrites the launcher; setup must still say so.
+test('setup says when it points the launcher at another copy of juice', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD));
+  await run(d, ['setup']);
+  writeFileSync(join(d, 'juice-statusline.mjs'), 'const PINNED = "/somewhere/else";');
+  const r = await run(d, ['setup']);
+  assert.match(r.out, /already your status line, and now runs this copy of juice\./);
+  assert.doesNotMatch(r.out, /Nothing changed/);
+});
+
+// The doctor's advice for a status line problem is to run setup, so setup clears it.
+test('setup clears the status line problem the doctor reports', async () => {
+  const d = env();
+  mkdirSync(join(d, 'juice-cache'), { recursive: true });
+  writeFileSync(join(d, 'juice-cache', 'last-error.json'), JSON.stringify({ at: Date.now(), message: 'boom', where: 'statusline.js:42' }));
+  assert.equal((await run(d, ['setup'])).code, 0);
+  assert.equal(existsSync(join(d, 'juice-cache', 'last-error.json')), false);
 });
 
 test('looks lists all twelve, numbered with their ids, each with a plain-text preview', async () => {

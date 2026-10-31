@@ -107,6 +107,8 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   const launcher = inPluginCache
     ? template.replace(market, () => `const MARKET = ${JSON.stringify(fwd(pluginRoot).split('/plugins/cache/')[1].split('/')[0])};`)
     : template.replace(pin, () => `const PINNED = ${JSON.stringify(fwd(pluginRoot))};`);
+  let repointed;
+  try { repointed = readFileSync(p.launcherFile, 'utf8') !== launcher; } catch { repointed = true; }
   mkdirSync(dirname(p.launcherFile), { recursive: true });
   writeFileSync(p.launcherFile, launcher);
 
@@ -120,7 +122,9 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
     lines.push(settings.statusLine ? 'Saved your current status line so you can get it back.' : 'You had no status line, so there is nothing to save.');
   }
   const current = ours && samePath(settings.statusLine.command, command, platform);
-  if (current && refreshes(settings.statusLine)) lines.push('juice is already your status line. Nothing changed.');
+  if (current && refreshes(settings.statusLine)) {
+    lines.push(repointed ? 'juice is already your status line, and now runs this copy of juice.' : 'juice is already your status line. Nothing changed.');
+  }
   else if (current) {
     writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, refreshInterval: REFRESH_SECONDS } });
     lines.push('juice now refreshes once a minute, so its numbers and reset times stay current.');
@@ -140,6 +144,8 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   if (Array.isArray(show) && show.length === 0) lines.push(NOTHING_SHOWN);
   lines.push(...overrides(p, settings, cwd, platform));
   lines.push('To go back to your old status line, run /juice restore.');
+  // The doctor sends people here for a status line problem, so it stops reporting it unless it happens again.
+  try { unlinkSync(join(p.cacheDir, 'last-error.json')); } catch {}
   return lines;
 }
 
