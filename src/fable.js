@@ -5,8 +5,6 @@ import { readJson, writeJsonAtomic } from './cache.js';
 
 const BACKOFF_MS = 900000;
 
-export const fableEnabled = (setting, platform) => setting === 'on' || (setting === 'auto' && platform !== 'darwin');
-
 // The token lives only in this call's return value; callers must not store or log it.
 export function readToken({ platform, p, execFileSync = realExec }) {
   try {

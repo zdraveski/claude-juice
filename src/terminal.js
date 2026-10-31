@@ -13,6 +13,7 @@ export function detectTerminal({ env, settings, claudeTheme }) {
     theme: pick(settings.terminal, ['dark', 'light'])
       ?? (typeof claudeTheme === 'string' && claudeTheme.startsWith('light') ? 'light' : 'dark'),
     ends: pick(settings.ends, ['round', 'plain']) ?? (env.TERM_PROGRAM === 'vscode' ? 'round' : 'plain'),
-    colorDepth: env.COLORTERM === 'truecolor' || env.COLORTERM === '24bit' ? 'truecolor' : '256',
+    // Windows Terminal draws full colour but doesn't announce it in COLORTERM.
+    colorDepth: env.COLORTERM === 'truecolor' || env.COLORTERM === '24bit' || !!env.WT_SESSION ? 'truecolor' : '256',
   };
 }

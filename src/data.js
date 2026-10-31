@@ -36,7 +36,9 @@ export function normalize(stdin, extras, now) {
     week: limit(obj(rl.seven_day).used_percentage, obj(rl.seven_day).resets_at, 604800),
   };
   const seenAt = num(seen.subscriberSeenAt);
-  const recent = seenAt !== null && now.getTime() - seenAt <= 30 * DAY;
+  // Subscribers get rate_limits from the first reply on, so once a reply has cost something without them, the memory is from another account.
+  const replied = num(obj(input.cost).total_cost_usd) > 0;
+  const recent = !replied && seenAt !== null && now.getTime() - seenAt <= 30 * DAY;
   const spend = obj(rl.spend_limit);
   const budget = limit(spend.used_percentage, spend.resets_at, null);
 

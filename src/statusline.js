@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { paths } from './paths.js';
 import { readJson, takeLock } from './cache.js';
 import { loadSettings } from './settings.js';
+import { fableEnabled } from './schema.js';
 import { detectTerminal, readClaudeTheme } from './terminal.js';
 import { remember, recall } from './lastseen.js';
 import { normalize } from './data.js';
@@ -21,14 +22,14 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     const extras = { lastSeen: recall(p) };
 
     // Loaded on demand: these pull in child_process and crypto, which most refreshes never need.
-    const fableOn = settings.fable === 'on' || (settings.fable === 'auto' && platform !== 'darwin');
+    const fableOn = fableEnabled(settings.fable, platform);
     const fable = fableOn ? await import('./fable.js') : null;
     const fableCache = fableOn ? readJson(join(p.cacheDir, 'fable.json')) : null;
     if (fableOn) extras.fable = fableCache;
 
     const bd = stdin && settings.badges.length > 0 ? await import('./badges.js') : null;
     const key = bd ? bd.badgeKey(stdin) : null;
-    const badges = bd ? bd.readBadges(p, key, now) : null;
+    const badges = bd ? bd.readBadges(p, key, now, settings.badges.map((b) => b.command)) : null;
     if (badges) extras.badges = badges.texts;
 
     const data = normalize(stdin, extras, now);

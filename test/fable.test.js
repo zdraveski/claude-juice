@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paths } from '../src/paths.js';
 import { readJson, writeJsonAtomic } from '../src/cache.js';
-import { fableEnabled, readToken, fetchFable, refreshFable, fableCacheState } from '../src/fable.js';
+import { readToken, fetchFable, refreshFable, fableCacheState } from '../src/fable.js';
+import { fableEnabled } from '../src/schema.js';
 
 const TOKEN = 'test-token-123';
 const NOW = NOW_DATE.getTime();

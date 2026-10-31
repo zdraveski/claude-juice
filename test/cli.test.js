@@ -23,6 +23,12 @@ async function run(dir, argv) {
 const json = (f) => JSON.parse(readFileSync(f, 'utf8'));
 const OLD = { statusLine: { type: 'command', command: 'node old.js' }, theme: 'dark' };
 
+// Claude Code finds updates by plugin.json's version; the refresher's User-Agent reads package.json's.
+test('plugin.json and package.json carry the same version', () => {
+  const version = (f) => json(new URL(`../${f}`, import.meta.url)).version;
+  assert.equal(version('.claude-plugin/plugin.json'), version('package.json'));
+});
+
 test('setup backs up, keeps other keys, and a second setup keeps the backup', async () => {
   const d = env();
   writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD));

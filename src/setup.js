@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readJson, writeJsonAtomic } from './cache.js';
 
-const fwd = (s) => s.replaceAll(String.fromCharCode(92), '/');
+export const fwd = (s) => s.replaceAll(String.fromCharCode(92), '/');
 const LAUNCHER_TEMPLATE = fileURLToPath(new URL('../bin/launcher.js', import.meta.url));
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 // Claude Code only redraws on events, so without a timer the countdowns freeze while it is idle.

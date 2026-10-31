@@ -29,10 +29,13 @@ export function badgeKey(stdin) {
 
 const file = (p, key) => join(p.cacheDir, 'badges', `${key}.json`);
 
-export function readBadges(p, key, now) {
+// Texts are matched by command, not position, so removing a badge never shows its text in another's place.
+const textFor = (c, command) => (Array.isArray(c?.commands) && Array.isArray(c.texts) ? c.texts[c.commands.indexOf(command)] : undefined);
+
+export function readBadges(p, key, now, commands) {
   const c = readJson(file(p, key));
-  if (!c || !Array.isArray(c.texts)) return { texts: [], stale: true };
-  return { texts: c.texts, stale: !(now.getTime() - c.at >= 0 && now.getTime() - c.at <= TIMEOUT_MS) };
+  const age = now.getTime() - c?.at;
+  return { texts: commands.map((cmd) => textFor(c, cmd) ?? ''), stale: !(age >= 0 && age <= TIMEOUT_MS) };
 }
 
 // Kills the shell and anything it started, and frees the pipe so it can't keep us alive.
@@ -62,14 +65,15 @@ export function run(command, { input, timeoutMs }) {
 
 export async function refreshBadges({ p, settings, key, stdinText, runImpl = run }) {
   try {
-    const prev = readJson(file(p, key))?.texts ?? [];
-    const texts = await Promise.all(settings.badges.map(async (b, i) => {
+    const prev = readJson(file(p, key));
+    const commands = settings.badges.map((b) => b.command);
+    const texts = await Promise.all(commands.map(async (command) => {
       try {
-        const r = await runImpl(b.command, { input: stdinText, timeoutMs: TIMEOUT_MS });
-        return r.ok ? cleanBadge(r.stdout) : (prev[i] ?? '');
-      } catch { return prev[i] ?? ''; }
+        const r = await runImpl(command, { input: stdinText, timeoutMs: TIMEOUT_MS });
+        return r.ok ? cleanBadge(r.stdout) : (textFor(prev, command) ?? '');
+      } catch { return textFor(prev, command) ?? ''; }
     }));
-    writeJsonAtomic(file(p, key), { texts, at: Date.now() });
+    writeJsonAtomic(file(p, key), { texts, commands, at: Date.now() });
   } catch {}
   sweep(p);
 }

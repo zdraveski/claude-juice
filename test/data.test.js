@@ -9,6 +9,8 @@ const seen = (ago = 86400000) => ({
   sevenDay: { used: 20, resetsAt: nowS + 86400 },
   subscriberSeenAt: NOW.getTime() - ago,
 });
+// A chat before its first reply: no rate_limits and nothing spent yet.
+const newChat = () => ({ ...fixture('payg'), cost: { total_cost_usd: 0 } });
 
 test('busy subscriber', () => {
   const d = normalize(fixture('busy'), {}, NOW);
@@ -34,11 +36,17 @@ test('payg without lastSeen', () => {
 });
 
 test('lastSeen within 30 days makes a subscriber and fills the windows', () => {
-  const d = normalize(fixture('payg'), { lastSeen: seen() }, NOW);
+  const d = normalize(newChat(), { lastSeen: seen() }, NOW);
   assert.equal(d.account, 'subscriber');
   assert.equal(d.limits.session.used, 30);
   assert.equal(d.limits.week.used, 20);
   assert.equal(d.limits.week.windowSec, 604800);
+});
+
+test('after a reply that cost something but brought no limits, lastSeen is another account', () => {
+  const d = normalize(fixture('payg'), { lastSeen: seen() }, NOW);
+  assert.equal(d.account, 'payg');
+  assert.deepEqual(d.limits, {});
 });
 
 test('lastSeen older than 30 days is payg', () => {
@@ -95,7 +103,7 @@ test('live usage: a newer window wins even with a lower number', () => {
 });
 
 test('a new chat with no numbers yet shows live usage', () => {
-  const d = normalize(fixture('payg'), { lastSeen: seen(), fable: live({ used: 33, resetsAt: iso(3600) }, { used: 25, resetsAt: iso(86400) }) }, NOW);
+  const d = normalize(newChat(), { lastSeen: seen(), fable: live({ used: 33, resetsAt: iso(3600) }, { used: 25, resetsAt: iso(86400) }) }, NOW);
   assert.equal(d.account, 'subscriber');
   assert.equal(d.limits.session.used, 33);
   assert.equal(d.limits.week.used, 25);
@@ -164,7 +172,7 @@ test('unusable reset times become null, not Invalid Date', () => {
   assert.equal(normalize(s, {}, NOW).limits.session.resetsAt, null);
   const f = normalize(fixture('busy'), { fable: { used: 5, resetsAt: 'garbage', fetchedAt: NOW.getTime() } }, NOW);
   assert.equal(f.limits.fable.resetsAt, null);
-  const l = normalize(fixture('payg'), { lastSeen: { ...seen(), fiveHour: { used: 30, resetsAt: 1e20 } } }, NOW);
+  const l = normalize(newChat(), { lastSeen: { ...seen(), fiveHour: { used: 30, resetsAt: 1e20 } } }, NOW);
   assert.equal(l.limits.session.resetsAt, null);
 });
 

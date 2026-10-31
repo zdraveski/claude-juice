@@ -33,6 +33,7 @@ test('ends', () => {
 test('colour depth', () => {
   assert.equal(det({}).colorDepth, '256');
   assert.equal(det({ COLORTERM: '24bit' }).colorDepth, 'truecolor');
+  assert.equal(det({ WT_SESSION: 'a1b2' }).colorDepth, 'truecolor');
 });
 test('readClaudeTheme', () => {
   const d = mkdtempSync(join(tmpdir(), 'juice-'));

@@ -89,7 +89,7 @@ test('a cache stamped in the future counts as stale', async () => {
   assert.equal(fableCacheState({ fetchedAt: +NOW - 1000, used: 1 }, +NOW).usable, true);
   const p = paths({ CLAUDE_CONFIG_DIR: tmp() });
   await refreshBadges({ p, settings: { badges: [{ command: 'x' }] }, key: 'k', stdinText: '', runImpl: async () => ({ ok: true, stdout: 'a' }) });
-  assert.equal(readBadges(p, 'k', new Date(Date.now() - 60000)).stale, true);
+  assert.equal(readBadges(p, 'k', new Date(Date.now() - 60000), ['x']).stale, true);
 });
 
 test('badge output is capped at 4096 characters', async () => {

@@ -3,19 +3,18 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paths } from './paths.js';
 import { loadSettings, saveSettings } from './settings.js';
-import { applySet, encodeLink, CUSTOMIZER_URL, LOOKS } from './schema.js';
+import { applySet, encodeLink, fableEnabled, CUSTOMIZER_URL, LOOKS } from './schema.js';
 import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
-import { fableEnabled, refreshFable } from './fable.js';
+import { refreshFable } from './fable.js';
 import { refreshBadges, addBadge, listBadges, removeBadge } from './badges.js';
-import { install, restore, NeedsConfirm } from './setup.js';
+import { install, restore, fwd, NeedsConfirm } from './setup.js';
 
 const ROOT = new URL('..', import.meta.url);
 const USAGE = 'Usage: juice set <key=value>... | get | looks | setup | restore | customize | badges add|list|remove | refresh-fable | refresh-badges <key>';
 // Claude Code shows command output as plain text, so the previews drop colour and the rounded-end glyphs.
 const PREVIEW = { columns: 160, theme: 'dark', ends: 'plain', colorDepth: 'truecolor' };
-const fwd = (s) => s.replaceAll(String.fromCharCode(92), '/');
 
 export async function main(argv, io) {
   try {

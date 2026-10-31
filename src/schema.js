@@ -3,6 +3,8 @@ export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel'];
 export const PRESET_IDS = ['claude', 'frost', 'calm', 'safe', 'bold', 'ocean', 'midnight', 'vampire', 'candy', 'forest', 'sunset', 'solar', 'rose'];
 export const SHOW_IDS = Object.freeze(['model', 'effort', 'memory', 'session', 'fable', 'week', 'budget']);
 export const CUSTOMIZER_URL = 'https://zdraveski.github.io/claude-juice/web/';
+// Lives here, not in fable.js, so the status line can check it without loading child_process.
+export const fableEnabled = (setting, platform) => setting === 'on' || (setting === 'auto' && platform !== 'darwin');
 
 export const DEFAULTS = Object.freeze({
   layout: 'bar', show: SHOW_IDS, cost: 'auto', colors: 'claude',

@@ -32,10 +32,10 @@ test('refreshBadges writes cache that readBadges returns', async () => {
   const p = tmp();
   const settings = { badges: [{ command: 'rtk' }] };
   await refreshBadges({ p, settings, key: 'k', stdinText: '{}', runImpl: ok('[RTK 98]\n') });
-  assert.deepEqual(readBadges(p, 'k', new Date()).texts, ['[RTK 98]']);
-  assert.equal(readBadges(p, 'k', new Date()).stale, false);
-  assert.equal(readBadges(p, 'k', new Date(Date.now() + 5000)).stale, true);
-  assert.deepEqual(readBadges(p, 'none', NOW), { texts: [], stale: true });
+  assert.deepEqual(readBadges(p, 'k', new Date(), ['rtk']).texts, ['[RTK 98]']);
+  assert.equal(readBadges(p, 'k', new Date(), ['rtk']).stale, false);
+  assert.equal(readBadges(p, 'k', new Date(Date.now() + 5000), ['rtk']).stale, true);
+  assert.deepEqual(readBadges(p, 'none', NOW, ['rtk']), { texts: [''], stale: true });
 });
 
 test('a failed run keeps the previous text', async () => {
@@ -43,7 +43,15 @@ test('a failed run keeps the previous text', async () => {
   const settings = { badges: [{ command: 'a' }, { command: 'b' }] };
   await refreshBadges({ p, settings, key: 'k', stdinText: '', runImpl: ok('one') });
   await refreshBadges({ p, settings, key: 'k', stdinText: '', runImpl: async (c) => (c === 'a' ? { ok: false, stdout: '' } : { ok: true, stdout: 'two' }) });
-  assert.deepEqual(readBadges(p, 'k', new Date()).texts, ['one', 'two']);
+  assert.deepEqual(readBadges(p, 'k', new Date(), ['a', 'b']).texts, ['one', 'two']);
+});
+
+test('after a removal, texts follow their command, not their position', async () => {
+  const p = tmp();
+  await refreshBadges({ p, settings: { badges: [{ command: 'a' }, { command: 'b' }] }, key: 'k', stdinText: '', runImpl: async (c) => ({ ok: true, stdout: c.toUpperCase() }) });
+  assert.deepEqual(readBadges(p, 'k', new Date(), ['b']).texts, ['B']); // before the next refresh, A's text is gone
+  await refreshBadges({ p, settings: { badges: [{ command: 'b' }] }, key: 'k', stdinText: '', runImpl: async () => ({ ok: false, stdout: '' }) });
+  assert.deepEqual(readBadges(p, 'k', new Date(), ['b']).texts, ['B']); // a failed run keeps B's own text, not A's
 });
 
 test('add, list and remove badges', () => {
