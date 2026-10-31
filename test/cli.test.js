@@ -22,6 +22,9 @@ async function run(dir, argv) {
 }
 const json = (f) => JSON.parse(readFileSync(f, 'utf8'));
 const OLD = { statusLine: { type: 'command', command: 'node old.js' }, theme: 'dark' };
+// The command setup writes for config dir d: plain node on Windows, Node's full path on macOS and Linux.
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const launcherCommand = (d) => new RegExp(`^(?:node|"[^"]+") "${escapeRe(d.replaceAll('\\', '/'))}/juice-statusline\\.mjs"$`);
 
 // Claude Code finds updates by plugin.json's version; the refresher's User-Agent reads package.json's.
 test('plugin.json and package.json carry the same version', () => {
@@ -36,8 +39,7 @@ test('setup backs up, keeps other keys, and a second setup keeps the backup', as
   assert.equal(r.code, 0);
   const s = json(join(d, 'settings.json'));
   assert.equal(s.theme, 'dark');
-  assert.match(s.statusLine.command, /^node "/);
-  assert.match(s.statusLine.command, /juice-statusline\.mjs"$/);
+  assert.match(s.statusLine.command, launcherCommand(d));
   assert.equal(s.statusLine.padding, 0);
   assert.deepEqual(json(join(d, 'juice-backup.json')).statusLine, OLD.statusLine);
   assert.match(readFileSync(join(d, 'juice-statusline.mjs'), 'utf8'), /const PINNED = ".*";/);
@@ -136,7 +138,7 @@ test('a juice line pointing at another machine\'s folder is repaired, keeping it
   const r = await run(d, ['setup']);
   assert.match(r.out, /pointed somewhere else/);
   const sl = json(join(d, 'settings.json')).statusLine;
-  assert.equal(sl.command, `node "${d.replaceAll('\\', '/')}/juice-statusline.mjs"`);
+  assert.match(sl.command, launcherCommand(d));
   assert.deepEqual([sl.padding, sl.refreshInterval], [1, 30]);
 });
 
@@ -153,7 +155,8 @@ test('a damaged backup is set aside and the current status line is still saved',
   assert.equal(json(join(d, 'settings.json')).statusLine.command, 'node old.js');
 });
 
-test('on macOS and Linux the command names the first node on PATH as PATH names it; restore still knows it', async () => {
+// Builds a POSIX PATH out of real folders, so it needs real POSIX paths: CI runs it on macOS and Linux.
+test('on macOS and Linux the command names the first node on PATH as PATH names it; restore still knows it', { skip: process.platform === 'win32' && 'POSIX PATH lookup; runs on macOS and Linux in CI' }, async () => {
   const { install, restore } = await import('../src/setup.js');
   const { paths } = await import('../src/paths.js');
   // A PATH like a Mac's: a folder holding node (Homebrew's /opt/homebrew/bin), written the POSIX way.
@@ -231,8 +234,7 @@ test('invalid settings.json aborts and stays byte-identical', async () => {
 test('config dir with a space gives a quoted forward-slash command', async () => {
   const d = env('John Smith/.claude');
   await run(d, ['setup']);
-  const want = `node "${d.replaceAll('\\', '/')}/juice-statusline.mjs"`;
-  assert.equal(json(join(d, 'settings.json')).statusLine.command, want);
+  assert.match(json(join(d, 'settings.json')).statusLine.command, launcherCommand(d));
 });
 
 test('set, get, and bad set', async () => {
