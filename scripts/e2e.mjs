@@ -2,7 +2,7 @@
 // home whose name has a space, an apostrophe, an accent and an ampersand, with CLAUDE_CONFIG_DIR unset, then runs
 // the exact settings.json command through bash (the shell Claude Code uses, Git Bash on Windows) and, on macOS and
 // Linux, through sh with a bare PATH (Claude Code started from a desktop app). Never touches the real ~/.claude.
-import { mkdtempSync, mkdirSync, cpSync, readFileSync, writeFileSync, existsSync, realpathSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, realpathSync, readdirSync, copyFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -11,13 +11,20 @@ import assert from 'node:assert/strict';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const { version } = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8'));
-// The temp folder by its full name: GitHub's Windows runners give it a short one (RUNNER~1), which with the ë
-// below Node 22 can't load a script from. A real home folder is always the full name (C:\Users\Zoë).
+// The temp folder by its full name, as a real home folder always is (C:\Users\Zoë, not RUNNER~1).
 const home = join(mkdtempSync(join(realpathSync.native(tmpdir()), 'juice-e2e-')), "Zoë O'Brien & Co (1)");
 const config = join(home, '.claude');
 const market = join(config, 'plugins', 'cache', 'juice', 'juice');
 const plugin = join(market, version);
-for (const f of ['bin', 'src', 'package.json', '.claude-plugin']) cpSync(join(repo, f), join(plugin, f), { recursive: true });
+// Copied file by file: Node 22's fs.cpSync on Windows mangled this folder name, so the copy landed elsewhere
+// (juice itself never copies files, so users can't hit that).
+const copy = (from, to) => {
+  if (statSync(from).isDirectory()) { mkdirSync(to, { recursive: true }); for (const f of readdirSync(from)) copy(join(from, f), join(to, f)); }
+  else copyFileSync(from, to);
+};
+mkdirSync(plugin, { recursive: true });
+for (const f of ['bin', 'src', 'package.json', '.claude-plugin']) copy(join(repo, f), join(plugin, f));
+assert.ok(existsSync(join(plugin, 'bin', 'juice.js')), `the copied plugin is missing at ${plugin}`);
 // A newer copy Claude Code marked as replaced must never run.
 mkdirSync(join(market, '99.0.0', 'bin'), { recursive: true });
 writeFileSync(join(market, '99.0.0', 'bin', 'juice-statusline.js'), 'console.log("ORPHAN")');

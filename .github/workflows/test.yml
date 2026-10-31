@@ -26,12 +26,6 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node }}
-      # TEMPORARY: which folder names Node can't load a script from on Windows (remove once understood).
-      - name: Diagnose folder names (temporary)
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        shell: bash
-        run: node scripts/diag-names.mjs
       - run: node --test
       - name: End to end, through the shell Claude Code uses
         shell: bash
