@@ -69,7 +69,8 @@ function items(data, ctx) {
 // The limit for the model in use stands out.
 const name = (ctx, i, long) => (i.hot ? fg(ctx.P.accent, long ? i.long : i.short) : lbl(ctx, long ? i.long : i.short));
 // A battery that shares its reset with one on screen still says when it runs out, just not the repeated countdown.
-const wants = (ctx, i) => (!i.sameReset || !!i.assessed?.outAt)
+// noNotes, the very last fit step: no words at all, so a red battery's number stays on screen.
+const wants = (ctx, i) => !ctx.fit.noNotes && (!i.sameReset || !!i.assessed?.outAt)
   && (i.level !== 'ok' || ((ctx.fit.noRefills ? 'warnings' : ctx.settings.refills) === 'always' && !!i.assessed));
 function say(ctx, i) {
   const n = i.assessed
@@ -118,7 +119,7 @@ export const LAYOUTS = {
   panel: (data, ctx) => {
     const picture = (i) => (ctx.fit.bare ? '' : batteryLow(ctx, i.used, paint(i), ctx.fit.small ? 8 : 14, i.assessed?.elapsed) + '  ');
     const row = (i) => name(ctx, i, true) + ' '.repeat(Math.max(1, 13 - i.long.length)) + picture(i) + num(ctx, `${i.used}%`.padStart(4), i.level) + lbl(ctx, ' used ') + mark(ctx, i) + ' '.repeat(3 - MARK[i.level].length)
-      + (wants(ctx, i) ? say(ctx, i) : i.id === 'memory' ? lbl(ctx, 'in this chat') : '');
+      + (wants(ctx, i) ? say(ctx, i) : i.id === 'memory' && !ctx.fit.noNotes ? lbl(ctx, 'in this chat') : '');
     return [join([badges(data, ctx), head(data, ctx), cost(data, ctx)], lbl(ctx, '     ·     ')), ...items(data, ctx).map(row)].filter(Boolean).join('\n');
   },
 };

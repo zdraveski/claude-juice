@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readdirSync, mkdirSync, statSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { paths } from '../src/paths.js';
 import { readJson, writeJsonAtomic, takeLock, HOT_WRITE } from '../src/cache.js';
@@ -12,11 +12,13 @@ import { NOW, at } from './helpers.js';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'juice-'));
 
-test('paths follow CLAUDE_CONFIG_DIR', () => {
+test('paths follow CLAUDE_CONFIG_DIR, always as a full path', () => {
   const p = paths({ CLAUDE_CONFIG_DIR: '/c' });
-  assert.equal(p.settingsFile, join('/c', 'juice.json'));
-  assert.equal(p.cacheDir, join('/c', 'juice-cache'));
-  assert.equal(p.claudeSettings, join('/c', 'settings.json'));
+  assert.equal(p.settingsFile, join(resolve('/c'), 'juice.json'));
+  assert.equal(p.cacheDir, join(resolve('/c'), 'juice-cache'));
+  assert.equal(p.claudeSettings, join(resolve('/c'), 'settings.json'));
+  assert.equal(p.fableFile, join(resolve('/c'), 'juice-cache', 'fable.json'));
+  assert.equal(paths({ CLAUDE_CONFIG_DIR: 'rel/cfg' }).config, resolve('rel/cfg'), 'relative becomes full, so the launcher works from any folder');
 });
 
 test('a BOM at the start of a JSON file is fine', () => {

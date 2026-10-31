@@ -27,6 +27,18 @@ test('busy subscriber', () => {
   assert.equal(d.now, NOW);
 });
 
+// Claude Code sends one decimal: 99.6 is nearly out, not out, so it must not show (and act) as used up.
+test('a limit shows 100% only when it really is used up', () => {
+  const used = (p) => normalize({ rate_limits: { five_hour: { used_percentage: p, resets_at: nowS + 3600 } } }, {}, NOW).limits.session.used;
+  assert.deepEqual([99.4, 99.5, 99.6, 99.9, 100, 100.4, 130, 0.4, -3].map(used), [99, 99, 99, 99, 100, 100, 100, 0, 0]);
+});
+
+test('this window\'s number beats a saved one that has already ended, even without a reset time', () => {
+  const ended = { ...seen(), fiveHour: { used: 30, resetsAt: nowS - 7200 } };
+  const d = normalize({ rate_limits: { five_hour: { used_percentage: 95 } } }, { lastSeen: ended }, NOW);
+  assert.equal(d.limits.session.used, 95, 'not the ended 30%, which would show as an empty battery');
+});
+
 test('payg without lastSeen', () => {
   for (const name of ['payg', 'empty-rate-limits']) {
     const d = normalize(fixture(name), { lastSeen: null }, NOW);

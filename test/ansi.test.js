@@ -33,3 +33,10 @@ test('strip removes every escape sequence and control char but keeps newlines', 
   assert.equal(strip('a\x1bMb'), 'ab');
   assert.equal(strip('a\nb'), 'a\nb');
 });
+
+test('CJK characters count as 2 columns', () => {
+  assert.equal(vis('日本語'), 6);
+  assert.equal(vis('한글'), 4);
+  assert.equal(vis('ａ'), 2);
+  assert.equal(vis('abc'), 3);
+});

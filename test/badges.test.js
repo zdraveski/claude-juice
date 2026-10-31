@@ -1,10 +1,14 @@
 import './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paths } from '../src/paths.js';
+import { runStatusLine } from '../src/statusline.js';
+import { fixture } from './helpers.js';
+
+const busyText = JSON.stringify(fixture('busy'));
 import { strip, at, NOW } from './helpers.js';
 import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, listBadges, removeBadge, run, approve, approved } from '../src/badges.js';
 
@@ -112,4 +116,39 @@ test('timeout kills a hung grandchild and resolves promptly', async () => {
   const r = await run(cmd, { input: '', timeoutMs: 300 });
   assert.equal(r.ok, false);
   assert.ok(Date.now() - t0 < 1300, `took ${Date.now() - t0}ms`);
+});
+
+test('badges refresh again after 2.5 s, not after 1 s', async () => {
+  const dir = tmp().config;
+  const calls = [];
+  const go = (s) => runStatusLine({ stdinText: busyText, env: { CLAUDE_CONFIG_DIR: dir }, now: at(s), platform: 'darwin', spawnDetached: (a) => calls.push(a) });
+  writeFileSync(join(dir, 'juice.json'), JSON.stringify({ badges: [approve(paths({ CLAUDE_CONFIG_DIR: dir }), 'echo hi')] }));
+  await go(0);
+  await go(1);
+  assert.equal(calls.length, 1);
+  await go(3);
+  assert.equal(calls.length, 2);
+});
+
+test('badge output stamped in the future counts as stale', async () => {
+  const p = tmp();
+  await refreshBadges({ p, settings: { badges: [approve(p, 'x')] }, key: 'k', stdinText: '', runImpl: async () => ({ ok: true, stdout: 'a' }) });
+  assert.equal(readBadges(p, 'k', new Date(Date.now() - 60000), ['x']).stale, true);
+});
+
+test('badge output is capped at 4096 characters', async () => {
+  const r = await run('node -e "process.stdout.write(\'x\'.repeat(100000))"', { input: '', timeoutMs: 5000 });
+  assert.ok(r.stdout.length <= 4096, `got ${r.stdout.length}`);
+});
+
+test('refresh-badges sweeps old cache files only', async () => {
+  const p = tmp();
+  mkdirSync(join(p.cacheDir, 'badges'), { recursive: true });
+  const old = new Date(Date.now() - 8 * 86400000);
+  const mk = (f, aged) => { const x = join(p.cacheDir, f); writeFileSync(x, '1'); if (aged) utimesSync(x, old, old); return x; };
+  const gone = [mk('badges/old.json', 1), mk('badges-abc.lock', 1), mk('x.json.1.tmp', 1)];
+  const kept = [mk('badges/new.json', 0), mk('fable.json', 1), mk('lastseen.json', 1), mk('badges-new.lock', 0)];
+  await refreshBadges({ p, settings: { badges: [] }, key: 'k', stdinText: '', runImpl: async () => ({ ok: true, stdout: '' }) });
+  gone.forEach((f) => assert.equal(existsSync(f), false, f));
+  kept.forEach((f) => assert.equal(existsSync(f), true, f));
 });

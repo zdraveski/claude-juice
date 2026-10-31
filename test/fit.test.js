@@ -30,18 +30,20 @@ test('a narrow window keeps every battery and gives up words, names and spacing 
   assert.ok(!t.includes('Opus'), t);
 });
 
-test('in a narrow window an amber battery gives way before a red one', () => {
+test('in a narrow window an amber battery gives way before a red one, and words before a red battery', () => {
   const at = (s) => new Date(SAMPLES.busy.now.getTime() + s * 1000);
   const d = { ...SAMPLES.busy, memoryUsed: 72, limits: { session: { used: 88, resetsAt: at(7500), windowSec: 18000 }, week: { used: 80, resetsAt: at(200000), windowSec: 604800 } } };
   const t = strip(go(d, 'bar', 40).text);
-  assert.match(t, /Session 88%!! out ~2:44 PM {2}Week 80%!! …$/, t);
+  assert.match(t, /Session .*88%.* ?!!\s+Week(ly)? .*80%.* ?!!$/, t);
+  assert.doesNotMatch(t, /Memory|…/, t);
 });
 
-test('the last-resort cut keeps a battery\'s name, number and mark, never half a time', () => {
-  for (const w of [56, 58, 60, 64]) {
+// A red Weekly once vanished at 40-57 columns because its neighbour's "out ~2:44 PM" was kept instead.
+test('every red battery stays on screen, with its number, before any run-out or reset words', () => {
+  for (const w of [40, 44, 50, 56, 58, 60, 64]) { // three red batteries as words need 39 columns
     const t = strip(go(SAMPLES.trouble, 'bar', w).text);
-    assert.match(t, /Week 95%!! …$/, `${w}: ${t}`);
-    assert.doesNotMatch(t, /~\d+:\d?…|~\d…/, `${w}: a time cut in half`);
+    for (const re of [/Memory \S*91%/, /Session \S*88%/, /Week(ly)? \S*95%/]) assert.match(t, re, `${w}: ${t}`);
+    assert.doesNotMatch(t, /…/, `${w}: ${t}`);
   }
 });
 
@@ -104,8 +106,20 @@ test('busy/bar at 200 drops nothing', () => {
   assert.deepEqual(go(SAMPLES.busy, 'bar', 200).dropped, []);
 });
 
-test('trouble/bar at 40 is cut with an ellipsis and says so', () => {
-  const r = go(SAMPLES.trouble, 'bar', 40);
+// The panel pads between a battery's name and its number; that padding once read as a gap, leaving "Session …".
+test('the Everything look keeps each red battery\'s number in a narrow window', () => {
+  const everything = applySet(DEFAULTS, ['look=everything']).settings;
+  for (let w = 26; w <= 44; w++) {
+    const rows = strip(render(SAMPLES.trouble, everything, term(w)).text).split('\n');
+    for (const [name, n] of [['Session', '88%'], ['Weekly', '95%']]) {
+      const row = rows.find((r) => r.startsWith(name));
+      assert.ok(row?.includes(n), `@${w} ${name}: ${row}`);
+    }
+  }
+});
+
+test('trouble/bar at 24 is cut with an ellipsis and says so', () => {
+  const r = go(SAMPLES.trouble, 'bar', 24);
   assert.ok(strip(r.text).split('\n')[0].endsWith('…'));
   assert.equal(r.dropped.at(-1), 'the end of the line');
 });
@@ -134,8 +148,8 @@ test('steps run in order and are all tried before a cut', () => {
   assert.ok(cuts > 0, 'no case exercised the cut');
 });
 
-test('FIT_STEPS has the twelve steps in the agreed order', () => {
-  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'noEffort', 'noModel', 'tight', 'small', 'shortWords', 'bare', 'onlyTrouble', 'onlyRed']);
+test('FIT_STEPS has the thirteen steps in the agreed order', () => {
+  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'noEffort', 'noModel', 'tight', 'small', 'shortWords', 'bare', 'onlyTrouble', 'onlyRed', 'noNotes']);
 });
 
 test('a missing columns count means 120', () => {

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, statSync, chmodSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, statSync, chmodSync, rmSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative, isAbsolute } from 'node:path';
 import { main } from '../src/cli.js';
 import { isJuice } from '../src/setup.js';
 import { CUSTOMIZER_URL, LOOKS } from '../src/schema.js';
@@ -31,6 +31,13 @@ const launcherCommand = (d) => new RegExp(`^(?:PATH="[^"]*:\\$PATH" )?node "${es
 test('plugin.json and package.json carry the same version', () => {
   const version = (f) => json(new URL(`../${f}`, import.meta.url)).version;
   assert.equal(version('.claude-plugin/plugin.json'), version('package.json'));
+});
+
+// The README sends people to "What's new", so a release must never ship without its entry there.
+test('CHANGELOG.md has an entry for the version being released', () => {
+  const { version } = json(new URL('../package.json', import.meta.url));
+  const log = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
+  assert.match(log, new RegExp(`^## ${version.replaceAll('.', '\\.')}( |\\r?$)`, 'm'), `no "## ${version}" section in CHANGELOG.md`);
 });
 
 test('setup backs up, keeps other keys, and a second setup keeps the backup', async () => {
@@ -72,8 +79,73 @@ test('setup says when it points the launcher at another copy of juice', async ()
   await run(d, ['setup']);
   writeFileSync(join(d, 'juice-statusline.mjs'), 'const PINNED = "/somewhere/else";');
   const r = await run(d, ['setup']);
-  assert.match(r.out, /already your status line, and now runs this copy of juice\./);
+  assert.match(r.out, /already your status line\.\nIt now uses the juice you just ran setup from\./);
   assert.doesNotMatch(r.out, /Nothing changed/);
+  // A launcher that only differs in its code (a newer template) runs the same juice: nothing to tell.
+  writeFileSync(join(d, 'juice-statusline.mjs'), readFileSync(join(d, 'juice-statusline.mjs'), 'utf8') + '\n// older template');
+  assert.match((await run(d, ['setup'])).out, /already your status line\. Nothing changed\./);
+  // One from before 0.2.1 (no record of which juice it runs) is put back, in every kind of setup.
+  writeFileSync(join(d, 'juice-statusline.mjs'), 'await import("old")');
+  const s = json(join(d, 'settings.json'));
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: undefined } }));
+  assert.match((await run(d, ['setup'])).out, /refreshes once a minute.*\nIts launcher file was missing or from an older juice, so juice put it back\./);
+});
+
+test('rare setups: an empty settings.json, a relative config folder, a " in its path, a refresh under a second', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), '  \n');
+  assert.equal((await run(d, ['setup'])).code, 0, 'an empty settings file is just no settings yet');
+  // A relative CLAUDE_CONFIG_DIR still writes a full path, which works from any project folder.
+  const rel = relative(process.cwd(), env());
+  if (!isAbsolute(rel)) {
+    await run(rel, ['setup']);
+    assert.match(json(join(rel, 'settings.json')).statusLine.command, /"(?:[A-Za-z]:)?\/[^"]*juice-statusline\.mjs"$/);
+  }
+  const quoted = join(mkdtempSync(join(tmpdir(), 'juice-cli-')), 'a"b');
+  if (process.platform !== 'win32') { // Windows can't name a folder with a "
+    mkdirSync(quoted, { recursive: true });
+    assert.match((await run(quoted, ['setup'])).out + (await run(quoted, ['setup'])).err, /has a \$, `, % or " in its path/);
+  }
+  const s = json(join(d, 'settings.json'));
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 0.5 } }));
+  assert.match((await run(d, ['setup'])).out, /refreshes once a minute/, 'Claude Code ignores anything under one second');
+});
+
+test('a settings.json juice cannot read is never replaced', { skip: process.platform === 'win32' && 'Windows has no owner-only file mode' }, async () => {
+  const d = env(), f = join(d, 'settings.json'), mine = '{"model":"opus","permissions":{"allow":["Bash"]}}';
+  writeFileSync(f, mine);
+  chmodSync(f, 0); // made by `sudo claude`, say
+  try {
+    const r = await run(d, ['setup']);
+    assert.notEqual(r.code, 0);
+    assert.match(r.out + r.err, /changed nothing/);
+  } finally { chmodSync(f, 0o600); }
+  assert.equal(readFileSync(f, 'utf8'), mine);
+});
+
+test('a refresh brings an old or outdated launcher up to date, and leaves a removed one removed', async () => {
+  const d = env();
+  await run(d, ['setup']);
+  const launcher = join(d, 'juice-statusline.mjs'), current = readFileSync(launcher, 'utf8');
+  const { runStatusLine } = await import('../src/statusline.js');
+  const refresh = () => runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
+  // The pre-0.2.1 kind, written long before the juice now installed.
+  const old = new Date('2020-01-01');
+  writeFileSync(launcher, 'await import("anything named juice")');
+  utimesSync(launcher, old, old);
+  await refresh();
+  assert.equal(readFileSync(launcher, 'utf8'), current);
+  // Checked once: from then on a refresh only compares two file dates, and never rewrites it again.
+  const stamp = statSync(launcher).mtimeMs;
+  await refresh();
+  assert.equal(statSync(launcher).mtimeMs, stamp, 'an up-to-date launcher is never rewritten');
+  utimesSync(launcher, old, old);
+  await refresh();
+  assert.equal(readFileSync(launcher, 'utf8'), current, 'the same launcher is left as it is, just marked checked');
+  assert.ok(statSync(launcher).mtimeMs > old.getTime());
+  rmSync(launcher);
+  await refresh();
+  assert.ok(!existsSync(launcher), 'after restore there is nothing to keep up to date');
 });
 
 // The doctor's advice for a status line problem is to run setup, so setup clears it.
@@ -337,6 +409,16 @@ test('config dir with a space gives a quoted forward-slash command', async () =>
   const d = env('John Smith/.claude');
   await run(d, ['setup']);
   assert.match(json(join(d, 'settings.json')).statusLine.command, launcherCommand(d));
+});
+
+// An older juice still open in another window must not reset what a newer one saved.
+test('set and badges keep settings and values this version doesn\'t know', async () => {
+  const d = env();
+  writeFileSync(join(d, 'juice.json'), JSON.stringify({ layout: 'pills', future: [1, 2] }));
+  await run(d, ['set', 'cost=off']);
+  await run(d, ['badges', 'add', 'echo hi', '--yes']);
+  const saved = json(join(d, 'juice.json'));
+  assert.deepEqual([saved.layout, saved.future, saved.cost, saved.badges.length], ['pills', [1, 2], 'off', 1]);
 });
 
 test('set, get, and bad set', async () => {

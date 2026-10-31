@@ -103,8 +103,10 @@ export function applySet(settings, pairs) {
   const next = { ...settings };
   const warnings = [];
   const changed = [];
+  const chosen = []; // every setting given a valid value, changed or not (a file may hold another value for it)
   const put = (key, v) => {
     if (JSON.stringify(v) !== JSON.stringify(next[key]) && !changed.includes(key)) changed.push(key);
+    if (!chosen.includes(key)) chosen.push(key);
     next[key] = Array.isArray(v) ? [...v] : v;
   };
   for (const pair of pairs) {
@@ -130,7 +132,7 @@ export function applySet(settings, pairs) {
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));
     put(key, v);
   }
-  return { settings: next, warnings, changed };
+  return { settings: next, warnings, changed, chosen };
 }
 
 const colorWord = (c) => (typeof c === 'string' ? c

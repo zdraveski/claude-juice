@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readJson, writeJsonAtomic, removeOld } from './cache.js';
-import { BACKOFF_MS, fableCacheState } from './readings.js';
+import { BACKOFF_MS } from './readings.js';
 
 // Claude Code's own name for the Keychain entry: with CLAUDE_CONFIG_DIR (or its storage override) set, each
 // config folder has its own login, named after a hash of the folder. The plain name would be another account's.
@@ -55,7 +55,7 @@ export async function fetchFable(token, fetchImpl, version, timeoutMs = 5000) {
 
 export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fetch, execFileSync = realExec, now, version }) {
   const t = +now; // accepts a Date or epoch ms
-  const file = join(p.cacheDir, 'fable.json');
+  const file = p.fableFile;
   try {
     const token = readToken({ platform, p, env, execFileSync });
     const fresh = token && await fetchFable(token, fetchImpl, version);
@@ -74,4 +74,3 @@ export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fe
   return false;
 }
 
-export { fableCacheState }; // lives in readings.js, so a refresh can check it without loading this file

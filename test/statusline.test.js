@@ -80,6 +80,10 @@ test('launcher picks the highest version, or the pinned one', async () => {
   mk('plugins', 'cache', 'm', 'juice', '1.2.0');
   const hi = mk('plugins', 'cache', 'm', 'juice', '1.10.0');
   assert.equal(resolveTarget(dir, null), hi);
+  // Folders Claude Code names by code version are no release numbers: "41f6…" must not count as version 41.
+  mk('plugins', 'cache', 'm', 'juice', '41f619d61b99');
+  mk('plugins', 'cache', 'm', 'juice', 'abc123def456');
+  assert.equal(resolveTarget(dir, null, 'm'), hi);
   const pin = mk('pinned');
   assert.equal(resolveTarget(dir, join(dir, 'pinned')), pin);
   assert.equal(resolveTarget(join(dir, 'nothing'), null), null);

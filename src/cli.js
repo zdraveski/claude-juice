@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paths } from './paths.js';
+import { readJson } from './cache.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { applySet, encodeLink, fableEnabled, CUSTOMIZER_URL, LOOKS, NOTHING_SHOWN } from './schema.js';
 import { render } from './render/index.js';
@@ -24,12 +25,17 @@ export async function main(argv, io) {
     switch (cmd) {
       case 'set': {
         const loaded = loadSettings(p);
-        const { settings, warnings, changed } = applySet(loaded.settings, args);
-        // A juice.json with a bad value is saved clean too, so the doctor's "change any setting" fixes it. (An unreadable
-        // one is never overwritten: saveSettings refuses, since it may hold badges the person wants to fix by hand.)
-        if (changed.length || loaded.warnings.length) saveSettings(p, settings);
+        const { settings, warnings, chosen } = applySet(loaded.settings, args);
+        // Only what was asked for is written, and only where the file says otherwise (a value juice couldn't use reads
+        // as its default, so choosing that default still has to be written). Everything else stays as it was.
+        const file = readJson(p.settingsFile) ?? {};
+        const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+        const write = chosen.filter((k) => !same(file[k], settings[k]));
+        // Said changed when what juice uses changed, or a value it couldn't use was replaced.
+        const changed = write.filter((k) => !same(loaded.settings[k], settings[k]) || Object.hasOwn(file, k));
+        if (write.length) saveSettings(p, Object.fromEntries(write.map((k) => [k, settings[k]])));
         io.out(changed.length ? `Changed: ${changed.join(', ')}` : 'Nothing changed.');
-        warnings.forEach((w) => io.out(`Warning: ${w}`));
+        [...loaded.warnings, ...warnings].forEach((w) => io.out(`Warning: ${w}`));
         if (!settings.show.length) io.out(`Warning: ${NOTHING_SHOWN}`);
         return 0;
       }

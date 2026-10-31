@@ -4,12 +4,24 @@ Everything here is what GitHub's tests can't do: a real Claude Code, a real Mac,
 runs every test and the end-to-end check (install, the real command through bash and sh, a hung badge killed with
 its child, restore) on Windows, macOS and Linux with Node 18, 22 and 24 on every push.
 
+## 0. main is what people install
+
+The plugin store serves whatever is newest on `main` (the marketplace entry is `"source": "./"`), to new installs at
+once and under whatever version number `main` says. So:
+
+- Work on a branch, never on `main`. GitHub runs the tests on every branch.
+- `main` moves only at a release: merge the branch with the version raised and its CHANGELOG entry in one go
+  (then tag it, step 1 below).
+- Docs-only changes (README, CHANGELOG) can go to `main` between releases; code can't.
+- Never run a checkout's `bin/juice-statusline.js` without `CLAUDE_CONFIG_DIR` set to a throwaway folder: a refresh
+  points your real status line at the juice it ran from, and it goes blank once that folder is deleted.
+
 ## 1. Run here before every release
 
 - [ ] `node --test` passes, and GitHub's run for the release commit is green on all 9.
 - [ ] `node scripts/check-customizer.js` passes every browser check (needs Playwright: `npm i -g playwright`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
-- [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json` (a test fails if they differ; Claude Code uses plugin.json's to find updates).
+- [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json`, and CHANGELOG.md has its `## X.Y.Z` section (tests fail if the versions differ or the section is missing; Claude Code uses plugin.json's version to find updates).
 - [ ] `CHANGELOG.md` has a section for the new version, in plain words for users.
 - [ ] After pushing: tag `v<version>` and publish a GitHub release with that section as its notes (`gh release create v<version> --verify-tag --notes-file -`).
 

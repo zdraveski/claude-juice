@@ -120,7 +120,7 @@ function sweep(p) {
 export function addBadge(p, command) {
   const { settings } = loadSettings(p);
   if (typeof command !== 'string' || command.length < 1 || command.length > 500) throw new Error('A badge command must be 1 to 500 characters.');
-  saveSettings(p, sanitize({ ...settings, badges: [...settings.badges, approve(p, command)] }, { allowBadges: true }).settings);
+  saveSettings(p, { badges: sanitize({ ...settings, badges: [...settings.badges, approve(p, command)] }, { allowBadges: true }).settings.badges });
 }
 
 export const listBadges = (p) => loadSettings(p).settings.badges.map((b) => b.command);
@@ -133,5 +133,5 @@ export function unapprovedBadges(p) {
 
 export function removeBadge(p, n) {
   const { settings } = loadSettings(p);
-  saveSettings(p, { ...settings, badges: settings.badges.filter((_, i) => i !== n - 1) });
+  saveSettings(p, { badges: settings.badges.filter((_, i) => i !== n - 1) });
 }

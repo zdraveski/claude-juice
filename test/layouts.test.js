@@ -1,7 +1,10 @@
 import './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { strip, at } from './helpers.js';
+import { strip, at, fixture, NOW } from './helpers.js';
+import { normalize } from '../src/data.js';
+
+const TERM = { columns: 200, theme: 'dark', ends: 'round', colorDepth: 'truecolor' };
 import { render } from '../src/render/index.js';
 import { LAYOUTS } from '../src/render/layouts.js';
 import { DEFAULTS, LAYOUT_IDS, applySet } from '../src/schema.js';
@@ -163,4 +166,24 @@ test('fit flags hide things', async () => {
   const s = strip(LAYOUTS.bar({ ...SAMPLES.busy, badges: ['[B]'] }, ctx));
   assert.ok(!s.includes('resets in 2h 10m') && !s.includes('high') && !s.includes('Opus') && !s.includes('[B]'), s);
   assert.ok(s.includes('resets Sat 7:20 PM'), 'a battery going fast keeps its countdown');
+});
+
+test('64.1 used renders as 64% used in every layout; token memory is whole', () => {
+  const d = normalize({ ...fixture('busy'), context_window: { used_percentage: 64.1 } }, {}, NOW);
+  assert.equal(d.memoryUsed, 64);
+  for (const layout of LAYOUT_IDS) {
+    const s = strip(render(d, { ...DEFAULTS, layout }, TERM).text);
+    assert.match(s, /64%/, layout);
+    assert.doesNotMatch(s, /\d\.\d{3,}/, layout);
+  }
+  const t = normalize({ context_window: { context_window_size: 3, current_usage: { input_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } }, {}, NOW);
+  assert.equal(t.memoryUsed, 33);
+});
+
+test('an empty badge leaves no gap at the start of the line', () => {
+  const d = { ...normalize(fixture('busy'), {}, NOW), badges: ['', ''] };
+  for (const layout of LAYOUT_IDS) {
+    const s = strip(render(d, { ...DEFAULTS, layout }, TERM).text);
+    assert.doesNotMatch(s, /^\s/, layout);
+  }
 });

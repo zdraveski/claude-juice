@@ -9,10 +9,14 @@ export function loadSettings(p) {
   return r;
 }
 
-// Saving over a file we couldn't read would replace the person's settings and badges with defaults.
-export function saveSettings(p, settings) {
-  if (existsSync(p.settingsFile) && readJson(p.settingsFile) === null) {
-    throw new Error(`Your juice settings file (${p.settingsFile}) can't be read, so juice changed nothing. Fix or delete that file and try again.`);
+// Writes only the settings that changed, on top of the file as it is: a setting or value this version doesn't know
+// (a newer juice's, from another window) is kept, never reset to a default. A file we couldn't read is never
+// overwritten: that would replace the person's settings and badges with defaults.
+export function saveSettings(p, changes) {
+  const raw = readJson(p.settingsFile);
+  if (existsSync(p.settingsFile) && raw === null) {
+    throw new Error("Your juice settings file (juice.json in your Claude folder) can't be read, so juice changed nothing. Fix or delete it (Claude can do it for you), then try again.");
   }
-  writeJsonAtomic(p.settingsFile, settings);
+  const base = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  writeJsonAtomic(p.settingsFile, { ...base, ...changes });
 }

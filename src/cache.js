@@ -21,13 +21,16 @@ export function removeOld(dir, ok, keepMs) {
   } catch {}
 }
 
+export const writeJsonAtomic = (file, value, opts) => writeAtomic(file, JSON.stringify(value, null, 2), opts);
+
+// Written to a temp copy, then renamed into place, so a reader (another window's refresh) never sees half a file.
 // modeFrom: for a new file, the file whose permissions it should take (the old file's win when there is one).
-export function writeJsonAtomic(file, value, { maxWaitMs = 2500, modeFrom } = {}) {
+export function writeAtomic(file, text, { maxWaitMs = 2500, modeFrom } = {}) {
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
   // Born private, so not even the temp copy of a settings.json holding API keys is readable by others for a moment;
   // then it takes the old file's permissions (or modeFrom's).
-  writeFileSync(tmp, JSON.stringify(value, null, 2), { mode: 0o600 });
+  writeFileSync(tmp, text, { mode: 0o600 });
   if (process.platform !== 'win32') {
     for (const from of [file, modeFrom].filter(Boolean)) { try { chmodSync(tmp, statSync(from).mode & 0o777); break; } catch {} }
   }

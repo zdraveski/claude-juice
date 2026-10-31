@@ -2,7 +2,8 @@ import { strip } from './render/ansi.js';
 import { toShow, fetchedCounts, accountOf } from './readings.js';
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-const pct = (v) => { const n = num(v); return n === null ? null : Math.round(Math.min(100, Math.max(0, n))); };
+// Whole percents, but 100 only when really used up: 99.6% rounds to 99, not to a "used up" that would block nothing.
+const pct = (v) => { const n = num(v); return n === null ? null : n >= 100 ? 100 : Math.min(99, Math.round(Math.max(0, n))); };
 const obj = (v) => (v && typeof v === 'object' ? v : {});
 const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 

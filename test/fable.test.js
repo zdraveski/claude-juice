@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paths } from '../src/paths.js';
 import { readJson, writeJsonAtomic } from '../src/cache.js';
-import { readToken, fetchFable, refreshFable, fableCacheState, keychainService } from '../src/fable.js';
+import { readToken, fetchFable, refreshFable, keychainService } from '../src/fable.js';
+import { fableCacheState } from '../src/readings.js';
 import { createHash } from 'node:crypto';
 import { fableEnabled } from '../src/schema.js';
 
@@ -156,6 +157,7 @@ test('fableCacheState', () => {
   assert.equal(fableCacheState(c(6, { backoffUntil: NOW + 1 }), NOW).stale, false);
   assert.equal(fableCacheState(c(6, { backoffUntil: NOW + 10 * 3600000 }), NOW).stale, true, 'a pause stamped hours ahead (clock was ahead) is ignored');
   assert.equal(fableCacheState(null, NOW).stale, true);
+  assert.equal(fableCacheState({ fetchedAt: NOW + 5000, used: 1 }, NOW).stale, true, 'a fetch stamped in the future is never trusted');
 });
 
 test('refreshFable accepts a Date for now and writes numbers', async () => {

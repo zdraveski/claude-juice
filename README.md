@@ -24,7 +24,7 @@ You need Node 18 or newer. To check, type `node --version` in a terminal. If you
 /juice setup
 ```
 
-Juice saves your old status line first, if you had one, so `/juice restore` can always bring it back.
+If Claude Code says it doesn't know `/juice` yet, restart Claude Code and type `/juice setup` again. Juice saves your old status line first, if you had one, so `/juice restore` can always bring it back.
 
 ## What the batteries mean
 
@@ -40,6 +40,8 @@ Juice saves your old status line first, if you had one, so `/juice restore` can 
 
 Next to the batteries you also see the model's name and its effort level: a little staircase that climbs from 1 step (low) to 5 steps (max), with the word beside it.
 
+The rounded battery ends in the pictures show on their own in VS Code. Other terminals get plain ends, because some fonts draw the rounded ones as boxes; if yours can draw them, type `/juice use round ends`.
+
 Session and Weekly also say when they reset: how long, when it is less than a day away ("resets in 1h 31m"), and otherwise which day and at what time ("resets Sat 7:20 PM", or "Nov 10, 6:23 PM" when it is more than a week away). Times are in your computer's time zone; on a computer set to UTC, such as a server you reach over SSH, they say "UTC". In a narrow window it is the short countdown ("resets 2d 5h").
 
 The colours for Session, Weekly and Fable weekly depend on your pace as well as on how much is used:
@@ -48,7 +50,7 @@ The colours for Session, Weekly and Fable weekly depend on your pace as well as 
 - Amber with ! means you are going a bit fast. At this pace you could run out before it resets.
 - Red with !! means almost empty, or more than half used and on track to run out before it resets. A red battery also says when it runs out at this pace, for example "runs out ~4:04 PM · resets in 2h 10m".
 
-A limit that is used up always shows, even in a look that leaves it out, so you never see "all fine" while you are locked out.
+A limit that is used up always shows, even in a look that leaves it out (Fable weekly while you are using Fable), so you never see "all fine" while you are locked out.
 
 A thin line on these batteries marks where you would be if you used the limit evenly. If the colour reaches past the line, you are going faster than that. Before the line, you have time to spare.
 
@@ -125,7 +127,7 @@ Type `/juice` and then say what you want, in your own words. For example:
 - `/juice make it a panel`
 - `/juice my terminal is light` (if the text is hard to read on a light background)
 
-In a narrow window juice makes room step by step: first badges, reset times, the effort word and cost, then the effort level and the model name, then spacing, battery size and shorter words, then every battery as words only (`Session 88%!! out ~2:44 PM`), and only last the batteries that are fine. Whatever freed room gets used again, so a battery keeps its picture whenever it fits. A red battery keeps its `!!` and when it runs out as long as the window has room for its words; in a very small window the end of the line is cut.
+In a narrow window juice makes room step by step: first badges, reset times, the effort word and cost, then the effort level and the model name, then spacing, battery size and shorter words, then every battery as words only (`Session 88%!! out ~2:44 PM`), then the batteries that are fine, then the amber ones, and last a red battery's words ("out ~2:44 PM"), so a red battery itself is the last thing to go. Whatever freed room gets used again, so a battery keeps its picture whenever it fits. Only in a very small window is the end of the line cut.
 
 ### The live customizer
 
@@ -150,7 +152,7 @@ Type `/juice doctor` first. It checks, in plain words, whether juice is your sta
 
 ## Update, undo and uninstall
 
-- **Update:** open `/plugin`, pick juice, and update it. Your settings and badges stay. [What's new](CHANGELOG.md) lists what each version changed.
+- **Update:** open `/plugin`, pick juice, and update it, then restart Claude Code. Your settings and badges stay. [What's new](CHANGELOG.md) lists what each version changed.
 - **Undo:** `/juice restore` puts your old status line back.
 - **Uninstall:** run `/juice restore` first, then remove juice in `/plugin`. If you uninstall first, the status line tells you how to get back.
 - **Leave nothing behind:** after uninstalling, juice's own files are still in your Claude folder (`~/.claude`): `juice.json` (your settings and badge commands), the `juice-cache` folder (usage numbers, the approval of your badges, and, for up to a week, which project each chat was in), any `juice-backup-….json` copies, and `juice-statusline.mjs` if you uninstalled before `/juice restore`. Delete them if you want nothing left. (Deleting `juice-cache` while juice is installed is harmless, except that your badges then need adding again.)

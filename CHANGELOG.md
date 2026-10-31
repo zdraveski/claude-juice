@@ -1,6 +1,17 @@
 # What's new in juice
 
-Newest first. To update, type `/plugin`, update juice, then reload your plugins.
+Newest first. To update, type `/plugin`, update juice, then restart Claude Code.
+
+## 1.0.2
+
+- In a narrow window a red battery never disappears: its "out ~2:44 PM" words go first. In the Everything look, red rows keep their numbers.
+- 99.5% to 99.9% shows as 99%, not as a used-up 100%.
+- `/juice set` and badges change only what you asked for: a setting from a newer juice, still open in another window, is kept.
+- A status line set up by juice before 0.2.1 is brought up to date on its own (the old one could run another plugin named juice).
+- Behind a company proxy, the Fable battery works with Node 22.21 or newer (24.5 or newer on Node 24), and `/juice doctor` says so.
+- `/juice doctor` names a project's settings file from where you are, so it never shows the folders above it.
+- Setup handles an empty settings file, a Claude folder given as a relative path, and says plainly what it changed.
+- The launcher never mistakes a folder Claude Code named by code version for a newer juice.
 
 ## 1.0.1 (2026-10-31)
 
@@ -13,6 +24,7 @@ New:
 - **`/juice doctor`**: a check in plain words of what juice sees. Each line is fine (✓), needs you (!) with what to do, or just for your information (·). It never shows your user name, so you can paste it into a bug report.
 - **Reset times say the day and time** when a limit resets more than a day from now: "resets Sat 7:20 PM", "resets next Wed 2:19 PM" a week out, a date further away. Under a day it still counts down ("resets in 2h 10m"). Days are counted on the calendar, so daylight saving never shifts them.
 - Times on a computer set to UTC (a server or container) say "UTC".
+- A red battery that runs out on another day says which day the same way: "runs out ~Thu 9:15 AM".
 
 Fixed:
 - A red battery is never cut to something like "Week 9…" in a narrow window.

@@ -5,8 +5,9 @@ import { vis, cut, strip } from './ansi.js';
 export const FIT_STEPS = [['badges', 'badges'], ['noRefills', 'reset times'], ['noEffortWord', 'the effort word'], ['noCost', 'cost'],
   ['noEffort', 'the effort level'], ['noModel', 'the model name'], ['tight', 'spacing'], ['small', 'battery size'],
   ['shortWords', 'warning words'], ['bare', 'battery pictures'], ['onlyTrouble', 'batteries that are fine'],
-  ['onlyRed', 'batteries going a bit fast']];
-// After hiding the fine batteries, the amber ones go before a red one is lost.
+  ['onlyRed', 'batteries going a bit fast'], ['noNotes', 'run-out and reset times']];
+// After hiding the fine batteries, the amber ones go; then even a red one's words ("out ~2:44 PM") go before a red
+// battery itself is lost to the last-resort cut.
 
 // Claude Code sets COLUMNS to the whole terminal, then indents the status line, so a line that full gets cut.
 // shortcut: a fixed few columns; a notice Claude Code shows on the same row can still cut a long line.
@@ -28,7 +29,8 @@ function wholeItems(ln, columns) {
   const plain = strip(ln);
   const gap = Math.max(0, ...[...plain.matchAll(GAP)].map((m) => m.index).filter((i) => i > 0 && i <= columns - 2));
   if (!gap) return columns - 1;
-  const head = /^(?: [│·] | +)\S+ \d+%(?:!!|!)?/.exec(plain.slice(gap))?.[0];
+  // The name may sit before the gap (the panel pads between "Session" and "88% used !!"), so it is optional.
+  const head = /^(?: [│·] | +)(?:\S+ )?\d+%(?: used)?(?: ?!!| ?!)?/.exec(plain.slice(gap))?.[0];
   const end = head && vis(plain.slice(0, gap + head.length)) <= columns - 2 ? gap + head.length : gap;
   return vis(plain.slice(0, end)) + 1; // keeps the space after it, before the '…'
 }

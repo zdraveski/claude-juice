@@ -1,5 +1,6 @@
 // The per-refresh pipeline: stdin text in, status line text out. Never throws, never waits on a refresher.
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { paths, hideHome } from './paths.js';
 import { readJson, takeLock, writeJsonAtomic, HOT_WRITE } from './cache.js';
@@ -11,6 +12,9 @@ import { normalize } from './data.js';
 import { fableCacheState } from './readings.js';
 import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
+import { upgradeLauncher } from './launcher-file.js';
+
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 const parse = (text) => { try { return JSON.parse(text); } catch { return null; } };
 const quiet = (fn) => { try { fn(); } catch {} };
@@ -26,7 +30,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
 
     // fable.js (child_process, crypto) only runs in the background refresher; here the cache is enough.
     const fableOn = fableEnabled(settings.fable, platform);
-    const fableCache = fableOn ? readJson(join(p.cacheDir, 'fable.json')) : null;
+    const fableCache = fableOn ? readJson(p.fableFile) : null;
     if (fableOn) extras.fable = fableCache;
 
     const bd = stdin && settings.badges.length > 0 ? await import('./badges.js') : null;
@@ -50,11 +54,12 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
         spawnDetached(['refresh-badges', key]);
       });
     }
+    upgradeLauncher(p, ROOT); // keeps the launcher setup wrote up to date with the juice now running
     return text;
   } catch (e) {
     // Kept for /juice doctor: the message and juice's own file and line, with every folder taken out of paths
     // (they hold the person's name), so the doctor's report can be pasted into a bug report.
-    if (p) quiet(() => writeJsonAtomic(join(p.cacheDir, 'last-error.json'), {
+    if (p) quiet(() => writeJsonAtomic(p.lastErrorFile, {
       at: Date.now(),
       message: hideHome(String(e?.message ?? e), env, platform).replace(/(?:file:\/*)?(?:[A-Za-z]:|~)?[\\/](?:[^\\/\s'"`]+[\\/])+/g, '').slice(0, 300),
       where: /([\w.-]+\.js):(\d+)/.exec(String(e?.stack).split('\n').slice(1).join('\n'))?.slice(1).join(':') ?? null,

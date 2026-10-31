@@ -21,7 +21,10 @@ export function resolveTarget(configDir, pinned = PINNED, market = MARKET) {
     // Claude Code keeps replaced and uninstalled versions for a while and marks them, so they must not run.
     if (existsSync(f) && !existsSync(join(cache, m, 'juice', v, '.orphaned_at'))) found.push({ v, f });
   }
-  return found.sort((a, b) => newer(b.v, a.v))[0]?.f ?? null;
+  // Claude Code names a folder by its code version (41f619d61b99) when a plugin has no version number; that name
+  // is no release number ("41" would beat 1.0.1), so real version numbers come first.
+  const isVersion = (v) => /^\d+\.\d+/.test(v);
+  return found.sort((a, b) => (isVersion(b.v) - isVersion(a.v)) || newer(b.v, a.v))[0]?.f ?? null;
 }
 
 // Turned off in /plugin, juice keeps its folder (no .orphaned_at) but loses its /juice command, so it must not
@@ -40,6 +43,6 @@ if (isMain) {
   const config = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
   const target = turnedOff(config) ? null : resolveTarget(config);
   if (target) await import(pathToFileURL(target).href);
-  else if (turnedOff(config)) console.log('juice is turned off. Turn it back on in /plugin, then type /juice restore to get your old status line back.');
+  else if (turnedOff(config)) console.log('juice is turned off. Turn it back on in /plugin to see your batteries again (once it is on, /juice restore gives you your old status line instead).');
   else console.log('juice is not installed. Install it again, then type /juice setup to use it or /juice restore to get your old status line back.');
 }

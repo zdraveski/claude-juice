@@ -100,16 +100,18 @@ test('doctor: a saved error keeps file names but never the folders around them',
   assert.equal(err.message, "Cannot find module 'fable.js' imported from statusline.js");
 });
 
-test('doctor: the home folder shows as ~, so the report can be pasted', () => {
+test('doctor: a project\'s settings file is named from where you are, never by the folders above it', () => {
+  // A client's name in a folder path must not end up in a pasted report, inside the home folder or out of it.
   const home = mkdtempSync(join(tmpdir(), 'juice-home-'));
-  const d = join(home, '.claude'), proj = join(home, 'proj');
+  const d = join(home, '.claude'), proj = join(home, 'acme-secret', 'app'), here = join(proj, 'src');
   mkdirSync(d, { recursive: true });
   mkdirSync(join(proj, '.claude'), { recursive: true });
+  mkdirSync(here, { recursive: true });
   writeFileSync(join(proj, '.claude', 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'mine --key sk-1' } }));
-  const text = check(d, { cwd: proj, env: { HOME: home, USERPROFILE: home } });
-  assert.match(text, /^! ~\/proj\/\.claude\/settings\.json sets its own status line.*take that setting out/m);
+  const text = check(d, { cwd: here, env: { HOME: home, USERPROFILE: home } });
+  assert.match(text, /^! \.\.\/\.claude\/settings\.json sets its own status line.*take that setting out/m);
+  assert.doesNotMatch(text, /acme-secret|sk-1/);
   assert.doesNotMatch(text, new RegExp(home.replaceAll('\\', '\\\\')));
-  assert.doesNotMatch(text, /sk-1/);
 });
 
 test('doctor: never a false ✓ about the launcher, and never crashes on a strange one', async () => {
@@ -148,11 +150,15 @@ test('doctor: the real refresh time, and a Node that setup pinned but is gone', 
   assert.match(check(d), /The Node juice was set up with is gone/);
 });
 
-test('doctor: a bad juice setting says how to fix it, and changing any setting does', async () => {
+test('doctor: a setting juice doesn\'t know says how to fix it, and choosing it again does', async () => {
   const d = config();
-  writeFileSync(join(d, 'juice.json'), JSON.stringify({ layout: 'nope' }));
-  assert.match(check(d), /^! juice settings: .*Changing any setting with \/juice saves a clean copy\.$/m);
-  await run(d, ['set', 'cost=on']);
+  writeFileSync(join(d, 'juice.json'), JSON.stringify({ layout: 'nope', futureKey: { a: 1 } }));
+  assert.match(check(d), /^! juice settings: .*Choosing that setting again with \/juice replaces it/m);
+  // Another setting changes only itself: a newer juice's value (or a typo) and an unknown key are kept, not reset.
+  const other = await run(d, ['set', 'cost=on']);
+  assert.match(other.text, /Changed: cost\nWarning: layout: 'nope' isn't valid/);
+  assert.deepEqual(JSON.parse(readFileSync(join(d, 'juice.json'), 'utf8')), { layout: 'nope', futureKey: { a: 1 }, cost: 'on' });
+  await run(d, ['set', 'layout=bar']);
   assert.doesNotMatch(check(d), /juice settings:/);
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ show: [] }));
   assert.match(check(d), /Type \/juice show all the batteries to bring them back/);
@@ -180,6 +186,11 @@ test('doctor: Fable off, failing, and checked', () => {
   mkdirSync(join(d, 'juice-cache'), { recursive: true });
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 10 * 60000 }));
   assert.match(check(d), /^! Fable battery: the last check failed; juice tries again in 10 min\. If it keeps failing, type \/login/m);
+  // Behind a company proxy the advice depends on whether this Node can use it.
+  const behindProxy = check(d, { env: { HTTPS_PROXY: 'http://proxy:8080' } });
+  const [maj, min] = process.versions.node.split('.').map(Number);
+  const nodeCan = maj > 24 || (maj === 24 && min >= 5) || (maj === 22 && min >= 21);
+  assert.match(behindProxy, nodeCan ? /type \/login/ : /company proxy, which juice can only get through with Node 22\.21 or newer, or 24\.5 or newer/);
   // Stamped by a clock that was ahead: juice ignores these, and so does the doctor.
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 30 * 86400000 }));
   assert.doesNotMatch(check(d), /last check failed/);

@@ -13,7 +13,8 @@ import { LABELS } from './render/words.js';
 import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
 import { fableCacheState, fetchedCounts } from './readings.js';
-import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes } from './setup.js';
+import { recall } from './lastseen.js';
+import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes, constant } from './setup.js';
 import { hideHome } from './paths.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
 
@@ -31,12 +32,7 @@ export function ago(ms) {
   return `${Math.round(m / 1440)} days ago`;
 }
 
-// The launcher setup wrote records which juice it runs: a pinned folder, or the plugin store it came from.
-const constant = (text, name) => {
-  const m = new RegExp(`const ${name} = ("(?:[^"\\\\]|\\\\.)*");`).exec(text);
-  try { return m ? JSON.parse(m[1]) : null; } catch { return null; }
-};
-const read = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
+const read =(f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
 
 export function doctor(p, { env, platform, now, cwd, version }) {
   const out = [];
@@ -69,7 +65,7 @@ export function doctor(p, { env, platform, now, cwd, version }) {
     const launcher = read(p.launcherFile);
     const pinned = launcher && constant(launcher, 'PINNED'), market = launcher && constant(launcher, 'MARKET');
     if (launcher === null) out.push(bad("juice's launcher file is missing, so the status line draws nothing. Run /juice setup."));
-    else if (!pinned && !market) out.push(bad("juice's launcher file is damaged, so the status line may draw nothing. Run /juice setup."));
+    else if (!pinned && !market) out.push(bad("juice's launcher file is damaged or from an older juice, so the status line may draw nothing. Run /juice setup."));
     else if (turnedOff(p.config, market)) out.push(bad('juice is turned off in /plugin, so the status line only says so. Turn it back on in /plugin.'));
     else {
       const target = resolveTarget(p.config, pinned, market);
@@ -85,7 +81,7 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   const { settings: mine, warnings } = loadSettings(p);
   // An unreadable juice.json is never overwritten (it may hold badges), so only a bad value is fixed by changing a setting.
   warnings.forEach((w) => out.push(bad(`juice settings: ${w}. ${/unreadable/.test(w)
-    ? 'Fix or delete juice.json in your Claude folder (Claude can do it for you).' : 'Changing any setting with /juice saves a clean copy.'}`)));
+    ? 'Fix or delete juice.json in your Claude folder (Claude can do it for you).' : 'Choosing that setting again with /juice replaces it (a newer juice may know it: then updating juice fixes it too).'}`)));
   if (!mine.show.length) out.push(bad(NOTHING_SHOWN));
   const term = detectTerminal({ env, settings: mine, claudeTheme: readClaudeTheme(p.claudeSettings) });
   try {
@@ -96,21 +92,26 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   }
   out.push(info(`Terminal, as seen from here: ${term.theme} background, ${COLOURS[term.colorDepth] ?? term.colorDepth}, ${term.ends} ends`));
   // A problem from more than a day ago has passed; one this recent is worth a look.
-  const err = readJson(join(p.cacheDir, 'last-error.json'));
+  const err = readJson(p.lastErrorFile);
   if (Number.isFinite(err?.at) && typeof err.message === 'string' && t - err.at >= 0 && t - err.at < DAY) {
     out.push(bad(`The status line hit a problem ${ago(t - err.at)}: ${err.message}${err.where ? ` (${err.where})` : ''}. Run /juice setup; if it keeps happening, tell us what /juice doctor says.`));
   }
 
   // 3. Where the numbers come from.
-  const seen = readJson(join(p.cacheDir, 'lastseen.json'))?.subscriberSeenAt;
+  const seen = recall(p)?.subscriberSeenAt;
   out.push(info(!Number.isFinite(seen) ? "Hasn't seen plan limits yet: they show after Claude's first reply. With an API key there are none."
     : t - seen < 3600000 ? "Saw your plan's limits within the last hour" : `Last saw your plan's limits ${ago(t - seen)}`));
   if (!fableEnabled(mine.fable, platform)) {
     out.push(info(mine.fable === 'off' ? 'Fable battery: turned off.' : 'Fable battery: off on a Mac until you type /juice set fable=on, because macOS asks permission to read your sign-in.'));
   } else {
-    const f = readJson(join(p.cacheDir, 'fable.json'));
+    const f = readJson(p.fableFile);
     if (fableCacheState(f, t).backedOff) {
-      out.push(bad(`Fable battery: the last check failed; juice tries again in ${Math.ceil((f.backoffUntil - t) / 60000)} min. If it keeps failing, type /login to sign in to Claude Code again.`));
+      // Behind a company proxy (HTTPS_PROXY), Node's fetch reaches Anthropic only from 22.21 and 24.5 on.
+      const [maj, min] = node.split('.').map(Number);
+      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && !(maj > 24 || (maj === 24 && min >= 5) || (maj === 22 && min >= 21));
+      out.push(bad(`Fable battery: the last check failed; juice tries again in ${Math.ceil((f.backoffUntil - t) / 60000)} min. ${proxyBlocks
+        ? `You're behind a company proxy, which juice can only get through with Node 22.21 or newer, or 24.5 or newer (this is ${node}): install the newest from nodejs.org.`
+        : 'If it keeps failing, type /login to sign in to Claude Code again.'}`));
     } else out.push(info(fetchedCounts(f?.fetchedAt, now) ? `Fable battery: last checked ${ago(t - f.fetchedAt)}`
       : f?.fetchedAt ? 'Fable battery: not checked in the last hour; juice asks again soon.'
       : 'Fable battery: not checked yet. juice asks in the background for plan subscribers.'));
