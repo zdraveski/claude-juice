@@ -4,7 +4,13 @@ import { vis, cut, strip } from './ansi.js';
 // so hiding the ones that are fine is the very last step, after every word and space has given way.
 export const FIT_STEPS = [['badges', 'badges'], ['noRefills', 'reset times'], ['noEffortWord', 'the effort word'], ['noCost', 'cost'],
   ['noEffort', 'the effort level'], ['noModel', 'the model name'], ['tight', 'spacing'], ['small', 'battery size'],
-  ['shortWords', 'warning words'], ['bare', 'battery pictures'], ['onlyTrouble', 'batteries that are fine']];
+  ['shortWords', 'warning words'], ['bare', 'battery pictures'], ['onlyTrouble', 'batteries that are fine'],
+  ['onlyRed', 'batteries going a bit fast']];
+// After hiding the fine batteries, the amber ones go before a red one is lost.
+
+// Claude Code sets COLUMNS to the whole terminal, then indents the status line, so a line that full gets cut.
+// shortcut: a fixed few columns; a notice Claude Code shows on the same row can still cut a long line.
+export const RESERVE = 4;
 // 'bare' draws each battery as words ("Session 88%!! out ~2:44 PM"): every battery as words beats hiding some,
 // and a red one keeps its warning and time in any window wide enough for the words. Like every squeeze it is
 // undone if hiding the fine batteries freed enough room for the pictures.
@@ -14,11 +20,15 @@ const SQUEEZES = ['tight', 'small', 'shortWords', 'bare'];
 
 const widest = (t) => Math.max(...t.split('\n').map(vis));
 
-// The last resort cuts between items (they are two or more spaces apart), so a battery is dropped whole
-// rather than sliced through its "!!" or its time; only a single item too long for the window is cut mid-way.
+// The last resort cuts between items (they are two or more spaces apart), never through a number or a time.
+// The last item keeps as much as is whole: its name, number and mark ("Week 95%!!") if they fit, else it goes.
+// Only a single item too long for the window is cut mid-way.
 function wholeItems(ln, columns) {
   const plain = strip(ln), gap = plain.lastIndexOf('  ', columns - 2);
-  return gap >= columns / 2 ? vis(plain.slice(0, gap)) + 1 : columns - 1;
+  if (gap < columns / 2) return columns - 1;
+  const head = /^\s+\S+ \d+%(?:!!|!)?/.exec(plain.slice(gap))?.[0];
+  const end = head && vis(plain.slice(0, gap + head.length)) <= columns - 2 ? gap + head.length : gap;
+  return vis(plain.slice(0, end)) + 1; // keeps the space after it, before the '…'
 }
 
 const without = (flags, flag) => { const rest = { ...flags }; delete rest[flag]; return rest; };

@@ -30,6 +30,21 @@ test('a narrow window keeps every battery and gives up words, names and spacing 
   assert.ok(!t.includes('Opus'), t);
 });
 
+test('in a narrow window an amber battery gives way before a red one', () => {
+  const at = (s) => new Date(SAMPLES.busy.now.getTime() + s * 1000);
+  const d = { ...SAMPLES.busy, memoryUsed: 72, limits: { session: { used: 88, resetsAt: at(7500), windowSec: 18000 }, week: { used: 80, resetsAt: at(200000), windowSec: 604800 } } };
+  const t = strip(go(d, 'bar', 40).text);
+  assert.match(t, /Session 88%!! out ~2:44 PM {2}Week 80%!! …$/, t);
+});
+
+test('the last-resort cut keeps a battery\'s name, number and mark, never half a time', () => {
+  for (const w of [56, 58, 60, 64]) {
+    const t = strip(go(SAMPLES.trouble, 'bar', w).text);
+    assert.match(t, /Week 95%!! …$/, `${w}: ${t}`);
+    assert.doesNotMatch(t, /~\d+:\d?…|~\d…/, `${w}: a time cut in half`);
+  }
+});
+
 test('every battery as words comes before hiding any', () => {
   const t = strip(go(SAMPLES.busy, 'bar', 60).text);
   for (const name of ['Memory 64%', 'Session 47%', 'Fable 41%', 'Week 50%!']) assert.ok(t.includes(name), `${name} missing: ${t}`);
@@ -110,8 +125,8 @@ test('steps run in order and are all tried before a cut', () => {
   assert.ok(cuts > 0, 'no case exercised the cut');
 });
 
-test('FIT_STEPS has the eleven steps in the agreed order', () => {
-  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'noEffort', 'noModel', 'tight', 'small', 'shortWords', 'bare', 'onlyTrouble']);
+test('FIT_STEPS has the twelve steps in the agreed order', () => {
+  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'noEffort', 'noModel', 'tight', 'small', 'shortWords', 'bare', 'onlyTrouble', 'onlyRed']);
 });
 
 test('a missing columns count means 120', () => {

@@ -14,8 +14,9 @@ export const HOT_WRITE = { maxWaitMs: 30 };
 export function writeJsonAtomic(file, value, { maxWaitMs = 2500, modeFrom } = {}) {
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
-  writeFileSync(tmp, JSON.stringify(value, null, 2));
-  // Keep the old file's permissions: settings.json can hold API keys and be readable by its owner only.
+  // Born private, so not even the temp copy of a settings.json holding API keys is readable by others for a moment;
+  // then it takes the old file's permissions (or modeFrom's).
+  writeFileSync(tmp, JSON.stringify(value, null, 2), { mode: 0o600 });
   if (process.platform !== 'win32') {
     for (const from of [file, modeFrom].filter(Boolean)) { try { chmodSync(tmp, statSync(from).mode & 0o777); break; } catch {} }
   }

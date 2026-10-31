@@ -45,6 +45,19 @@ test('clock: AM/PM today, month and day on another day', () => {
   assert.equal(clock(at(-14 * 3600), NOW), '12:20 AM');
 });
 
+// Every other test runs in UTC (helpers.js); people don't, and daylight saving moves clocks.
+test('clock reads the local time zone, across the night daylight saving ends', () => {
+  const keep = process.env.TZ;
+  try {
+    process.env.TZ = 'America/New_York'; // EDT until 2026-11-01 06:00 UTC, then EST
+    const now = new Date(Date.UTC(2026, 9, 31, 20, 0)); // 4:00 PM EDT on Oct 31
+    assert.equal(clock(new Date(Date.UTC(2026, 9, 31, 21, 15)), now), '5:15 PM');
+    assert.equal(clock(new Date(Date.UTC(2026, 10, 1, 5, 30)), now), 'Nov 1, 1:30 AM', 'still EDT');
+    assert.equal(clock(new Date(Date.UTC(2026, 10, 1, 7, 30)), now), 'Nov 1, 2:30 AM', 'now EST: an hour later in UTC, the same hour on the clock');
+    assert.equal(countdown(new Date(Date.UTC(2026, 10, 1, 20, 0)), now), '1d', 'a countdown is real time: 24 hours, though the clock moves 25 that night');
+  } finally { process.env.TZ = keep; }
+});
+
 test('limitNote without a reset time falls back to words', () => {
   assert.deepEqual(limitNote({ level: 'crit', resetsAt: null }, NOW), { text: 'almost empty', tone: 'bad' });
   assert.equal(limitNote({ level: 'crit', resetsAt: null }, NOW, { squeezed: true }).text, 'low');

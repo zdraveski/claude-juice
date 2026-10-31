@@ -1,7 +1,7 @@
 import './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paths } from '../src/paths.js';
@@ -83,6 +83,16 @@ test('a command that leaves a helper running still counts, and does not keep us 
   const r = await run(cmd, { input: '', timeoutMs: 2500 });
   assert.deepEqual(r, { ok: true, stdout: 'hi' });
   assert.ok(Date.now() - t0 < 2000, `took ${Date.now() - t0}ms`);
+});
+
+test('an empty or half-written badge secret is replaced, so a new badge really runs', () => {
+  const p = tmp();
+  mkdirSync(p.cacheDir, { recursive: true });
+  writeFileSync(join(p.cacheDir, 'badge-secret'), '');
+  const b = approve(p, 'echo hi');
+  assert.deepEqual(approved(p, [b]), [b]);
+  writeFileSync(join(p.cacheDir, 'badge-secret'), 'abc'); // half a key: nothing signed with it counts
+  assert.deepEqual(approved(p, [b]), []);
 });
 
 test('C1 control characters never reach the terminal', () => {

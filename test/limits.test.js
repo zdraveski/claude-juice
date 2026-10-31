@@ -60,6 +60,11 @@ test('early in a window, half or more used is judged by pace: 84% after 24 minut
   assert.equal(A(84, H5, H5).level, 'ok', 'no time has passed: no pace to judge');
 });
 
+test('a fast start to the week is amber after a few hours, not "plenty left" for 17', () => {
+  assert.equal(A(45, D7 - 14 * 3600, D7).level, 'warn'); // 45% after 14 hours
+  assert.equal(A(5, D7 - 2 * 3600, D7).level, 'ok', 'the first couple of hours are still too noisy to judge');
+});
+
 test('running out exactly at the reset is amber, and "runs out" is never the reset time itself', () => {
   assert.equal(A(60, 7200, H5).level, 'warn'); // 60% after 3h of 5h: on track to finish exactly at the reset
   for (let used = 50; used < 100; used++) for (let s = 60; s < H5; s += 300) {

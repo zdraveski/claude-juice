@@ -36,7 +36,7 @@ Juice saves your old status line first, if you had one, so `/juice restore` can 
 | Session | Your 5-hour limit. |
 | Fable weekly | The separate weekly limit for the Fable model. One-line layouts call it "Fable"; the panel says "Fable weekly". It resets together with Weekly, so it shows no countdown of its own while Weekly is shown. When it is red it still says when it runs out. |
 | Weekly | Your weekly limit. |
-| Budget | Only if your company gives you Claude Code through a gateway with a spending limit: how much of that budget is used. It turns red when almost all of it is gone. |
+| Budget | Only if your company gives you Claude Code through a gateway with a spending limit: how much of that budget is used. It has no pace: it turns amber past 85% used and red past 90%. |
 
 Next to the batteries you also see the model's name and its effort level: a little staircase that climbs from 1 step (low) to 5 steps (max), with the word beside it.
 
@@ -47,6 +47,8 @@ The colours for Session, Weekly and Fable weekly depend on your pace as well as 
 - Green means plenty left.
 - Amber with ! means you are going a bit fast. At this pace you could run out before it resets.
 - Red with !! means almost empty, or more than half used and on track to run out before it resets. A red battery also says when it runs out at this pace, for example "runs out ~4:04 PM · resets in 2h 10m".
+
+A limit that is used up always shows, even in a look that leaves it out, so you never see "all fine" while you are locked out.
 
 A thin line on these batteries marks where you would be if you used the limit evenly. If the colour reaches past the line, you are going faster than that. Before the line, you have time to spare.
 
@@ -149,7 +151,7 @@ In a narrow window juice makes room step by step: first badges, reset times, the
 - **Update:** open `/plugin`, pick juice, and update it. Your settings and badges stay.
 - **Undo:** `/juice restore` puts your old status line back.
 - **Uninstall:** run `/juice restore` first, then remove juice in `/plugin`. If you uninstall first, the status line tells you how to get back.
-- **Leave nothing behind:** after uninstalling, juice's own files are still in your Claude folder (`~/.claude`): `juice.json` (your settings and badge commands), the `juice-cache` folder (usage numbers and, for up to a week, which project each chat was in) and any `juice-backup-….json` copies. Delete them if you want nothing left.
+- **Leave nothing behind:** after uninstalling, juice's own files are still in your Claude folder (`~/.claude`): `juice.json` (your settings and badge commands), the `juice-cache` folder (usage numbers, the approval of your badges, and, for up to a week, which project each chat was in), any `juice-backup-….json` copies, and `juice-statusline.mjs` if you uninstalled before `/juice restore`. Delete them if you want nothing left. (Deleting `juice-cache` while juice is installed is harmless, except that your badges then need adding again.)
 
 ## Badges
 

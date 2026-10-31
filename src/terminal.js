@@ -1,8 +1,5 @@
 import { readJson } from './cache.js';
-
-// Claude Code sets COLUMNS to the whole terminal, then indents the status line, so a line that full gets cut.
-// shortcut: a fixed few columns; a notice Claude Code shows on the same row can still cut a long line.
-const RESERVE = 4;
+import { RESERVE } from './render/fit.js';
 
 export function readClaudeTheme(file) {
   const t = readJson(file)?.theme;

@@ -54,8 +54,10 @@ export function normalize(stdin, extras, now) {
   const seenAt = num(seen.subscriberSeenAt);
   // Claude Code sends prompt_cache only after this run's first reply, and subscribers have rate_limits by then,
   // so a reply without them means the saved readings are another account's. (Cost can't tell: --resume restores it.)
-  // Versions before 2.1.251 never send prompt_cache, so there a cost is the only sign of a reply.
-  const replied = sendsPromptCache(input.version) ? Object.hasOwn(input, 'prompt_cache') : num(obj(input.cost).total_cost_usd) > 0;
+  // Versions before 2.1.251 never send prompt_cache, and there a cost can't tell either: a resumed chat has one
+  // before any reply. So there the saved readings count: a subscriber resuming a chat is far more common than
+  // someone who switched to an API key, and old batteries are less alarming than a "spent $" they never paid.
+  const replied = sendsPromptCache(input.version) && Object.hasOwn(input, 'prompt_cache');
   const recent = !replied && seenAt !== null && now.getTime() - seenAt <= 30 * DAY;
   const spend = obj(rl.spend_limit);
   const budget = limit(spend.used_percentage, spend.resets_at, null);

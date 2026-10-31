@@ -1,5 +1,6 @@
 // The customizer page. All drawing of the status line is done by ../src/render; this file only builds controls and converts its ANSI to HTML.
 import { render } from '../src/render/index.js';
+import { RESERVE } from '../src/render/fit.js';
 import { LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../src/schema.js';
 import { PRESETS, NEUTRAL } from '../src/render/palette.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
@@ -94,7 +95,8 @@ function ansiToHtml(text, termFg) {
 // ---------- preview ----------
 const terminal = (columns, st = s) => ({ columns, theme: view.term, ends: st.ends === 'plain' ? 'plain' : 'round', colorDepth: 'truecolor' });
 const sample = () => withAccount({ ...SAMPLES[view.state], model: { name: view.model, isFable: view.model.startsWith('Fable') } }, view.plan);
-const drawn = (settings, columns) => render(sample(), settings, terminal(columns, settings));
+// A real status line keeps a few columns free for Claude Code's indent, so the preview of an 80-column window does too.
+const drawn = (settings, columns) => render(sample(), settings, terminal(columns - RESERVE, settings));
 const LOOK = Object.fromEntries(LOOKS.map((l) => [l.id, l]));
 // What a hovered card previews: view.hover is 'look:<id>' or 'layout:<id>'.
 const peek = (key) => { const [kind, id] = (key || '').split(':'); return kind === 'look' ? LOOK[id] : kind === 'layout' ? { name: LAYOUTS[id][0], set: { layout: id } } : null; };
@@ -164,7 +166,7 @@ function update() {
   $('install1').textContent = '/plugin marketplace add zdraveski/claude-juice';
   $('install2').textContent = '/plugin install juice@juice';
   $('install3').textContent = '/juice setup';
-  $('cmd').textContent = toCommand(s);
+  $('cmd').textContent = toCommand(s, { terminalChosen: !!view.terminalChosen });
   $('json').textContent = JSON.stringify(s, null, 2);
   history.replaceState(null, '', '#c=' + encodeLink(s));
   try { localStorage.setItem(SAVED, JSON.stringify(s)); } catch {} // remembered for the next visit
@@ -192,7 +194,10 @@ document.addEventListener('click', (e) => {
     else { customs = presetArrs(t.dataset.preset); s = { ...s, colors: t.dataset.preset }; }
   } else if (t.dataset.key) {
     s = { ...s, [t.dataset.key]: t.dataset.v };
-    if (t.dataset.key === 'terminal' && t.dataset.v !== 'auto') view.term = t.dataset.v; // preview what was just chosen
+    if (t.dataset.key === 'terminal') {
+      view.terminalChosen = true; // from now on the command says terminal=, even Automatic
+      if (t.dataset.v !== 'auto') view.term = t.dataset.v; // preview what was just chosen
+    }
   }
   else if (t.closest('[data-view]')) view[t.closest('[data-view]').dataset.view] = t.dataset.v;
   else if (t.dataset.copy) return copy($(t.dataset.copy).textContent, 'Copied. Paste it into Claude Code.');

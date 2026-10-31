@@ -50,11 +50,12 @@ test('after a reply that brought no limits, lastSeen is another account', () => 
   assert.deepEqual(d.limits, {});
 });
 
-test('on Claude Code before 2.1.251 (no prompt_cache ever), a cost is the sign of a reply', () => {
+test('on Claude Code before 2.1.251 (no prompt_cache ever), a resumed chat keeps its batteries instead of "spent $"', () => {
   assert.deepEqual(['2.1.250', '2.1.251', '2.2.0', '3.0.0', '1.9.999', undefined, 'x'].map(sendsPromptCache), [false, true, true, true, false, true, true]);
-  const old = { ...fixture('payg'), version: '2.1.200' }; // an API key, $1.25 spent, no rate_limits
-  assert.equal(normalize(old, { lastSeen: seen() }, NOW).account, 'payg');
-  assert.equal(normalize({ ...old, cost: { total_cost_usd: 0 } }, { lastSeen: seen() }, NOW).account, 'subscriber', 'before any reply the memory still helps');
+  const resumed = { ...fixture('payg'), version: '2.1.200' }; // cost restored by --resume, no rate_limits yet
+  const d = normalize(resumed, { lastSeen: seen() }, NOW);
+  assert.equal(d.account, 'subscriber');
+  assert.equal(d.limits.session.used, 30);
 });
 
 test('a resumed chat (cost restored, no reply yet) still counts as the subscriber it was', () => {

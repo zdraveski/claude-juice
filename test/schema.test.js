@@ -123,11 +123,21 @@ test('applySet colours', () => {
 });
 
 test('toCommand', () => {
-  // terminal has a control on the page, so Automatic can be chosen there; fable never travels in a pasted command.
-  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget cost=auto colors=claude ends=auto terminal=auto refills=always');
+  // The public page starts at Automatic: pasting a look from it keeps the person's own terminal colour.
+  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget cost=auto colors=claude ends=auto refills=always');
   const mine = applySet({ ...DEFAULTS, fable: 'on', terminal: 'light' }, toCommand(DEFAULTS).split(' ').slice(2)).settings;
-  assert.deepEqual([mine.fable, mine.terminal], ['on', 'auto'], 'Automatic undoes Light; the person\'s own fable choice stays');
+  assert.deepEqual([mine.fable, mine.terminal], ['on', 'light'], 'neither their fable nor their terminal choice is undone');
+  // Choosing Automatic on the page does say so, and undoes Light.
+  const chosen = applySet({ ...DEFAULTS, terminal: 'light' }, toCommand(DEFAULTS, { terminalChosen: true }).split(' ').slice(2)).settings;
+  assert.equal(chosen.terminal, 'auto');
+  assert.match(toCommand({ ...DEFAULTS, terminal: 'light' }), /terminal=light/);
   assert.doesNotMatch(toCommand({ ...DEFAULTS, fable: 'on' }), /fable=/);
+});
+
+test('an all-wrong show= list says which names are right, in plain words', () => {
+  const w = applySet(DEFAULTS, ['show=sesion,weekly']).warnings.join();
+  assert.match(w, /'sesion', 'weekly' isn't a battery name .*Weekly is "week".*so nothing changed/);
+  assert.doesNotMatch(w, /\[/, 'no raw JSON');
 });
 
 test('toCommand round-trips through applySet, custom colours too (everything but fable)', () => {

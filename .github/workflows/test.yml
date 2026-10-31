@@ -1,5 +1,6 @@
 # Runs every test on Windows, macOS and Linux, with the oldest Node juice supports (18) and current ones,
-# on every push and pull request. Free for public repositories.
+# on every push and pull request, then installs juice the way Claude Code does and runs the real status line
+# through the shell Claude Code uses (Git Bash on Windows). Free for public repositories.
 name: tests
 
 on:
@@ -7,8 +8,12 @@ on:
   pull_request:
   workflow_dispatch: # a "Run workflow" button on the Actions tab
 
+permissions:
+  contents: read # it only reads the code
+
 jobs:
   test:
+    timeout-minutes: 15 # a test left waiting on a process must not hold a runner for hours
     strategy:
       fail-fast: false # one system failing must not hide the others' results
       matrix:
@@ -16,8 +21,12 @@ jobs:
         node: [18, 22, 24]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Pinned to exact commits (the v4 tags), so a moved tag can't change what runs here.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node }}
       - run: node --test
+      - name: End to end, through the shell Claude Code uses
+        shell: bash
+        run: node scripts/e2e.mjs

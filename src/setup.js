@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { readJson, writeJsonAtomic } from './cache.js';
 
@@ -12,26 +13,33 @@ const REFRESH_SECONDS = 60;
 // A symlinked settings.json must stay a symlink, so write to what it points at.
 const writeSettings = (p, v) => writeJsonAtomic(existsSync(p.claudeSettings) ? realpathSync(p.claudeSettings) : p.claudeSettings, v);
 
-// juice's own line is one program (node, or any quoted path such as "/usr/bin/nodejs") running a
-// juice-statusline.mjs, and nothing else, so a wrapper script that merely mentions the file is never taken
-// for juice. Any folder counts: the same one can be spelled C:\ or c:\, and settings can be copied from another machine.
-const JUICE_COMMAND = /^\s*(?:node|"[^"]+"|\S*[\\/]node(?:js)?(?:\.exe)?)\s+"[^"]*[\\/]juice-statusline\.mjs"\s*$/i;
+// juice's own line is Node (node, nodejs or node.exe, bare or by path, optionally after the PATH="…:$PATH"
+// that setup writes on macOS and Linux) running a juice-statusline.mjs, and nothing else, so a wrapper script
+// that merely mentions the file is never taken for juice. Any folder counts: the same one can be spelled
+// C:\ or c:\, and settings can be copied from another machine.
+const NODE = String.raw`(?:node|"(?:[^"]*[\\/])?node(?:js)?(?:\.exe)?"|\S*[\\/]node(?:js)?(?:\.exe)?)`;
+const JUICE_COMMAND = new RegExp(String.raw`^\s*(?:PATH="[^"]*"\s+)?${NODE}\s+"[^"]*[\\/]juice-statusline\.mjs"\s*$`, 'i');
 const isJuice = (statusLine) => typeof statusLine?.command === 'string' && JUICE_COMMAND.test(statusLine.command);
 // Windows paths ignore case and slash direction.
 const samePath = (a, b, platform) => (platform === 'win32' ? fwd(a).toLowerCase() === fwd(b).toLowerCase() : a === b);
 
 // Claude Code started from a desktop app on macOS or Linux runs the status line without the shell's PATH,
-// where Homebrew's or nvm's node is missing, so name Node by its full path: the first node on PATH, as PATH
-// names it. That is Homebrew's /opt/homebrew/bin/node, not the versioned folder it links to, which an upgrade
-// deletes. fnm's per-shell folder vanishes with the shell, and with no node on PATH there is nothing better: plain node.
+// where Homebrew's or nvm's node is missing. So the folder of the first node on PATH goes in front of PATH:
+// PATH="/opt/homebrew/bin:$PATH" node "…". If that folder later goes (nvm uninstall), node is still looked up
+// on the rest of PATH instead of failing. Only absolute folders count (node_modules/.bin breaks elsewhere);
+// fnm's per-shell folder vanishes with the shell; a folder with characters the shell would change is skipped.
 function nodeCommand(platform, env) {
   if (platform === 'win32') return 'node';
-  for (const dir of String(env.PATH ?? '').split(':').filter(Boolean)) {
-    const f = `${dir.replace(/\/+$/, '')}/node`;
-    if (existsSync(f)) return /fnm_multishells/.test(f) ? 'node' : JSON.stringify(f);
+  for (const dir of String(env.PATH ?? '').split(':').filter((d) => d.startsWith('/'))) {
+    if (!existsSync(`${dir.replace(/\/+$/, '')}/node`)) continue;
+    return /fnm_multishells/.test(dir) || /["$`\\]/.test(dir) ? 'node' : `PATH="${dir.replace(/\/+$/, '')}:$PATH" node`;
   }
   return 'node';
 }
+
+// The shell Claude Code runs the status line in (Git Bash on Windows, sh elsewhere) would change a $ or a
+// backtick inside the quoted path, and cmd a %, so such a path can't be set up safely.
+const SHELL_UNSAFE = /[$`%]/;
 
 // Settings that beat the person's own: a project's .claude/settings(.local).json in this folder or any folder
 // above it, and disableAllHooks, which turns status lines off too. juice can't change those, but it can say so
@@ -39,9 +47,11 @@ function nodeCommand(platform, env) {
 function overrides(p, settings, cwd, platform) {
   const out = [];
   if (settings.disableAllHooks === true) out.push("Your Claude Code settings turn hooks off (disableAllHooks), which hides status lines too, so juice won't show until that is turned back on.");
+  // The person's own settings folders are not a project's: the config folder, and the home folder's .claude.
+  const own = [resolve(p.config), resolve(homedir(), '.claude')];
   for (let dir = resolve(cwd); ; dir = dirname(dir)) {
     const project = join(dir, '.claude');
-    if (!samePath(project, resolve(p.config), platform)) { // the home folder's .claude is the person's own settings
+    if (!own.some((o) => samePath(project, o, platform))) {
       for (const f of ['settings.json', 'settings.local.json']) {
         const s = readJson(join(project, f)), where = fwd(join(project, f));
         if (s?.statusLine && !isJuice(s.statusLine)) out.push(`${where} sets its own status line, so juice won't show in that project.`);
@@ -70,6 +80,9 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   // Installed from Claude Code's plugin store: follow updates. Anywhere else (a checkout): pin that folder.
   const inPluginCache = fwd(pluginRoot).includes('/plugins/cache/');
   const settings = readClaudeSettings(p);
+  if (SHELL_UNSAFE.test(p.launcherFile)) {
+    throw new Error(`Your Claude Code folder (${fwd(p.config)}) has a $, \` or % in its path, which would break the status line, so juice changed nothing. Point CLAUDE_CONFIG_DIR at a folder without them and run setup again.`);
+  }
   const command = `${nodeCommand(platform, env)} "${fwd(p.launcherFile)}"`;
   const ours = isJuice(settings.statusLine);
   const lines = [];
@@ -107,13 +120,19 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
     writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, refreshInterval: REFRESH_SECONDS } });
     lines.push('juice now refreshes once a minute, so the reset countdowns stay current.');
   } else if (ours) {
-    // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing.
+    // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing;
+    // one with the right launcher but an older way of finding Node just gets the current one.
+    const sameLauncher = samePath(settings.statusLine.command.replace(/^.*\s(?="[^"]*"\s*$)/, '').trim(), `"${fwd(p.launcherFile)}"`, platform);
     writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: settings.statusLine.refreshInterval || REFRESH_SECONDS } });
-    lines.push('juice was your status line but pointed somewhere else, so it now points at this copy of juice.');
+    lines.push(sameLauncher ? 'juice is your status line, now set up to find Node even when Claude Code starts from an app.'
+      : 'juice was your status line but pointed somewhere else, so it now points at this copy of juice.');
   } else {
     writeSettings(p, { ...settings, statusLine: { type: 'command', command, padding: 0, refreshInterval: REFRESH_SECONDS } });
-    lines.push('juice is now your status line. It shows up the next time Claude Code redraws it.');
+    lines.push("juice is now your status line. It shows up the next time Claude Code redraws it, and the batteries fill in after Claude's first reply.");
   }
+  // Setup is where people go when the line looks empty, so it says why when juice was told to show nothing.
+  const show = readJson(p.settingsFile)?.show;
+  if (Array.isArray(show) && show.length === 0) lines.push('Your juice settings choose nothing to show, so the line stays empty. Type /juice show everything to bring it back.');
   lines.push(...overrides(p, settings, cwd, platform));
   lines.push('To go back to your old status line, run /juice restore.');
   return lines;

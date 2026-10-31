@@ -13,7 +13,8 @@ export function assess(limit, now) {
     out.elapsed = Math.min(1, Math.max(0, elapsed / win)); // where an even pace would have the fill by now
     // Early pace is noisy, so it is ignored in the first tenth of a window, unless half is already gone:
     // then it is real (84% used 24 minutes in is not "plenty left").
-    if (elapsed > 0 && (elapsed >= win * 0.1 || used >= 50)) projected = (used / elapsed) * win;
+    // The grace is at most 3 hours: a tenth of a week (17 hours) would show a fast drain as "plenty left".
+    if (elapsed > 0 && (elapsed >= Math.min(win * 0.1, 3 * 3600) || used >= 50)) projected = (used / elapsed) * win;
   }
   // Pace alone only reaches red once half is gone, and only when it runs out before the reset, not at it.
   out.level = used >= 90 || (used >= 50 && projected > 100) ? 'crit' : projected >= 85 ? 'warn' : 'ok';

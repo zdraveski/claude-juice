@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { strip, at } from './helpers.js';
 import { render } from '../src/render/index.js';
 import { LAYOUTS } from '../src/render/layouts.js';
-import { DEFAULTS, LAYOUT_IDS } from '../src/schema.js';
+import { DEFAULTS, LAYOUT_IDS, applySet } from '../src/schema.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 import { fg, contrast } from '../src/render/ansi.js';
 import { palette, NEUTRAL } from '../src/render/palette.js';
@@ -115,6 +115,28 @@ test('a cost of $0.00 is never shown: before the first reply it says nothing abo
   const d = { ...SAMPLES.busy, account: 'payg', limits: {}, costUsd: 0 };
   assert.ok(!text(d).includes('$'), text(d));
   assert.match(text({ ...d, costUsd: 1.25 }), /spent \$1\.25/);
+});
+
+const lim = (used, s, windowSec) => ({ used, resetsAt: at(s), windowSec });
+const locked = (limits, model = SAMPLES.busy.model) => ({ ...SAMPLES.busy, model, limits });
+
+test('a used-up limit shows even in a look that leaves it out', () => {
+  const t = text(locked({ session: lim(10, 4 * 3600, 18000), week: lim(100, 2 * 86400, 604800) }), applySet(DEFAULTS, ['look=basics']).settings);
+  assert.match(t, /Weekly .*100%.*!!/, t);
+  const fable = locked({ session: lim(10, 4 * 3600, 18000), week: lim(30, 3 * 86400, 604800), fable: lim(100, 3 * 86400, 604800) }, { name: 'Fable 5.1', isFable: true });
+  assert.match(text(fable, applySet(DEFAULTS, ['look=quiet']).settings), /Fable .*100%/, 'while Fable is in use');
+  assert.doesNotMatch(text({ ...fable, model: SAMPLES.busy.model }, applySet(DEFAULTS, ['look=quiet']).settings), /Fable/, 'not while another model is in use');
+});
+
+test('a used-up limit gets the spotlight before one that merely runs out later', () => {
+  const t = text(locked({ session: lim(100, 3600, 18000), week: lim(70, 3.5 * 86400, 604800) }), { layout: 'focus' });
+  assert.match(t, /│ {3}Session .*100% used !!/, t);
+});
+
+test('Fable keeps its countdown when Weekly is not actually showing one', () => {
+  const d = locked({ session: lim(10, 4 * 3600, 18000), week: lim(20, 3 * 86400, 604800), fable: lim(100, 3 * 86400, 604800) });
+  const t = text(d, { refills: 'warnings' });
+  assert.match(t.split('Weekly')[0], /Fable .*!! resets in 3d/, t);
 });
 
 test('spotlight goes to the red battery that runs out first, not just the fullest', () => {

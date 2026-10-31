@@ -22,9 +22,9 @@ async function run(dir, argv) {
 }
 const json = (f) => JSON.parse(readFileSync(f, 'utf8'));
 const OLD = { statusLine: { type: 'command', command: 'node old.js' }, theme: 'dark' };
-// The command setup writes for config dir d: plain node on Windows, Node's full path on macOS and Linux.
+// The command setup writes for config dir d: plain node on Windows; on macOS and Linux, node with its folder put in front of PATH.
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const launcherCommand = (d) => new RegExp(`^(?:node|"[^"]+") "${escapeRe(d.replaceAll('\\', '/'))}/juice-statusline\\.mjs"$`);
+const launcherCommand = (d) => new RegExp(`^(?:PATH="[^"]*:\\$PATH" )?node "${escapeRe(d.replaceAll('\\', '/'))}/juice-statusline\\.mjs"$`);
 
 // Claude Code finds updates by plugin.json's version; the refresher's User-Agent reads package.json's.
 test('plugin.json and package.json carry the same version', () => {
@@ -156,20 +156,64 @@ test('a damaged backup is set aside and the current status line is still saved',
 });
 
 // Builds a POSIX PATH out of real folders, so it needs real POSIX paths: CI runs it on macOS and Linux.
-test('on macOS and Linux the command names the first node on PATH as PATH names it; restore still knows it', { skip: process.platform === 'win32' && 'POSIX PATH lookup; runs on macOS and Linux in CI' }, async () => {
+test('on macOS and Linux the folder of the first node on PATH goes in front of PATH; restore still knows it', { skip: process.platform === 'win32' && 'POSIX PATH lookup; runs on macOS and Linux in CI' }, async () => {
   const { install, restore } = await import('../src/setup.js');
   const { paths } = await import('../src/paths.js');
-  // A PATH like a Mac's: a folder holding node (Homebrew's /opt/homebrew/bin), written the POSIX way.
-  const posix = (dir) => dir.replaceAll('\\', '/').replace(/^[A-Za-z]:/, '');
-  const bin = env('bin'), fnm = env('fnm_multishells/9_1/bin');
-  writeFileSync(join(bin, 'node'), ''); writeFileSync(join(fnm, 'node'), '');
+  // A PATH like a Mac's: a folder holding node (Homebrew's /opt/homebrew/bin).
+  const bin = env('bin'), fnm = env('fnm_multishells/9_1/bin'), rel = env('rel');
+  for (const dir of [bin, fnm]) writeFileSync(join(dir, 'node'), '');
   const d = env(), p = paths({ CLAUDE_CONFIG_DIR: d });
-  install(p, { pluginRoot: '/dev/juice', platform: 'darwin', env: { PATH: `/nowhere:${posix(bin)}` } });
-  assert.equal(json(join(d, 'settings.json')).statusLine.command, `"${posix(bin)}/node" "${d.replaceAll('\\', '/')}/juice-statusline.mjs"`);
+  install(p, { pluginRoot: '/dev/juice', platform: 'darwin', env: { PATH: `/nowhere:${bin}` } });
+  assert.equal(json(join(d, 'settings.json')).statusLine.command, `PATH="${bin}:$PATH" node "${d}/juice-statusline.mjs"`);
   const e = env();
-  install(paths({ CLAUDE_CONFIG_DIR: e }), { pluginRoot: '/dev/juice', platform: 'linux', env: { PATH: posix(fnm) } });
+  install(paths({ CLAUDE_CONFIG_DIR: e }), { pluginRoot: '/dev/juice', platform: 'linux', env: { PATH: fnm } });
   assert.match(json(join(e, 'settings.json')).statusLine.command, /^node "/, "fnm's per-shell folder vanishes, so plain node");
+  // A relative PATH entry (node_modules/.bin) only works from one folder, so it never counts.
+  mkdirSync(join(rel, 'node_modules', '.bin'), { recursive: true }); writeFileSync(join(rel, 'node_modules', '.bin', 'node'), '');
+  const f = env(), cwd = process.cwd();
+  try { process.chdir(rel); install(paths({ CLAUDE_CONFIG_DIR: f }), { pluginRoot: '/dev/juice', platform: 'linux', env: { PATH: 'node_modules/.bin' } }); } finally { process.chdir(cwd); }
+  assert.match(json(join(f, 'settings.json')).statusLine.command, /^node "/);
   assert.match(restore(p).join(' '), /Removed juice/);
+});
+
+test('a quoted wrapper script is the person\'s own line, even next to the launcher path', async () => {
+  const d = env();
+  const mine = { type: 'command', command: '"/home/me/bin/my-wrapper.sh" "/home/me/.claude/juice-statusline.mjs"' };
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ statusLine: mine }));
+  assert.match((await run(d, ['restore'])).out, /isn't your status line/);
+  assert.deepEqual(json(join(d, 'settings.json')).statusLine, mine, 'never deleted');
+  await run(d, ['setup']);
+  assert.deepEqual(json(join(d, 'juice-backup.json')).statusLine, mine, 'backed up, not taken for juice');
+});
+
+test('a Claude folder with $, a backtick or % in its path is refused before anything is written', async () => {
+  for (const name of ['Jo$h', 'a`b', '100%']) {
+    const d = env(`${name}/.claude`);
+    const r = await run(d, ['setup']);
+    assert.equal(r.code, 1, name);
+    assert.match(r.err, /would break the status line, so juice changed nothing/);
+    assert.equal(existsSync(join(d, 'settings.json')), false, name);
+  }
+});
+
+test('setup says why the line is empty when juice was told to show nothing', async () => {
+  const d = env();
+  await run(d, ['set', 'show=']);
+  assert.match((await run(d, ['setup'])).out, /choose nothing to show/);
+});
+
+test('the home folder\'s own .claude is never taken for a project that hides juice', async () => {
+  const { install } = await import('../src/setup.js');
+  const { paths } = await import('../src/paths.js');
+  const home = env('home'), keep = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE };
+  mkdirSync(join(home, '.claude'), { recursive: true });
+  writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'echo mine' } }));
+  mkdirSync(join(home, 'work'), { recursive: true });
+  try {
+    process.env.HOME = home; process.env.USERPROFILE = home;
+    const out = install(paths({ CLAUDE_CONFIG_DIR: env() }), { pluginRoot: '/dev/juice', cwd: join(home, 'work') }).join('\n');
+    assert.doesNotMatch(out, /won't show in that project/, out);
+  } finally { for (const [k, v] of Object.entries(keep)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } }
 });
 
 test('a juice line run by a Node file with another name ("nodejs") is still juice', async () => {
@@ -280,6 +324,14 @@ test('a --yes inside the badge command belongs to the command; only a final --ye
   assert.match(ask.out, /This badge would run: npx --yes ccusage/);
   assert.equal((await run(d, ['badges', 'add', 'npx', '--yes', 'ccusage', '--yes'])).code, 0);
   assert.equal((await run(d, ['badges', 'list'])).out, '1. npx --yes ccusage');
+});
+
+test('badges remove takes --yes before or after the number', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'echo A', '--yes']);
+  await run(d, ['badges', 'add', 'echo B', '--yes']);
+  assert.equal((await run(d, ['badges', 'remove', '--yes', '2'])).code, 0);
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. echo A');
 });
 
 test('badges list says which badges this computer never approved, so they never run', async () => {

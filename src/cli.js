@@ -74,10 +74,11 @@ export async function main(argv, io) {
           return 0;
         }
         if (sub === 'remove') {
-          const n = Number(rest[0]);
+          // remove takes only a number, so --yes may come before or after it.
+          const n = Number(all.find((a) => a !== '--yes'));
           const command = listBadges(p)[n - 1];
           if (!Number.isInteger(n) || command === undefined) { io.err('No badge with that number. Run badges list to see them.'); return 1; }
-          if (!yes) { io.out(`This would remove badge ${n}: ${command}`); io.out('Run again with --yes to remove it.'); return 2; }
+          if (!all.includes('--yes')) { io.out(`This would remove badge ${n}: ${command}`); io.out('Run again with --yes to remove it.'); return 2; }
           removeBadge(p, n);
           io.out(`Removed badge: ${command}`);
           return 0;

@@ -1,7 +1,7 @@
 // Badges: user-added shell commands whose first output line is shown before the batteries.
 import { spawn } from 'node:child_process';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { readdirSync, readFileSync, statSync, unlinkSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, unlinkSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { cut, ESCAPES } from './render/ansi.js';
 import { readJson, writeJsonAtomic } from './cache.js';
@@ -71,12 +71,20 @@ export function run(command, { input, timeoutMs }) {
 // leaves this machine's juice-cache. A juice.json copied from elsewhere, or edited by hand, carries no valid
 // signature, so its commands never run.
 const secretFile = (p) => join(p.cacheDir, 'badge-secret');
+const SECRET = /^[0-9a-f]{64}$/;
+function readSecret(p) {
+  try { const s = readFileSync(secretFile(p), 'utf8').trim(); return SECRET.test(s) ? s : null; } catch { return null; }
+}
+// An empty or half-written secret (a crash, a full disk) counts as none and is replaced; it is written whole,
+// by rename, so another process never reads half of it. If two make one at once, the one left on disk is used.
 function secret(p, create) {
-  try { return readFileSync(secretFile(p), 'utf8').trim(); } catch {}
-  if (!create) return null;
+  const s = readSecret(p);
+  if (s || !create) return s;
   mkdirSync(p.cacheDir, { recursive: true });
-  try { writeFileSync(secretFile(p), randomBytes(32).toString('hex'), { mode: 0o600, flag: 'wx' }); } catch {} // 'wx': another process may win
-  return readFileSync(secretFile(p), 'utf8').trim();
+  const tmp = `${secretFile(p)}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
+  writeFileSync(tmp, randomBytes(32).toString('hex'), { mode: 0o600 });
+  renameSync(tmp, secretFile(p));
+  return readSecret(p);
 }
 const sign = (key, command) => createHmac('sha256', key).update(command).digest('hex');
 

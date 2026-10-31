@@ -44,7 +44,9 @@ export function remember(stdin, p, now) {
     const sevenDay = keep(valid(old?.sevenDay), seenSeven);
     const age = now.getTime() - old?.subscriberSeenAt;
     const same = JSON.stringify([old?.fiveHour, old?.sevenDay]) === JSON.stringify([fiveHour, sevenDay]);
-    if (!news && same && age >= 0 && age < HOUR) return old; // a stamp from the future (clock was ahead) is rewritten
+    // A session seen for the first time is always recorded, even when it changes nothing: else it stays a stranger
+    // and its real news never counts. A stamp from the future (clock was ahead) is rewritten too.
+    if (known && !news && same && age >= 0 && age < HOUR) return old;
 
     delete sessions[sid];
     sessions[sid] = sig; // newest last, so the oldest go first

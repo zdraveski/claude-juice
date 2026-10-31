@@ -45,12 +45,23 @@ function items(data, ctx) {
     };
   }
   let out = settings.show.map((id) => make[id]?.()).filter(Boolean);
+  // A limit that is used up blocks the person, so it shows even in a look that leaves it out
+  // (Fable's only while Fable is in use: otherwise it blocks nothing).
+  for (const id of ['session', 'week', 'fable']) {
+    if (settings.show.includes(id) || (id === 'fable' && !data.model?.isFable)) continue;
+    const i = make[id]();
+    if (i && i.used >= 100) out.push(i);
+  }
   if (fit.onlyTrouble && out.length) {
     const bad = out.filter((i) => i.level !== 'ok');
     out = bad.length ? bad : [out.slice().sort((a, b) => b.used - a.used)[0]];
   }
-  // Fable resets with the weekly limit; while Weekly is on screen, one countdown is enough.
-  const week = out.find((i) => i.id === 'week')?.assessed.resetsAt;
+  if (fit.onlyRed && out.some((i) => i.level === 'crit')) out = out.filter((i) => i.level === 'crit');
+  // Fable resets with the weekly limit; while Weekly shows that countdown, one is enough. Only while it
+  // really shows it: a fine Weekly with reset times off, or squeezed to its run-out time, shows none.
+  const weekItem = out.find((i) => i.id === 'week');
+  const weekSaysReset = weekItem && wants(ctx, weekItem) && !(fit.shortWords && weekItem.assessed.outAt);
+  const week = weekSaysReset ? weekItem.assessed.resetsAt : null;
   for (const i of out) if (i.id === 'fable' && week && i.assessed.resetsAt && Math.abs(i.assessed.resetsAt - week) < 60000) i.sameReset = true;
   return out;
 }
@@ -88,14 +99,17 @@ export const LAYOUTS = {
     cost(data, ctx)], ctx.fit.tight ? '  ' : '   '),
 
   focus: (data, ctx) => {
-    // The one that needs you most: red before amber before fine, then whichever runs out first, then the fullest.
-    const rank = { crit: 2, warn: 1, ok: 0 }, out = (i) => i.assessed?.outAt?.getTime() ?? Infinity;
-    const it = items(data, ctx).sort((a, b) => rank[b.level] - rank[a.level] || out(a) - out(b) || b.used - a.used);
+    // The one that needs you most: red before amber before fine, then whichever blocks you first: a limit
+    // already used up, then the earliest run-out time (or the reset, for one that lasts until then), then the fullest.
+    // Memory never blocks you, it only gets summarised.
+    const rank = { crit: 2, warn: 1, ok: 0 };
+    const out = (i) => (!i.assessed ? Infinity : i.used >= 100 ? -Infinity : (i.assessed.outAt ?? i.assessed.resetsAt)?.getTime() ?? Infinity);
+    const it = items(data, ctx).sort((a, b) => rank[b.level] - rank[a.level] || (a.level === 'crit' ? out(a) - out(b) : 0) || b.used - a.used);
     if (!it.length) return join([badges(data, ctx), head(data, ctx), cost(data, ctx)]);
     // Focus shows the others without countdowns, so the big one keeps its own even when it shares a reset.
     const [shown, ...rest] = it, big = { ...shown, sameReset: false }, bigNote = wants(ctx, big) ? say(ctx, big) : '', t = ctx.fit.tight;
     const picture = ctx.fit.bare ? '' : battery(ctx, big.used, paint(big), ctx.fit.small ? 6 : 12, big.assessed?.elapsed) + ' ';
-    return join([badges(data, ctx), head(data, ctx, false),
+    return join([badges(data, ctx), head(data, ctx),
       name(ctx, big, true) + ' ' + picture + num(ctx, bold(`${big.used}% used`), big.level) + spaced(ctx, big) + (bigNote ? lbl(ctx, ' · ') + bigNote : ''),
       rest.map((i) => name(ctx, i) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i)).join(lbl(ctx, t ? ' · ' : '  ·  ')), cost(data, ctx)],
     lbl(ctx, t ? ' │ ' : '   │   '));

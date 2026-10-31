@@ -104,6 +104,16 @@ test('a session seen for the first time (after /clear, or an upgrade) cannot low
   assert.equal(recall(p).fiveHour.used, 70);
 });
 
+test('a new session is recorded the first time, so its next reply counts even when lower', () => {
+  const p = tmpPaths();
+  const reading = (session_id, used) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at: R5 } } });
+  remember(reading('A', 81), p, NOW);
+  remember(reading('B', 10), p, at(60)); // first sighting: lower, so ignored, but B is now known
+  assert.equal(recall(p).fiveHour.used, 81);
+  remember(reading('B', 12), p, at(120)); // B's next reply is real news
+  assert.equal(recall(p).fiveHour.used, 12);
+});
+
 test('after an account switch, the idle window of the old account cannot bring its numbers back', () => {
   const p = tmpPaths();
   const reading = (session_id, used, resets_at) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at } } });

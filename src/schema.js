@@ -61,7 +61,7 @@ const CHECK = {
 const show = (v) => (typeof v === 'string' ? `'${v}'` : JSON.stringify(v));
 // A misspelt battery name is dropped, but never silently: "sesion" would otherwise just make Session vanish.
 const unknownShow = (v) => (Array.isArray(v) ? v.filter((id) => !SHOW_IDS.includes(id)) : []);
-const showWarning = (bad) => `show: ${bad.map(show).join(', ')} isn't a battery name (${SHOW_IDS.join(', ')}), so it was left out`;
+const showWarning = (bad, then = 'so it was left out') => `show: ${bad.map(show).join(', ')} isn't a battery name (they are ${SHOW_IDS.join(', ')}; Weekly is "week"), ${then}`;
 
 export function sanitize(x, { allowBadges }) {
   const src = isObj(x) ? x : {};
@@ -119,7 +119,11 @@ export function applySet(settings, pairs) {
     if (!Object.hasOwn(CHECK, key)) { warnings.push(`${pair}: not a setting`); continue; }
     const parsed = (Object.hasOwn(PARSE, key) ? PARSE[key] : (t) => t)(text);
     const v = CHECK[key](parsed);
-    if (v === undefined) { warnings.push(`${key}: '${text}' isn't valid, keeping ${show(next[key])}`); continue; }
+    if (v === undefined) {
+      // Plain words, not JSON: "sesion,weekly" gets the list of right names (Weekly is "week").
+      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${text}' isn't valid, keeping ${show(next[key])}`);
+      continue;
+    }
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));
     put(key, v);
   }
@@ -133,9 +137,11 @@ const colorWord = (c) => (typeof c === 'string' ? c
 // Keychain on a Mac), which only they should decide, with /juice set, never a pasted command or a shared link.
 const COMMAND_KEYS = ['layout', 'show', 'cost', 'colors', 'ends', 'terminal', 'refills'];
 
-export function toCommand(s) {
+// terminal=auto goes in only when the person chose Automatic on the page: the public page starts at auto,
+// and pasting a look from it must not undo the "/juice set terminal=light" they chose earlier.
+export function toCommand(s, { terminalChosen = false } = {}) {
   const v = { ...s, show: s.show.join(','), colors: colorWord(s.colors) };
-  return '/juice set ' + COMMAND_KEYS.map((k) => `${k}=${v[k]}`).join(' ');
+  return '/juice set ' + COMMAND_KEYS.filter((k) => k !== 'terminal' || v.terminal !== 'auto' || terminalChosen).map((k) => `${k}=${v[k]}`).join(' ');
 }
 
 // Badges run shell commands and fable reads the login, so neither travels in a link.
