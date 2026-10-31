@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security problem privately
+    url: https://github.com/zdraveski/claude-juice/security/advisories/new
+    about: Please don't post security problems in a public issue.
+  - name: Try the live customizer
+    url: https://zdraveski.github.io/claude-juice/web/
+    about: See every look, layout and colour before you change anything.

@@ -31,7 +31,7 @@ Use a normal session, not auto mode: auto mode approves on its own, so permissio
 Each step says what passes.
 
 1. **Install.** `/plugin marketplace add zdraveski/claude-juice`, `/plugin install juice@juice`, restart Claude Code, `/juice setup`.
-   Pass: the batteries appear within a minute, and `~/.claude/juice-backup.json` holds your previous status line.
+   Pass: the batteries appear within a minute, and `~/.claude/juice-backup.json` holds your previous status line (its `statusLine` is `null` if you had none).
 2. **Permissions.** `/juice get` and `/juice doctor` run without a permission prompt. `/juice badges add 'echo hi'` shows the
    command and waits; after you say yes, Claude Code asks permission. Fail on any other order.
 3. **PowerShell and `set` (Windows).** Ask `/juice` to set `show=$(whoami)`. Pass: Claude Code asks before running it, or
@@ -42,7 +42,7 @@ Each step says what passes.
    `~/.claude/juice-statusline.mjs`, or ask `/juice` to show nothing) and run it again. Pass: a `!` line names the problem
    and the fix, in plain words, and nothing in the report shows your user name (your home folder reads `~`).
 6. **Reset wording.** Look at the status line. Pass: Session says how long ("resets in 2h 10m"); Weekly says the day and
-   time ("resets Sat 7:20 PM") in your time zone, matching Anthropic's usage page. In a narrow window Weekly may say "resets 3d 5h".
+   time ("resets Sat 7:20 PM", or "resets next Wed 2:19 PM" right after a reset) in your time zone, matching Anthropic's usage page. In a narrow window Weekly may say "resets 3d 5h".
 7. **Restore.** `/juice restore`. Pass: your old status line is back, and `juice-statusline.mjs` and `juice-backup.json` are gone.
 8. **Update.** After publishing a version bump, `/plugin update`. Pass: the old version's folder gets `.orphaned_at`, and the
    line keeps drawing with the new version (`/juice doctor` names it).

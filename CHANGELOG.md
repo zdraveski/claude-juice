@@ -4,7 +4,7 @@ Newest first. To update, type `/plugin`, update juice, then restart Claude Code.
 
 ## 1.0.2 (2026-10-31)
 
-- In a narrow window a red battery never disappears: its "out ~2:44 PM" words go first. In the Everything look, red rows keep their numbers.
+- In a narrow window a red battery's "out ~2:44 PM" words now go before the battery itself. In the Everything look, red rows keep their numbers.
 - 99.5% to 99.9% shows as 99%, not as a used-up 100%.
 - `/juice set` and badges change only what you asked for: a setting from a newer juice, still open in another window, is kept.
 - A status line set up by juice before 0.2.1 is brought up to date on its own (the old one could run another plugin named juice).

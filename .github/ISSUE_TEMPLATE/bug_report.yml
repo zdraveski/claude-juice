@@ -1,0 +1,31 @@
+name: Something is wrong
+description: The status line is empty, looks wrong, or /juice doesn't do what you asked.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected instead. A screenshot of the status line helps a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: What does /juice doctor say?
+      description: Type `/juice doctor` in Claude Code and paste everything it prints. It never shows your user name or your badge commands.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Computer
+      options: [Windows, Mac, Linux, Other]
+    validations:
+      required: true
+  - type: input
+    id: terminal
+    attributes:
+      label: Where you run Claude Code
+      placeholder: e.g. Windows Terminal, VS Code, the Claude desktop app, iTerm2
