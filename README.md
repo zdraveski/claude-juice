@@ -2,7 +2,7 @@
 
 Juice replaces the row under your Claude Code prompt with little batteries. Each battery shows how much you have **used**, counted the same way as Anthropic's usage page, and when it resets.
 
-![claude-juice: your Claude usage at a glance. A battery-style status line for Claude Code, showing Memory, Session, Fable and Weekly with reset countdowns.](docs/images/hero.png)
+![claude-juice: your Claude usage at a glance. A battery-style status line for Claude Code, showing Memory, Session, Fable and Weekly and when each one resets.](docs/images/hero.png)
 
 <p align="center">
   <a href="https://zdraveski.github.io/claude-juice/web/"><img src="docs/images/open-customizer.png" alt="Open the live customizer" width="340"></a>
@@ -12,7 +12,7 @@ Juice replaces the row under your Claude Code prompt with little batteries. Each
 
 ## What you get
 
-![Everything juice gives you: used % like Anthropic, a countdown to every reset, ! and !! warnings, a violet Fable battery, 12 ready-made looks, 13 colour sets, live numbers in every window, the /juice command, and a one-step undo.](docs/images/features.png)
+![Everything juice gives you: used % like Anthropic, when every limit resets, ! and !! warnings, a violet Fable battery, 12 ready-made looks, 13 colour sets, live numbers in every window, the /juice command, and a one-step undo.](docs/images/features.png)
 
 ## Install
 
@@ -28,7 +28,7 @@ Juice saves your old status line first, if you had one, so `/juice restore` can 
 
 ## What the batteries mean
 
-![Reading the status line, left to right: the model, the effort level from low to max, Memory (room used in this chat), Session (your 5-hour limit), the countdown to its reset, Fable (its own weekly limit), Weekly (your weekly limit), and ! or !! when it is going fast or nearly out.](docs/images/anatomy.png)
+![Reading the status line, left to right: the model, the effort level from low to max, Memory (room used in this chat), Session (your 5-hour limit), when it resets, Fable (its own weekly limit), Weekly (your weekly limit), and ! or !! when it is going fast or nearly out.](docs/images/anatomy.png)
 
 | Battery | What it shows |
 |---|---|
