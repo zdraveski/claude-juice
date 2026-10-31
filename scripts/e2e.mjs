@@ -24,7 +24,12 @@ writeFileSync(join(config, 'settings.json'), JSON.stringify({ statusLine: { type
 
 const env = { ...process.env, HOME: home, USERPROFILE: home };
 delete env.CLAUDE_CONFIG_DIR;
-const juice = (...args) => spawnSync(process.execPath, [join(plugin, 'bin', 'juice.js'), ...args], { env, encoding: 'utf8' });
+// A step that fails prints what juice said, so a CI failure explains itself.
+const juice = (...args) => {
+  const r = spawnSync(process.execPath, [join(plugin, 'bin', 'juice.js'), ...args], { env, encoding: 'utf8' });
+  if (r.status !== 0) console.error(`juice ${args[0]} exited ${r.status}\nstdout: ${r.stdout}\nstderr: ${r.stderr}${r.error ? `\nerror: ${r.error.message}` : ''}`);
+  return r;
+};
 
 assert.equal(juice('setup').status, 0, 'setup');
 const command = JSON.parse(readFileSync(join(config, 'settings.json'), 'utf8')).statusLine.command;
