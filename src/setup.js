@@ -12,30 +12,44 @@ const REFRESH_SECONDS = 60;
 // A symlinked settings.json must stay a symlink, so write to what it points at.
 const writeSettings = (p, v) => writeJsonAtomic(existsSync(p.claudeSettings) ? realpathSync(p.claudeSettings) : p.claudeSettings, v);
 
-// juice's own line is Node (by name or full path) running a juice-statusline.mjs, and nothing else, so a
-// wrapper script that merely mentions the file is never taken for juice. Any folder counts: the same one can be
-// spelled C:\ or c:\, and settings can be copied from another machine.
-const JUICE_COMMAND = /^\s*(?:node|"[^"]*node(?:\.exe)?"|\S*[\\/]node(?:\.exe)?)\s+"[^"]*[\\/]juice-statusline\.mjs"\s*$/i;
+// juice's own line is one program (node, or any quoted path such as "/usr/bin/nodejs") running a
+// juice-statusline.mjs, and nothing else, so a wrapper script that merely mentions the file is never taken
+// for juice. Any folder counts: the same one can be spelled C:\ or c:\, and settings can be copied from another machine.
+const JUICE_COMMAND = /^\s*(?:node|"[^"]+"|\S*[\\/]node(?:js)?(?:\.exe)?)\s+"[^"]*[\\/]juice-statusline\.mjs"\s*$/i;
 const isJuice = (statusLine) => typeof statusLine?.command === 'string' && JUICE_COMMAND.test(statusLine.command);
 // Windows paths ignore case and slash direction.
 const samePath = (a, b, platform) => (platform === 'win32' ? fwd(a).toLowerCase() === fwd(b).toLowerCase() : a === b);
 
 // Claude Code started from a desktop app on macOS or Linux runs the status line without the shell's PATH,
-// where Homebrew's or nvm's node is missing, so name this Node by its full path. fnm's per-shell paths vanish, so not those.
-const nodeCommand = (platform, execPath) => (platform === 'win32' || /fnm_multishells/.test(execPath) ? 'node' : JSON.stringify(fwd(execPath)));
+// where Homebrew's or nvm's node is missing, so name Node by its full path: the first node on PATH, as PATH
+// names it. That is Homebrew's /opt/homebrew/bin/node, not the versioned folder it links to, which an upgrade
+// deletes. fnm's per-shell folder vanishes with the shell, and with no node on PATH there is nothing better: plain node.
+function nodeCommand(platform, env) {
+  if (platform === 'win32') return 'node';
+  for (const dir of String(env.PATH ?? '').split(':').filter(Boolean)) {
+    const f = `${dir.replace(/\/+$/, '')}/node`;
+    if (existsSync(f)) return /fnm_multishells/.test(f) ? 'node' : JSON.stringify(f);
+  }
+  return 'node';
+}
 
-// Settings that beat the person's own: a project's .claude/settings(.local).json, and disableAllHooks,
-// which turns status lines off too. juice can't change those, but it can say so instead of claiming success.
+// Settings that beat the person's own: a project's .claude/settings(.local).json in this folder or any folder
+// above it, and disableAllHooks, which turns status lines off too. juice can't change those, but it can say so
+// instead of claiming success.
 function overrides(p, settings, cwd, platform) {
   const out = [];
   if (settings.disableAllHooks === true) out.push("Your Claude Code settings turn hooks off (disableAllHooks), which hides status lines too, so juice won't show until that is turned back on.");
-  const project = resolve(cwd, '.claude');
-  if (samePath(project, resolve(p.config), platform)) return out; // run from the home folder: that is the person's own settings
-  for (const f of ['settings.json', 'settings.local.json']) {
-    const sl = readJson(join(project, f))?.statusLine;
-    if (sl && !isJuice(sl)) out.push(`This project's .claude/${f} sets its own status line, so juice won't show in this project.`);
+  for (let dir = resolve(cwd); ; dir = dirname(dir)) {
+    const project = join(dir, '.claude');
+    if (!samePath(project, resolve(p.config), platform)) { // the home folder's .claude is the person's own settings
+      for (const f of ['settings.json', 'settings.local.json']) {
+        const s = readJson(join(project, f)), where = fwd(join(project, f));
+        if (s?.statusLine && !isJuice(s.statusLine)) out.push(`${where} sets its own status line, so juice won't show in that project.`);
+        if (s?.disableAllHooks === true) out.push(`${where} turns hooks off (disableAllHooks), which hides status lines too, so juice won't show in that project.`);
+      }
+    }
+    if (dirname(dir) === dir) return out;
   }
-  return out;
 }
 
 export class NeedsConfirm extends Error {}
@@ -52,11 +66,11 @@ function readClaudeSettings(p) {
   return v;
 }
 
-export function install(p, { pluginRoot, yes = false, platform = process.platform, execPath = process.execPath, cwd = process.cwd() }) {
+export function install(p, { pluginRoot, yes = false, platform = process.platform, env = process.env, cwd = process.cwd() }) {
   // Installed from Claude Code's plugin store: follow updates. Anywhere else (a checkout): pin that folder.
   const inPluginCache = fwd(pluginRoot).includes('/plugins/cache/');
   const settings = readClaudeSettings(p);
-  const command = `${nodeCommand(platform, execPath)} "${fwd(p.launcherFile)}"`;
+  const command = `${nodeCommand(platform, env)} "${fwd(p.launcherFile)}"`;
   const ours = isJuice(settings.statusLine);
   const lines = [];
 
@@ -83,7 +97,8 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
     lines.push(damaged ? "juice's saved copy of your old status line was damaged, so juice set it aside under a new name." : 'Kept the earlier saved copy next to it under a new name.');
   }
   if (!ours && (stale || damaged || !backupThere)) {
-    writeJsonAtomic(p.backupFile, { statusLine: settings.statusLine ?? null, savedAt: new Date().toISOString() });
+    // As private as settings.json itself: the old status line command can hold a key.
+    writeJsonAtomic(p.backupFile, { statusLine: settings.statusLine ?? null, savedAt: new Date().toISOString() }, { modeFrom: p.claudeSettings });
     lines.push(settings.statusLine ? 'Saved your current status line so you can get it back.' : 'You had no status line, so there is nothing to save.');
   }
   const current = ours && samePath(settings.statusLine.command, command, platform);
@@ -110,13 +125,19 @@ export function restore(p) {
   if (statusLine && !isJuice(statusLine)) return ["juice isn't your status line right now, so there is nothing to undo. Nothing changed."];
   const backup = readJson(p.backupFile);
   const saved = !!backup && 'statusLine' in backup;
-  if (!saved && !statusLine) return ['There is no saved status line, so there is nothing to restore. Nothing changed.'];
+  const damaged = !saved && existsSync(p.backupFile); // kept, never deleted: it may still be read by hand
+  if (!saved && !statusLine) {
+    return [damaged ? "juice's saved copy of your old status line is damaged, so it can't be put back, and juice isn't your status line. Nothing changed."
+      : 'There is no saved status line, so there is nothing to restore. Nothing changed.'];
+  }
   // An older juice could save its own line as "the old one"; putting that back would undo nothing.
   const old = saved && !isJuice(backup.statusLine) ? backup.statusLine ?? null : null;
   writeSettings(p, old === null ? rest : { ...rest, statusLine: old });
   if (saved) unlinkSync(p.backupFile);
+  try { unlinkSync(p.launcherFile); } catch {} // nothing runs it now; /juice setup writes it again
   return [old !== null ? 'Your old status line is back.'
     : saved && backup.statusLine === null ? 'Removed juice. You had no status line before, so none is set now.'
+    : damaged ? `Removed juice. Its saved copy of your old status line is damaged, so it couldn't be put back; it is still in ${fwd(p.backupFile)}.`
     : 'Removed juice. No earlier status line was saved, so none is set now.',
   'To use juice again, run /juice setup.'];
 }

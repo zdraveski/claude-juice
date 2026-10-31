@@ -7,7 +7,7 @@ import { LAYOUTS } from '../src/render/layouts.js';
 import { FIT_STEPS, fit } from '../src/render/fit.js';
 import { makeCtx } from '../src/render/palette.js';
 import { vis } from '../src/render/ansi.js';
-import { DEFAULTS } from '../src/schema.js';
+import { DEFAULTS, LOOKS, applySet } from '../src/schema.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 
 const term = (columns, extra = {}) => ({ columns, theme: 'dark', ends: 'round', colorDepth: 'truecolor', ...extra });
@@ -30,10 +30,36 @@ test('a narrow window keeps every battery and gives up words, names and spacing 
   assert.ok(!t.includes('Opus'), t);
 });
 
-test('a battery that is fine goes only when nothing else is left to give, and then nothing lesser comes back', () => {
-  const r = go(SAMPLES.busy, 'bar', 60);
+test('every battery as words comes before hiding any', () => {
+  const t = strip(go(SAMPLES.busy, 'bar', 60).text);
+  for (const name of ['Memory 64%', 'Session 47%', 'Fable 41%', 'Week 50%!']) assert.ok(t.includes(name), `${name} missing: ${t}`);
+});
+
+test('once a fine battery is hidden, the room it frees goes back to the batteries, never to lesser things', () => {
+  const r = go(SAMPLES.busy, 'bar', 40), t = strip(r.text);
   assert.equal(r.dropped.at(-1), 'batteries that are fine');
-  assert.ok(r.dropped.includes('battery size') && r.dropped.includes('warning words'), r.dropped.join(', '));
+  assert.match(t, /Weekly \S+ ! resets in 3d 5h/, 'full size and full words again');
+  assert.ok(!t.includes('Opus') && !t.includes('▂'), 'hidden things stay hidden: the model and effort are less important than a battery');
+});
+
+// The sweep the audits ran, kept as a test: every look, every width, both themes.
+test('sweep: never too wide, and nothing less important shows while a battery that is fine is hidden', () => {
+  const lesser = ['◆', '▂', 'spent', 'value'];
+  for (const look of LOOKS) for (const [n, d] of Object.entries(SAMPLES)) for (let w = 20; w <= 250; w += 3) for (const theme of ['dark', 'light']) {
+    const r = render(d, applySet(DEFAULTS, [`look=${look.id}`]).settings, term(w, { theme })), t = strip(r.text), at = `${look.id}/${n}/${w}/${theme}`;
+    assert.ok(widest(r.text) <= w, `${at} is ${widest(r.text)} wide`);
+    if (r.dropped.includes('batteries that are fine')) for (const x of lesser) assert.ok(!t.includes(x), `${at} shows "${x}" while hiding a battery: ${t}`);
+  }
+});
+
+// From 70 columns the three red batteries of the trouble sample fit as words ("Memory 91%!!  Session 88%!! out ~…").
+test('sweep: a red battery keeps its "!!" and its run-out time wherever the words fit', () => {
+  for (const look of LOOKS) for (let w = 70; w <= 250; w += 2) {
+    const s = applySet(DEFAULTS, [`look=${look.id}`]).settings, t = strip(render(SAMPLES.trouble, s, term(w)).text);
+    const reds = ['memory', 'session', 'week'].filter((id) => s.show.includes(id)).length;
+    assert.equal((t.match(/!!/g) || []).length, reds, `${look.id}/${w}: ${t}`);
+    if (s.show.includes('session')) assert.match(t, /out ~2:44 PM/, `${look.id}/${w}: Session runs out soon and must say when: ${t}`);
+  }
 });
 
 test('a red Fable battery says when it runs out even while Weekly shows the shared reset', () => {
@@ -84,8 +110,8 @@ test('steps run in order and are all tried before a cut', () => {
   assert.ok(cuts > 0, 'no case exercised the cut');
 });
 
-test('FIT_STEPS has the ten steps in the agreed order', () => {
-  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'noEffort', 'noModel', 'tight', 'small', 'shortWords', 'onlyTrouble']);
+test('FIT_STEPS has the eleven steps in the agreed order', () => {
+  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'noEffort', 'noModel', 'tight', 'small', 'shortWords', 'bare', 'onlyTrouble']);
 });
 
 test('a missing columns count means 120', () => {

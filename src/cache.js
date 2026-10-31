@@ -10,12 +10,15 @@ const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 
 
 export const HOT_WRITE = { maxWaitMs: 30 };
 
-export function writeJsonAtomic(file, value, { maxWaitMs = 2500 } = {}) {
+// modeFrom: for a new file, the file whose permissions it should take (the old file's win when there is one).
+export function writeJsonAtomic(file, value, { maxWaitMs = 2500, modeFrom } = {}) {
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
   writeFileSync(tmp, JSON.stringify(value, null, 2));
   // Keep the old file's permissions: settings.json can hold API keys and be readable by its owner only.
-  if (process.platform !== 'win32') { try { chmodSync(tmp, statSync(file).mode & 0o777); } catch {} }
+  if (process.platform !== 'win32') {
+    for (const from of [file, modeFrom].filter(Boolean)) { try { chmodSync(tmp, statSync(from).mode & 0o777); break; } catch {} }
+  }
   const start = Date.now();
   for (;;) {
     try { return renameSync(tmp, file); } catch (e) {

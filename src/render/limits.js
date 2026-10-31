@@ -11,12 +11,15 @@ export function assess(limit, now) {
   if (win && secsLeft !== null) {
     elapsed = win - secsLeft;
     out.elapsed = Math.min(1, Math.max(0, elapsed / win)); // where an even pace would have the fill by now
-    if (elapsed >= win * 0.1) projected = (used / elapsed) * win;
+    // Early pace is noisy, so it is ignored in the first tenth of a window, unless half is already gone:
+    // then it is real (84% used 24 minutes in is not "plenty left").
+    if (elapsed > 0 && (elapsed >= win * 0.1 || used >= 50)) projected = (used / elapsed) * win;
   }
-  // Early pace is noisy (one busy day projects past 100%), so pace alone only reaches red once half is gone.
-  out.level = used >= 90 || (used >= 50 && projected >= 100) ? 'crit' : projected >= 85 ? 'warn' : 'ok';
-  // Red is the one level that says when it runs out; it is before the reset whenever projected >= 100.
-  if (out.level === 'crit' && projected >= 100 && used < 100) out.outAt = new Date(now.getTime() + ((100 - used) / used) * elapsed * 1000);
+  // Pace alone only reaches red once half is gone, and only when it runs out before the reset, not at it.
+  out.level = used >= 90 || (used >= 50 && projected > 100) ? 'crit' : projected >= 85 ? 'warn' : 'ok';
+  // Red is the one level that says when it runs out, and only when that is clearly before the reset.
+  const outAt = now.getTime() + ((100 - used) / used) * elapsed * 1000;
+  if (out.level === 'crit' && projected > 100 && used < 100 && limit.resetsAt - outAt >= 60000) out.outAt = new Date(outAt);
   return out;
 }
 

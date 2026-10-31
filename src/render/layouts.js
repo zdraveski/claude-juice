@@ -73,28 +73,37 @@ const mark = (ctx, i) => (MARK[i.level] ? fg(tone(ctx, i.level), MARK[i.level]) 
 const paint = (i) => (i.id === 'fable' && i.level === 'ok' ? 'fable' : i.level);
 const spaced = (ctx, i) => (MARK[i.level] ? (ctx.fit.shortWords ? '' : ' ') + mark(ctx, i) : '');
 
+// The last fit step: the battery as words only, so its number, warning and time survive a narrow window.
+const bare = (ctx, i, sep) => name(ctx, i) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i) + withSay(ctx, i, sep);
+
 export const LAYOUTS = {
   bar: (data, ctx) => join([badges(data, ctx), head(data, ctx),
-    ...items(data, ctx).map((i) => name(ctx, i) + ' ' + batteryPct(ctx, i.used, paint(i), ctx.fit.small ? 5 : 7, i.assessed?.elapsed) + spaced(ctx, i) + withSay(ctx, i, ' ')),
+    ...items(data, ctx).map((i) => (ctx.fit.bare ? bare(ctx, i, ' ')
+      : name(ctx, i) + ' ' + batteryPct(ctx, i.used, paint(i), ctx.fit.small ? 5 : 7, i.assessed?.elapsed) + spaced(ctx, i) + withSay(ctx, i, ' '))),
     cost(data, ctx)], ctx.fit.tight ? '  ' : '    '),
 
   segments: (data, ctx) => join([badges(data, ctx), head(data, ctx),
-    ...items(data, ctx).map((i) => name(ctx, i) + ' ' + batterySeg(ctx, i.used, paint(i), ctx.fit.small ? 3 : 5) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i) + withSay(ctx, i, lbl(ctx, ' · '))),
+    ...items(data, ctx).map((i) => (ctx.fit.bare ? bare(ctx, i, ' ')
+      : name(ctx, i) + ' ' + batterySeg(ctx, i.used, paint(i), ctx.fit.small ? 3 : 5) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i) + withSay(ctx, i, lbl(ctx, ' · ')))),
     cost(data, ctx)], ctx.fit.tight ? '  ' : '   '),
 
   focus: (data, ctx) => {
-    const rank = { crit: 2, warn: 1, ok: 0 }, it = items(data, ctx).sort((a, b) => rank[b.level] - rank[a.level] || b.used - a.used);
+    // The one that needs you most: red before amber before fine, then whichever runs out first, then the fullest.
+    const rank = { crit: 2, warn: 1, ok: 0 }, out = (i) => i.assessed?.outAt?.getTime() ?? Infinity;
+    const it = items(data, ctx).sort((a, b) => rank[b.level] - rank[a.level] || out(a) - out(b) || b.used - a.used);
     if (!it.length) return join([badges(data, ctx), head(data, ctx), cost(data, ctx)]);
     // Focus shows the others without countdowns, so the big one keeps its own even when it shares a reset.
     const [shown, ...rest] = it, big = { ...shown, sameReset: false }, bigNote = wants(ctx, big) ? say(ctx, big) : '', t = ctx.fit.tight;
+    const picture = ctx.fit.bare ? '' : battery(ctx, big.used, paint(big), ctx.fit.small ? 6 : 12, big.assessed?.elapsed) + ' ';
     return join([badges(data, ctx), head(data, ctx, false),
-      name(ctx, big, true) + ' ' + battery(ctx, big.used, paint(big), ctx.fit.small ? 6 : 12, big.assessed?.elapsed) + ' ' + num(ctx, bold(`${big.used}% used`), big.level) + spaced(ctx, big) + (bigNote ? lbl(ctx, ' · ') + bigNote : ''),
+      name(ctx, big, true) + ' ' + picture + num(ctx, bold(`${big.used}% used`), big.level) + spaced(ctx, big) + (bigNote ? lbl(ctx, ' · ') + bigNote : ''),
       rest.map((i) => name(ctx, i) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i)).join(lbl(ctx, t ? ' · ' : '  ·  ')), cost(data, ctx)],
     lbl(ctx, t ? ' │ ' : '   │   '));
   },
 
   panel: (data, ctx) => {
-    const row = (i) => name(ctx, i, true) + ' '.repeat(Math.max(1, 13 - i.long.length)) + batteryLow(ctx, i.used, paint(i), 14, i.assessed?.elapsed) + '  ' + num(ctx, `${i.used}%`.padStart(4), i.level) + lbl(ctx, ' used ') + mark(ctx, i) + ' '.repeat(3 - MARK[i.level].length)
+    const picture = (i) => (ctx.fit.bare ? '' : batteryLow(ctx, i.used, paint(i), ctx.fit.small ? 8 : 14, i.assessed?.elapsed) + '  ');
+    const row = (i) => name(ctx, i, true) + ' '.repeat(Math.max(1, 13 - i.long.length)) + picture(i) + num(ctx, `${i.used}%`.padStart(4), i.level) + lbl(ctx, ' used ') + mark(ctx, i) + ' '.repeat(3 - MARK[i.level].length)
       + (wants(ctx, i) ? say(ctx, i) : i.id === 'memory' ? lbl(ctx, 'in this chat') : '');
     return [join([badges(data, ctx), head(data, ctx), cost(data, ctx)], lbl(ctx, '     ·     ')), ...items(data, ctx).map(row)].filter(Boolean).join('\n');
   },

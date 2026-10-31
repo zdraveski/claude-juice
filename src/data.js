@@ -17,6 +17,14 @@ function limit(used, resetsAt, windowSec) {
 
 const ms = (r) => r.resetsAt?.getTime() ?? 0;
 
+// prompt_cache arrived in Claude Code 2.1.251. A missing or odd version counts as new: current versions send it.
+export function sendsPromptCache(version) {
+  const m = /^(\d+)\.(\d+)\.(\d+)/.exec(typeof version === 'string' ? version : '');
+  if (!m) return true;
+  const [a, b, c] = m.slice(1).map(Number);
+  return a > 2 || (a === 2 && (b > 1 || (b === 1 && c >= 251)));
+}
+
 // juice's saved reading holds the newest real reading across sessions (lastseen.js), so it beats this
 // window's own numbers, which may be an idle window's old ones, unless it is from an older window.
 const saved = (own, kept) => (!kept ? own : !own ? kept : ms(kept) >= ms(own) - 60000 ? kept : own);
@@ -46,7 +54,8 @@ export function normalize(stdin, extras, now) {
   const seenAt = num(seen.subscriberSeenAt);
   // Claude Code sends prompt_cache only after this run's first reply, and subscribers have rate_limits by then,
   // so a reply without them means the saved readings are another account's. (Cost can't tell: --resume restores it.)
-  const replied = Object.hasOwn(input, 'prompt_cache');
+  // Versions before 2.1.251 never send prompt_cache, so there a cost is the only sign of a reply.
+  const replied = sendsPromptCache(input.version) ? Object.hasOwn(input, 'prompt_cache') : num(obj(input.cost).total_cost_usd) > 0;
   const recent = !replied && seenAt !== null && now.getTime() - seenAt <= 30 * DAY;
   const spend = obj(rl.spend_limit);
   const budget = limit(spend.used_percentage, spend.resets_at, null);

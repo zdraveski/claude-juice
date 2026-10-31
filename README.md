@@ -123,7 +123,7 @@ Type `/juice` and then say what you want, in your own words. For example:
 - `/juice make it a panel`
 - `/juice my terminal is light` (if the text is hard to read on a light background)
 
-In a narrow window juice makes room step by step: first badges, reset times, the effort word and cost, then the model name, spacing and battery size, and only last the batteries that are fine. A red battery keeps its warning and when it runs out.
+In a narrow window juice makes room step by step: first badges, reset times, the effort word and cost, then the effort level and the model name, then spacing, battery size and shorter words, then every battery as words only (`Session 88%!! out ~2:44 PM`), and only last the batteries that are fine. Whatever freed room gets used again, so a battery keeps its picture whenever it fits. A red battery keeps its `!!` and when it runs out as long as the window has room for its words; in a very small window the end of the line is cut.
 
 ### The live customizer
 
@@ -149,15 +149,16 @@ In a narrow window juice makes room step by step: first badges, reset times, the
 - **Update:** open `/plugin`, pick juice, and update it. Your settings and badges stay.
 - **Undo:** `/juice restore` puts your old status line back.
 - **Uninstall:** run `/juice restore` first, then remove juice in `/plugin`. If you uninstall first, the status line tells you how to get back.
+- **Leave nothing behind:** after uninstalling, juice's own files are still in your Claude folder (`~/.claude`): `juice.json` (your settings and badge commands), the `juice-cache` folder (usage numbers and, for up to a week, which project each chat was in) and any `juice-backup-….json` copies. Delete them if you want nothing left.
 
 ## Badges
 
-Badges are small optional extras that show the output of a command you choose. Juice only runs commands you added yourself with `/juice badges add`, after it shows you the command. `/juice badges list` shows them numbered, and `/juice badges remove 1` removes the first one, after asking. Badges update about every 30 seconds while you work. On Windows, badge commands run in the Windows command prompt (cmd), not Git Bash, so write them for cmd.
+Badges are small optional extras that show the output of a command you choose. Juice only runs commands you added yourself on this computer with `/juice badges add`, after it shows you the command: each one is approved with a secret that stays on this computer, so a `juice.json` copied from somewhere else never runs anything. (Badges added before juice 0.2.5 need adding again; `/juice badges list` marks them.) `/juice badges list` shows them numbered, and `/juice badges remove 1` removes the first one, after asking. Badges update about every 30 seconds while you work. On Windows, badge commands run in the Windows command prompt (cmd), not Git Bash, so write them for cmd.
 
 ## Privacy
 
 - The Fable battery needs your Claude login token, the key Claude Code keeps on your computer to sign you in. Juice reads it from `~/.claude/.credentials.json`.
-- The Fable battery is on by default on Windows and Linux. On a Mac it stays off until you type `/juice set fable=on`, and macOS will then ask once for permission to read it from the Keychain (the Mac's password store).
+- The Fable battery is on by default on Windows and Linux. On a Mac it stays off until you type `/juice set fable=on`, and macOS will then ask once for permission to read it from the Keychain (the Mac's password store). Share links and the customizer's command never turn it on or off; only you do.
 - Juice sends that token only to `api.anthropic.com`, to read your usage, about every 5 minutes. It never stores or logs it.
 - The same usage reading also keeps Session and Weekly up to date in every window, including idle ones and brand-new chats. With the Fable battery off, those two come only from Claude Code itself, so an idle window can show older numbers.
 - To switch the Fable battery off, run `/juice set fable=off`.

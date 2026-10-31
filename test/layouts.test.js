@@ -117,6 +117,11 @@ test('a cost of $0.00 is never shown: before the first reply it says nothing abo
   assert.match(text({ ...d, costUsd: 1.25 }), /spent \$1\.25/);
 });
 
+test('spotlight goes to the red battery that runs out first, not just the fullest', () => {
+  const t = text(SAMPLES.trouble, { layout: 'focus' });
+  assert.match(t, /│ {3}Session .*■ 88% used !! · runs out ~2:44 PM .*│ {3}Weekly 95%!!/, t);
+});
+
 test('grey labels and countdowns are readable (WCAG AA, 4.5:1) on both default backgrounds', () => {
   for (const t of ['dark', 'light']) assert.ok(contrast(NEUTRAL[t].mute, NEUTRAL[t].bg) >= 4.5, t);
 });

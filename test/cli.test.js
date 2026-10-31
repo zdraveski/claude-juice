@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { main } from '../src/cli.js';
@@ -153,14 +153,55 @@ test('a damaged backup is set aside and the current status line is still saved',
   assert.equal(json(join(d, 'settings.json')).statusLine.command, 'node old.js');
 });
 
-test('on macOS and Linux the command names this Node by its full path; restore still knows it', async () => {
+test('on macOS and Linux the command names the first node on PATH as PATH names it; restore still knows it', async () => {
   const { install, restore } = await import('../src/setup.js');
   const { paths } = await import('../src/paths.js');
+  // A PATH like a Mac's: a folder holding node (Homebrew's /opt/homebrew/bin), written the POSIX way.
+  const posix = (dir) => dir.replaceAll('\\', '/').replace(/^[A-Za-z]:/, '');
+  const bin = env('bin'), fnm = env('fnm_multishells/9_1/bin');
+  writeFileSync(join(bin, 'node'), ''); writeFileSync(join(fnm, 'node'), '');
   const d = env(), p = paths({ CLAUDE_CONFIG_DIR: d });
-  install(p, { pluginRoot: '/dev/juice', platform: 'darwin', execPath: '/opt/homebrew/bin/node' });
-  assert.equal(json(join(d, 'settings.json')).statusLine.command, `"/opt/homebrew/bin/node" "${d.replaceAll('\\', '/')}/juice-statusline.mjs"`);
-  install(paths({ CLAUDE_CONFIG_DIR: env() }), { pluginRoot: '/dev/juice', platform: 'linux', execPath: '/run/user/1/fnm_multishells/9_1/bin/node' });
+  install(p, { pluginRoot: '/dev/juice', platform: 'darwin', env: { PATH: `/nowhere:${posix(bin)}` } });
+  assert.equal(json(join(d, 'settings.json')).statusLine.command, `"${posix(bin)}/node" "${d.replaceAll('\\', '/')}/juice-statusline.mjs"`);
+  const e = env();
+  install(paths({ CLAUDE_CONFIG_DIR: e }), { pluginRoot: '/dev/juice', platform: 'linux', env: { PATH: posix(fnm) } });
+  assert.match(json(join(e, 'settings.json')).statusLine.command, /^node "/, "fnm's per-shell folder vanishes, so plain node");
   assert.match(restore(p).join(' '), /Removed juice/);
+});
+
+test('a juice line run by a Node file with another name ("nodejs") is still juice', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: `"/usr/bin/nodejs" "${d.replaceAll('\\', '/')}/juice-statusline.mjs"` } }));
+  assert.match((await run(d, ['restore'])).out, /Removed juice/);
+});
+
+test('setup run from a subfolder still finds a project setting above it that hides juice', async () => {
+  const { install } = await import('../src/setup.js');
+  const { paths } = await import('../src/paths.js');
+  const project = env('project'), sub = join(project, 'src', 'deep');
+  mkdirSync(join(project, '.claude'), { recursive: true }); mkdirSync(sub, { recursive: true });
+  writeFileSync(join(project, '.claude', 'settings.json'), JSON.stringify({ disableAllHooks: true }));
+  const out = install(paths({ CLAUDE_CONFIG_DIR: env() }), { pluginRoot: '/dev/juice', cwd: sub }).join('\n');
+  assert.match(out, /\.claude\/settings\.json turns hooks off/);
+});
+
+test('restore with a damaged saved copy says so, keeps the file, and removes the launcher', async () => {
+  const d = env();
+  await run(d, ['setup']);
+  assert.ok(existsSync(join(d, 'juice-statusline.mjs')));
+  writeFileSync(join(d, 'juice-backup.json'), '{"statusLine":{"type":"comm');
+  const r = await run(d, ['restore']);
+  assert.match(r.out, /damaged, so it couldn't be put back; it is still in .*juice-backup\.json/);
+  assert.ok(existsSync(join(d, 'juice-backup.json')), 'never deleted: it can still be read by hand');
+  assert.ok(!existsSync(join(d, 'juice-statusline.mjs')), 'nothing runs the launcher now, so it goes');
+  assert.equal('statusLine' in json(join(d, 'settings.json')), false);
+});
+
+test('a new backup is as private as settings.json', { skip: process.platform === 'win32' && 'Windows has no owner-only file mode' }, async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD), { mode: 0o600 });
+  await run(d, ['setup']);
+  assert.equal(statSync(join(d, 'juice-backup.json')).mode & 0o777, 0o600);
 });
 
 test('setup says so when a project setting or disableAllHooks keeps juice from showing', async () => {
@@ -228,6 +269,31 @@ test('set warns when nothing is left to show, instead of quietly leaving an empt
   const r = await run(d, ['set', 'show=']);
   assert.match(r.out, /status line will be empty/);
   assert.doesNotMatch((await run(d, ['set', 'show=memory'])).out, /empty/);
+});
+
+test('a --yes inside the badge command belongs to the command; only a final --yes adds it', async () => {
+  const d = env();
+  const ask = await run(d, ['badges', 'add', 'npx', '--yes', 'ccusage']);
+  assert.equal(ask.code, 2, 'not the go-ahead');
+  assert.match(ask.out, /This badge would run: npx --yes ccusage/);
+  assert.equal((await run(d, ['badges', 'add', 'npx', '--yes', 'ccusage', '--yes'])).code, 0);
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. npx --yes ccusage');
+});
+
+test('badges list says which badges this computer never approved, so they never run', async () => {
+  const d = env();
+  writeFileSync(join(d, 'juice.json'), JSON.stringify({ badges: [{ command: 'echo copied' }] }));
+  await run(d, ['badges', 'add', 'echo mine', '--yes']);
+  const out = (await run(d, ['badges', 'list'])).out;
+  assert.match(out, /1\. echo copied \(not approved on this computer/);
+  assert.match(out, /2\. echo mine$/m);
+});
+
+test('get and badges list warn when juice.json cannot be read, instead of passing for the defaults', async () => {
+  const d = env();
+  writeFileSync(join(d, 'juice.json'), '{ broken');
+  assert.match((await run(d, ['get'])).out, /Warning: juice\.json is unreadable/);
+  assert.match((await run(d, ['badges', 'list'])).out, /Warning: juice\.json is unreadable/);
 });
 
 test('the /juice flow for removing one of two badges removes only that one', async () => {

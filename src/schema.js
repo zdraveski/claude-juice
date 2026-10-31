@@ -59,6 +59,9 @@ const CHECK = {
 };
 
 const show = (v) => (typeof v === 'string' ? `'${v}'` : JSON.stringify(v));
+// A misspelt battery name is dropped, but never silently: "sesion" would otherwise just make Session vanish.
+const unknownShow = (v) => (Array.isArray(v) ? v.filter((id) => !SHOW_IDS.includes(id)) : []);
+const showWarning = (bad) => `show: ${bad.map(show).join(', ')} isn't a battery name (${SHOW_IDS.join(', ')}), so it was left out`;
 
 export function sanitize(x, { allowBadges }) {
   const src = isObj(x) ? x : {};
@@ -69,11 +72,13 @@ export function sanitize(x, { allowBadges }) {
     const v = CHECK[k](src[k]);
     if (v === undefined) warnings.push(`${k}: ${show(src[k])} isn't valid, using ${show(DEFAULTS[k])}`);
     else settings[k] = v;
+    if (k === 'show' && v !== undefined && unknownShow(src.show).length) warnings.push(showWarning(unknownShow(src.show)));
   }
   if (allowBadges && Array.isArray(src.badges)) {
+    // sig: this computer's approval of the command (badges.js), so a copied juice.json can't run anything.
     settings.badges = src.badges
       .filter((b) => isObj(b) && typeof b.command === 'string' && b.command.length >= 1 && b.command.length <= 500)
-      .map((b) => ({ command: b.command }));
+      .map((b) => (typeof b.sig === 'string' && /^[0-9a-f]{64}$/.test(b.sig) ? { command: b.command, sig: b.sig } : { command: b.command }));
   }
   return { settings, warnings };
 }
@@ -112,8 +117,10 @@ export function applySet(settings, pairs) {
       continue;
     }
     if (!Object.hasOwn(CHECK, key)) { warnings.push(`${pair}: not a setting`); continue; }
-    const v = CHECK[key]((Object.hasOwn(PARSE, key) ? PARSE[key] : (t) => t)(text));
+    const parsed = (Object.hasOwn(PARSE, key) ? PARSE[key] : (t) => t)(text);
+    const v = CHECK[key](parsed);
     if (v === undefined) { warnings.push(`${key}: '${text}' isn't valid, keeping ${show(next[key])}`); continue; }
+    if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));
     put(key, v);
   }
   return { settings: next, warnings, changed };
@@ -122,19 +129,18 @@ export function applySet(settings, pairs) {
 const colorWord = (c) => (typeof c === 'string' ? c
   : ['dark', 'light'].map((t) => `${t}:${COLOR_KEYS.map((k) => c[t][k]).join(',')}`).join('/'));
 
-// The customizer has no controls for terminal and fable, so their 'auto' there means "not chosen here"
-// and must not reset a choice the person made with /juice set.
-const UNSET_WHEN_AUTO = ['terminal', 'fable'];
+// Everything the customizer has a control for. Not fable: switching it on reads the person's login (from the
+// Keychain on a Mac), which only they should decide, with /juice set, never a pasted command or a shared link.
+const COMMAND_KEYS = ['layout', 'show', 'cost', 'colors', 'ends', 'terminal', 'refills'];
 
 export function toCommand(s) {
   const v = { ...s, show: s.show.join(','), colors: colorWord(s.colors) };
-  return '/juice set ' + ['layout', 'show', 'cost', 'colors', 'ends', 'terminal', 'refills', 'fable']
-    .filter((k) => !(UNSET_WHEN_AUTO.includes(k) && v[k] === 'auto')).map((k) => `${k}=${v[k]}`).join(' ');
+  return '/juice set ' + COMMAND_KEYS.map((k) => `${k}=${v[k]}`).join(' ');
 }
 
-// Badges run shell commands, so they never travel in a link.
+// Badges run shell commands and fable reads the login, so neither travels in a link.
 export function encodeLink(s) {
-  const { badges, ...rest } = s;
+  const { badges, fable, ...rest } = s;
   const bytes = new TextEncoder().encode(JSON.stringify(rest));
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
@@ -144,5 +150,6 @@ export function parseLink(hash) {
   const payload = String(hash).replace(/^#?c=/, '').replace(/^#/, '').replace(/-/g, '+').replace(/_/g, '/');
   const bin = atob(payload);
   const json = new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
-  return sanitize(JSON.parse(json), { allowBadges: false }).settings;
+  const { fable, ...rest } = JSON.parse(json) ?? {};
+  return sanitize(rest, { allowBadges: false }).settings;
 }

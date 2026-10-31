@@ -7,11 +7,13 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { runStatusLine } from '../src/statusline.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
-import { badgeKey } from '../src/badges.js';
+import { badgeKey, approve } from '../src/badges.js';
+import { paths } from '../src/paths.js';
 
+// settings may be a function of the config dir, for badges that must be approved on "this computer".
 const setup = (platform = 'win32', settings) => {
   const dir = mkdtempSync(join(tmpdir(), 'juice-sl-'));
-  if (settings) writeFileSync(join(dir, 'juice.json'), JSON.stringify(settings));
+  if (settings) writeFileSync(join(dir, 'juice.json'), JSON.stringify(typeof settings === 'function' ? settings(paths({ CLAUDE_CONFIG_DIR: dir })) : settings));
   const calls = [];
   const run = (stdinText) => runStatusLine({ stdinText, env: { CLAUDE_CONFIG_DIR: dir }, now: NOW, platform, spawnDetached: (a) => calls.push(a) });
   return { dir, calls, run };
@@ -55,11 +57,21 @@ test('fable refresh spawns once per lock window, and not on darwin auto', async 
 });
 
 test('configured badge with no cache spawns a refresh and stashes stdin', async () => {
-  const { dir, calls, run } = setup('darwin', { badges: [{ command: 'echo hi' }] });
+  const { dir, calls, run } = setup('darwin', (p) => ({ badges: [approve(p, 'echo hi')] }));
   await run(busy);
   const key = badgeKey(JSON.parse(busy));
   assert.deepEqual(calls, [['refresh-badges', key]]);
   assert.equal(readFileSync(join(dir, 'juice-cache', 'badges', `${key}.stdin.json`), 'utf8'), busy);
+});
+
+test('a badge from a copied or hand-edited juice.json never runs: it has no approval from this computer', async () => {
+  const other = mkdtempSync(join(tmpdir(), 'juice-other-'));
+  const signedElsewhere = approve(paths({ CLAUDE_CONFIG_DIR: other }), 'echo pwned');
+  for (const badges of [[{ command: 'echo pwned' }], [signedElsewhere], [{ command: 'echo pwned', sig: '0'.repeat(64) }]]) {
+    const { calls, run } = setup('darwin', { badges });
+    await run(busy);
+    assert.deepEqual(calls, [], JSON.stringify(badges));
+  }
 });
 
 test('launcher picks the highest version, or the pinned one', async () => {

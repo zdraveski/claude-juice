@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paths } from '../src/paths.js';
 import { strip, at, NOW } from './helpers.js';
-import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, listBadges, removeBadge, run } from '../src/badges.js';
+import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, listBadges, removeBadge, run, approve, approved } from '../src/badges.js';
 
 const tmp = () => paths({ CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-badges-')) });
 const ok = (stdout) => async () => ({ ok: true, stdout });
@@ -30,7 +30,7 @@ test('badgeKey differs per session', () => {
 
 test('refreshBadges writes cache that readBadges returns', async () => {
   const p = tmp();
-  const settings = { badges: [{ command: 'rtk' }] };
+  const settings = { badges: [approve(p, 'rtk')] };
   await refreshBadges({ p, settings, key: 'k', stdinText: '{}', runImpl: ok('[RTK 98]\n') });
   assert.deepEqual(readBadges(p, 'k', new Date(), ['rtk']).texts, ['[RTK 98]']);
   assert.equal(readBadges(p, 'k', new Date(), ['rtk']).stale, false);
@@ -41,7 +41,7 @@ test('refreshBadges writes cache that readBadges returns', async () => {
 
 test('a failed run keeps the previous text', async () => {
   const p = tmp();
-  const settings = { badges: [{ command: 'a' }, { command: 'b' }] };
+  const settings = { badges: [approve(p, 'a'), approve(p, 'b')] };
   await refreshBadges({ p, settings, key: 'k', stdinText: '', runImpl: ok('one') });
   await refreshBadges({ p, settings, key: 'k', stdinText: '', runImpl: async (c) => (c === 'a' ? { ok: false, stdout: '' } : { ok: true, stdout: 'two' }) });
   assert.deepEqual(readBadges(p, 'k', new Date(), ['a', 'b']).texts, ['one', 'two']);
@@ -49,9 +49,9 @@ test('a failed run keeps the previous text', async () => {
 
 test('after a removal, texts follow their command, not their position', async () => {
   const p = tmp();
-  await refreshBadges({ p, settings: { badges: [{ command: 'a' }, { command: 'b' }] }, key: 'k', stdinText: '', runImpl: async (c) => ({ ok: true, stdout: c.toUpperCase() }) });
+  await refreshBadges({ p, settings: { badges: [approve(p, 'a'), approve(p, 'b')] }, key: 'k', stdinText: '', runImpl: async (c) => ({ ok: true, stdout: c.toUpperCase() }) });
   assert.deepEqual(readBadges(p, 'k', new Date(), ['b']).texts, ['B']); // before the next refresh, A's text is gone
-  await refreshBadges({ p, settings: { badges: [{ command: 'b' }] }, key: 'k', stdinText: '', runImpl: async () => ({ ok: false, stdout: '' }) });
+  await refreshBadges({ p, settings: { badges: [approve(p, 'b')] }, key: 'k', stdinText: '', runImpl: async () => ({ ok: false, stdout: '' }) });
   assert.deepEqual(readBadges(p, 'k', new Date(), ['b']).texts, ['B']); // a failed run keeps B's own text, not A's
 });
 

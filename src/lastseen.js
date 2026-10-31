@@ -15,9 +15,11 @@ const limit = (w) => Number.isFinite(w?.used_percentage) && Number.isFinite(w?.r
   ? { used: w.used_percentage, resetsAt: w.resets_at } : undefined;
 const valid = (w) => (Number.isFinite(w?.used) && Number.isFinite(w?.resetsAt) ? w : undefined);
 
-// Claude Code re-sends a session's last numbers on every redraw, so only a change from what that same session
-// sent before is news. News replaces the saved reading even when it is lower (a new plan, another account);
-// a repeat, such as an idle window's old numbers, only fills a gap or brings a later window.
+// Claude Code re-sends a session's last numbers on every redraw, so only a change from what a session it already
+// knows sent before is news. News replaces the saved reading even when it is lower (a new plan, another account).
+// Anything else (an idle window repeating itself, or a session seen for the first time, which may carry old
+// numbers after /clear or an upgrade) only fills a gap, raises the same window, or brings a later window once
+// the saved one has ended. A reading from a window that has already ended never replaces anything.
 // Runs before drawing and returns the record, so this refresh already uses what it just saw. Never throws.
 export function remember(stdin, p, now) {
   const old = recall(p);
@@ -28,8 +30,16 @@ export function remember(stdin, p, now) {
     const sid = typeof stdin?.session_id === 'string' ? stdin.session_id : '';
     const sig = JSON.stringify([seenFive ?? null, seenSeven ?? null]);
     const sessions = isObj(old?.sessions) ? { ...old.sessions } : {};
-    const news = sessions[sid] !== sig;
-    const keep = (kept, seen) => (!seen ? kept : !kept || news || seen.resetsAt - kept.resetsAt > 60 ? seen : kept);
+    const known = Object.hasOwn(sessions, sid), news = known && sessions[sid] !== sig;
+    const ended = (r) => r.resetsAt * 1000 <= now.getTime();
+    const keep = (kept, seen) => {
+      if (!seen) return kept;
+      if (!kept) return seen;
+      if (ended(seen)) return kept;
+      if (news) return seen;
+      if (Math.abs(seen.resetsAt - kept.resetsAt) <= 60) return known || seen.used <= kept.used ? kept : seen;
+      return seen.resetsAt > kept.resetsAt && ended(kept) ? seen : kept;
+    };
     const fiveHour = keep(valid(old?.fiveHour), seenFive);
     const sevenDay = keep(valid(old?.sevenDay), seenSeven);
     const age = now.getTime() - old?.subscriberSeenAt;

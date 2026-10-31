@@ -1,7 +1,7 @@
 // Badges: user-added shell commands whose first output line is shown before the batteries.
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { readdirSync, statSync, unlinkSync } from 'node:fs';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
+import { readdirSync, readFileSync, statSync, unlinkSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { cut, ESCAPES } from './render/ansi.js';
 import { readJson, writeJsonAtomic } from './cache.js';
@@ -67,10 +67,31 @@ export function run(command, { input, timeoutMs }) {
   });
 }
 
+// A badge runs only if this computer approved it: `badges add --yes` signs the command with a secret that never
+// leaves this machine's juice-cache. A juice.json copied from elsewhere, or edited by hand, carries no valid
+// signature, so its commands never run.
+const secretFile = (p) => join(p.cacheDir, 'badge-secret');
+function secret(p, create) {
+  try { return readFileSync(secretFile(p), 'utf8').trim(); } catch {}
+  if (!create) return null;
+  mkdirSync(p.cacheDir, { recursive: true });
+  try { writeFileSync(secretFile(p), randomBytes(32).toString('hex'), { mode: 0o600, flag: 'wx' }); } catch {} // 'wx': another process may win
+  return readFileSync(secretFile(p), 'utf8').trim();
+}
+const sign = (key, command) => createHmac('sha256', key).update(command).digest('hex');
+
+// The command, approved on this computer.
+export const approve = (p, command) => ({ command, sig: sign(secret(p, true), command) });
+
+export function approved(p, badges) {
+  const key = badges.some((b) => b.sig) ? secret(p, false) : null;
+  return key ? badges.filter((b) => b.sig === sign(key, b.command)) : [];
+}
+
 export async function refreshBadges({ p, settings, key, stdinText, runImpl = run }) {
   try {
     const prev = readJson(file(p, key));
-    const commands = settings.badges.map((b) => b.command);
+    const commands = approved(p, settings.badges).map((b) => b.command);
     const texts = await Promise.all(commands.map(async (command) => {
       try {
         const r = await runImpl(command, { input: stdinText, timeoutMs: TIMEOUT_MS });
@@ -98,12 +119,17 @@ function sweep(p) {
 
 export function addBadge(p, command) {
   const { settings } = loadSettings(p);
-  const next = sanitize({ ...settings, badges: [...settings.badges, { command }] }, { allowBadges: true }).settings;
-  if (next.badges.length !== settings.badges.length + 1) throw new Error('A badge command must be 1 to 500 characters.');
-  saveSettings(p, next);
+  if (typeof command !== 'string' || command.length < 1 || command.length > 500) throw new Error('A badge command must be 1 to 500 characters.');
+  saveSettings(p, sanitize({ ...settings, badges: [...settings.badges, approve(p, command)] }, { allowBadges: true }).settings);
 }
 
 export const listBadges = (p) => loadSettings(p).settings.badges.map((b) => b.command);
+
+// Positions (from 1) of badges this computer has not approved, so the list can say why they don't run.
+export function unapprovedBadges(p) {
+  const { badges } = loadSettings(p).settings, ok = new Set(approved(p, badges));
+  return badges.flatMap((b, i) => (ok.has(b) ? [] : [i + 1]));
+}
 
 export function removeBadge(p, n) {
   const { settings } = loadSettings(p);

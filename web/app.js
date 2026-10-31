@@ -235,6 +235,7 @@ const fromHash = () => {
   try { next = parseLink(location.hash); } catch {
     try { next = sanitize(JSON.parse(localStorage.getItem(SAVED)), { allowBadges: false }).settings; } catch { next = sanitize({}, { allowBadges: false }).settings; }
   }
+  if (next.terminal !== 'auto') view.term = next.terminal; // a link made for a light terminal previews as light
   adopt(next); buildShow(); update();
 };
 addEventListener('hashchange', fromHash);

@@ -20,7 +20,8 @@ test('columns fallback', () => {
   assert.equal(det({}).columns, 116);
   assert.equal(det({ COLUMNS: 'abc' }).columns, 116);
   assert.equal(det({ COLUMNS: '0' }).columns, 116);
-  assert.equal(det({ COLUMNS: '10' }).columns, 20, 'never below 20');
+  assert.equal(det({ COLUMNS: '10' }).columns, 6, 'a tiny window still gets a line that fits');
+  assert.equal(det({ COLUMNS: '3' }).columns, 1);
 });
 test('theme', () => {
   assert.equal(det({}, DEFAULTS, 'light-daltonized').theme, 'light');
@@ -51,13 +52,15 @@ test('readClaudeTheme', () => {
   assert.equal(readClaudeTheme(join(d, 'ok.json')), 'light');
 });
 
-const busy = { rate_limits: { five_hour: { used_percentage: 47, resets_at: 1000 }, seven_day: { used_percentage: 12, resets_at: 2000 } } };
+// Resets in the future of NOW: a reading from a window that has already ended never replaces anything.
+const R5 = Math.floor(NOW / 1000) + 18000, R7 = R5 + 86400;
+const busy = { rate_limits: { five_hour: { used_percentage: 47, resets_at: R5 }, seven_day: { used_percentage: 12, resets_at: R7 } } };
 test('remember then recall; payg leaves file alone', () => {
   const p = tmpPaths();
   assert.equal(recall(p), null);
   remember(busy, p, NOW);
   const r = recall(p);
-  assert.deepEqual([r.fiveHour, r.sevenDay, r.subscriberSeenAt], [{ used: 47, resetsAt: 1000 }, { used: 12, resetsAt: 2000 }, NOW.getTime()]);
+  assert.deepEqual([r.fiveHour, r.sevenDay, r.subscriberSeenAt], [{ used: 47, resetsAt: R5 }, { used: 12, resetsAt: R7 }, NOW.getTime()]);
   remember({}, p, at(60));
   remember({ rate_limits: {} }, p, at(60));
   assert.deepEqual(recall(p), r);
@@ -72,22 +75,51 @@ test('unchanged values within the hour do not rewrite; later they refresh the st
   assert.equal(recall(p).subscriberSeenAt, NOW.getTime());
   remember(busy, p, at(3700));
   assert.equal(recall(p).subscriberSeenAt, at(3700).getTime());
-  remember({ rate_limits: { five_hour: { used_percentage: 50, resets_at: 1000 } } }, p, at(3800));
+  remember({ rate_limits: { five_hour: { used_percentage: 50, resets_at: R5 } } }, p, at(3800));
   assert.equal(recall(p).fiveHour.used, 50);
 });
 test('an idle window repeating old numbers never overwrites newer ones; real news does, even when lower', () => {
   const p = tmpPaths();
   const reading = (session_id, used, resets_at) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at } } });
-  remember(reading('idle', 20, 1000), p, NOW); // the idle session's last reply
-  remember(reading('busy', 60, 1000), p, at(30)); // the busy session's newer reply
-  remember(reading('idle', 20, 1000), p, at(60)); // the idle session redraws its old numbers
+  remember(reading('idle', 20, R5), p, NOW); // the idle session's last reply
+  remember(reading('busy', 60, R5), p, at(30)); // the busy session's newer reply
+  remember(reading('idle', 20, R5), p, at(60)); // the idle session redraws its old numbers
   assert.equal(recall(p).fiveHour.used, 60);
-  remember(reading('busy', 19, 1000), p, at(90)); // plan upgraded mid-window: lower, but real news
+  remember(reading('busy', 19, R5), p, at(90)); // plan upgraded mid-window: lower, but real news
   assert.equal(recall(p).fiveHour.used, 19);
-  remember(reading('idle', 95, 1000 + 1), p, at(100)); // the idle session gets a reply too: its new numbers are news
+  remember(reading('idle', 95, R5 + 1), p, at(100)); // the idle session gets a reply too: its new numbers are news
   assert.equal(recall(p).fiveHour.used, 95);
-  remember(reading('busy', 5, 1000 + 18000), p, at(120)); // the window reset
-  assert.deepEqual(recall(p).fiveHour, { used: 5, resetsAt: 19000 });
+  remember(reading('busy', 5, R5 + 18000), p, at(120)); // the window reset
+  assert.deepEqual(recall(p).fiveHour, { used: 5, resetsAt: R5 + 18000 });
+});
+
+test('a session seen for the first time (after /clear, or an upgrade) cannot lower the saved reading', () => {
+  const p = tmpPaths();
+  const reading = (session_id, used, resets_at) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at } } });
+  remember(reading('a', 40, R5), p, NOW);
+  remember(reading('a', 60, R5), p, at(10));
+  remember(reading('a-cleared', 40, R5), p, at(20)); // same process, new session id, its old numbers
+  assert.equal(recall(p).fiveHour.used, 60);
+  remember(reading('new-chat', 70, R5), p, at(30)); // a new chat's first reply is higher: it counts
+  assert.equal(recall(p).fiveHour.used, 70);
+});
+
+test('after an account switch, the idle window of the old account cannot bring its numbers back', () => {
+  const p = tmpPaths();
+  const reading = (session_id, used, resets_at) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at } } });
+  remember(reading('s1', 40, R5 + 7200), p, NOW); // account A
+  remember(reading('s2', 40, R5 + 7200), p, at(5)); // account A, another window
+  remember(reading('s1', 10, R5), p, at(10)); // s1 switched to account B and replied
+  remember(reading('s2', 40, R5 + 7200), p, at(15)); // s2 still repeats A: its window is later, but B's is running
+  assert.deepEqual(recall(p).fiveHour, { used: 10, resetsAt: R5 });
+});
+
+test('a reading from a window that has already ended never replaces the current one', () => {
+  const p = tmpPaths();
+  const reading = (session_id, used, resets_at) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at } } });
+  remember(reading('a', 5, R5), p, NOW);
+  remember(reading('old', 90, Math.floor(NOW / 1000) - 60), p, at(5));
+  assert.equal(recall(p).fiveHour.used, 5);
 });
 
 test('remember returns what it saved, so the refresh that saw it already uses it', () => {

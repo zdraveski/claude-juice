@@ -1,7 +1,7 @@
 import { NOW, fixture } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalize } from '../src/data.js';
+import { normalize, sendsPromptCache } from '../src/data.js';
 
 const nowS = Math.floor(NOW / 1000);
 const seen = (ago = 86400000) => ({
@@ -48,6 +48,13 @@ test('after a reply that brought no limits, lastSeen is another account', () => 
   const d = normalize(replied, { lastSeen: seen() }, NOW);
   assert.equal(d.account, 'payg');
   assert.deepEqual(d.limits, {});
+});
+
+test('on Claude Code before 2.1.251 (no prompt_cache ever), a cost is the sign of a reply', () => {
+  assert.deepEqual(['2.1.250', '2.1.251', '2.2.0', '3.0.0', '1.9.999', undefined, 'x'].map(sendsPromptCache), [false, true, true, true, false, true, true]);
+  const old = { ...fixture('payg'), version: '2.1.200' }; // an API key, $1.25 spent, no rate_limits
+  assert.equal(normalize(old, { lastSeen: seen() }, NOW).account, 'payg');
+  assert.equal(normalize({ ...old, cost: { total_cost_usd: 0 } }, { lastSeen: seen() }, NOW).account, 'subscriber', 'before any reply the memory still helps');
 });
 
 test('a resumed chat (cost restored, no reply yet) still counts as the subscriber it was', () => {

@@ -29,8 +29,9 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     if (fableOn) extras.fable = fableCache;
 
     const bd = stdin && settings.badges.length > 0 ? await import('./badges.js') : null;
-    const key = bd ? bd.badgeKey(stdin) : null;
-    const badges = bd ? bd.readBadges(p, key, now, settings.badges.map((b) => b.command)) : null;
+    const mine = bd ? bd.approved(p, settings.badges) : []; // only badges this computer approved ever run
+    const key = mine.length ? bd.badgeKey(stdin) : null;
+    const badges = mine.length ? bd.readBadges(p, key, now, mine.map((b) => b.command)) : null;
     if (badges) extras.badges = badges.texts;
 
     const data = normalize(stdin, extras, now);

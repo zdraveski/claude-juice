@@ -52,6 +52,22 @@ test('clamp and refill', () => {
   assert.equal(p.used, 0); assert.equal(p.resetsAt, null); assert.equal(p.level, 'ok');
 });
 
+test('early in a window, half or more used is judged by pace: 84% after 24 minutes is red, not "plenty left"', () => {
+  const early = A(84, H5 - 1440, H5);
+  assert.equal(early.level, 'crit');
+  assert.ok(early.outAt > at(0) && early.outAt < at(H5 - 1440));
+  assert.equal(A(30, H5 - 1440, H5).level, 'ok', 'under half, early pace is still too noisy to judge');
+  assert.equal(A(84, H5, H5).level, 'ok', 'no time has passed: no pace to judge');
+});
+
+test('running out exactly at the reset is amber, and "runs out" is never the reset time itself', () => {
+  assert.equal(A(60, 7200, H5).level, 'warn'); // 60% after 3h of 5h: on track to finish exactly at the reset
+  for (let used = 50; used < 100; used++) for (let s = 60; s < H5; s += 300) {
+    const a = A(used, s, H5);
+    if (a.outAt) assert.ok(at(s) - a.outAt >= 60000, `${used}% with ${s}s left says it runs out within a minute of the reset`);
+  }
+});
+
 test('memLevel', () => {
   assert.equal(memLevel(69), 'ok'); assert.equal(memLevel(70), 'warn'); assert.equal(memLevel(85), 'crit');
 });

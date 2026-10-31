@@ -123,17 +123,33 @@ test('applySet colours', () => {
 });
 
 test('toCommand', () => {
-  // terminal and fable stay out while auto: the customizer can't set them, so pasting must not undo the person's choice.
-  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget cost=auto colors=claude ends=auto refills=always');
+  // terminal has a control on the page, so Automatic can be chosen there; fable never travels in a pasted command.
+  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget cost=auto colors=claude ends=auto terminal=auto refills=always');
   const mine = applySet({ ...DEFAULTS, fable: 'on', terminal: 'light' }, toCommand(DEFAULTS).split(' ').slice(2)).settings;
-  assert.deepEqual([mine.fable, mine.terminal], ['on', 'light']);
+  assert.deepEqual([mine.fable, mine.terminal], ['on', 'auto'], 'Automatic undoes Light; the person\'s own fable choice stays');
+  assert.doesNotMatch(toCommand({ ...DEFAULTS, fable: 'on' }), /fable=/);
 });
 
-test('toCommand round-trips through applySet, custom colours too', () => {
+test('toCommand round-trips through applySet, custom colours too (everything but fable)', () => {
   const s = { ...DEFAULTS, layout: 'focus', show: ['week', 'model'], cost: 'on', colors: { dark: A, light: custom.light }, ends: 'round', terminal: 'light', refills: 'warnings', fable: 'off' };
   const lower = applySet(DEFAULTS, toCommand(s).split(' ').slice(2)).settings;
-  assert.deepEqual(lower, sanitize(s, { allowBadges: true }).settings);
-  assert.equal(toCommand(s).split(' ').length, 10);
+  assert.deepEqual(lower, { ...sanitize(s, { allowBadges: true }).settings, fable: DEFAULTS.fable });
+  assert.equal(toCommand(s).split(' ').length, 9);
+});
+
+test('a share link never switches on Fable, which reads the login', () => {
+  const raw = JSON.parse(atob(encodeLink({ ...DEFAULTS, fable: 'on' }).replace(/-/g, '+').replace(/_/g, '/')));
+  assert.equal('fable' in raw, false);
+  const crafted = btoa(JSON.stringify({ fable: 'on', layout: 'panel' })).replace(/=+$/, '');
+  assert.deepEqual([parseLink(crafted).fable, parseLink(crafted).layout], ['auto', 'panel']);
+});
+
+test('a misspelt battery name is left out with a warning, never silently', () => {
+  const r = applySet(DEFAULTS, ['show=memory,sesion']);
+  assert.deepEqual(r.settings.show, ['memory']);
+  assert.match(r.warnings.join(), /'sesion' isn't a battery name/);
+  assert.match(sanitize({ show: ['week', 'wekly'] }, { allowBadges: true }).warnings.join(), /'wekly' isn't a battery name/);
+  assert.deepEqual(applySet(DEFAULTS, ['show=memory,session']).warnings, []);
 });
 
 test('links', () => {

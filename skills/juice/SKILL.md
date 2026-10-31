@@ -25,11 +25,11 @@ Steps:
    - If `setup` answers with exit code 2, the person's status line changed since juice saved a copy. Explain that in plain words and ask whether juice may replace it. Run `JUICE setup --yes` only after they agree.
 
 3. If the request is `looks`, or the user wants to see or browse the looks: run `JUICE looks` and show its output exactly as it is, inside a code block. Then say in one sentence that the previews have no colour here, and that to try one they type `/juice look` and its number, for example `/juice look 7`, which switches their real status line straight away, so they can try one after another. (Typing it as a new `/juice` request keeps it from asking for permission each time.)
-   - If the request is `look` with a number or a name, run `JUICE set look=<id>` using this numbered list: 1 juice, 2 basics, 3 spotlight, 4 everything, 5 retro, 6 quiet, 7 nightowl, 8 easy, 9 colorblind, 10 anywhere, 11 costwatch, 12 fablefirst (the same order and ids, in parentheses, as `JUICE looks` prints). Confirm in one sentence and remind them they can type `/juice look` with another number.
+   - If the request is `look` with a number or a name, run `JUICE set 'look=<id>'` using this numbered list: 1 juice, 2 basics, 3 spotlight, 4 everything, 5 retro, 6 quiet, 7 nightowl, 8 easy, 9 colorblind, 10 anywhere, 11 costwatch, 12 fablefirst (the same order and ids, in parentheses, as `JUICE looks` prints). Confirm in one sentence and remind them they can type `/juice look` with another number.
 
 4. If the request starts with `badges`: `badges list` can run directly. For `badges add` or `badges remove`, show the exact command and what it does, ask, and only after the user says yes re-run it with `--yes`. Put a badge command in single quotes as one argument.
 
-5. For anything else, run `JUICE get` to see the current settings. Turn the request into `key=value` pairs, run `JUICE set key=value ...`, and report the `Changed:` line in plain words. Pass only these keys and values, never the user's own words:
+5. For anything else, run `JUICE get` to see the current settings. Turn the request into `key=value` pairs, run `JUICE set 'key=value' ...` with each pair in single quotes (custom colours contain `#`, which PowerShell would otherwise read as a comment), and report the `Changed:` line and any `Warning:` lines in plain words. Pass only these keys and values, never the user's own words:
    - layout: bar, segments, focus, panel
    - show: comma-separated, in order, from model,effort,memory,session,fable,week,budget
    - cost: auto, on, off
@@ -43,7 +43,7 @@ Steps:
 
    If the user asks which colours there are, list them from above in plain words without running anything. For looks, use step 3.
 
-   Examples: "use the quiet look" -> `look=quiet`; "night owl but with ocean colours" -> `look=nightowl colors=ocean`; "hide the cost" -> `cost=off`; "use the high contrast colours" -> `colors=bold`; "make it a panel" -> `layout=panel`; "my terminal is light" -> `terminal=light`.
+   Examples (each pair goes in single quotes when you run it, as in `JUICE set 'look=nightowl' 'colors=ocean'`): "use the quiet look" -> `look=quiet`; "night owl but with ocean colours" -> `look=nightowl colors=ocean`; "hide the cost" -> `cost=off`; "use the high contrast colours" -> `colors=bold`; "make it a panel" -> `layout=panel`; "my terminal is light" -> `terminal=light`.
 
    If `set` warns that the status line will be empty, tell the user in one sentence and offer to bring everything back.
 

@@ -8,7 +8,7 @@ import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
 import { refreshFable } from './fable.js';
-import { refreshBadges, addBadge, listBadges, removeBadge } from './badges.js';
+import { refreshBadges, addBadge, listBadges, removeBadge, unapprovedBadges } from './badges.js';
 import { install, restore, fwd, NeedsConfirm } from './setup.js';
 
 const ROOT = new URL('..', import.meta.url);
@@ -29,7 +29,12 @@ export async function main(argv, io) {
         if (!settings.show.length) io.out('Warning: nothing is chosen to show, so the status line will be empty. To bring everything back: show=model,effort,memory,session,fable,week,budget');
         return 0;
       }
-      case 'get': io.out(JSON.stringify(loadSettings(p).settings, null, 2)); return 0;
+      case 'get': {
+        const { settings, warnings } = loadSettings(p);
+        io.out(JSON.stringify(settings, null, 2));
+        warnings.forEach((w) => io.out(`Warning: ${w}`)); // an unreadable juice.json must not pass for the defaults
+        return 0;
+      }
       case 'looks': {
         const { settings } = loadSettings(p);
         LOOKS.forEach((l, n) => {
@@ -51,25 +56,28 @@ export async function main(argv, io) {
         return 0;
       }
       case 'badges': {
-        const [sub, ...rest] = args;
+        const [sub, ...all] = args;
+        // Only a final --yes is the go-ahead; one inside the command (npx --yes ccusage) belongs to the command.
+        const yes = all.at(-1) === '--yes', rest = yes ? all.slice(0, -1) : all;
         if (sub === 'add') {
-          const command = rest.filter((a) => a !== '--yes').join(' ');
+          const command = rest.join(' ');
           if (!command) { io.err('Give the command to add, for example: badges add "rtk gain" --yes'); return 1; }
-          if (!rest.includes('--yes')) { io.out(`This badge would run: ${command}`); io.out('Run again with --yes to add it.'); return 2; }
+          if (!yes) { io.out(`This badge would run: ${command}`); io.out('Run again with --yes to add it.'); return 2; }
           addBadge(p, command);
           io.out(`Added badge: ${command}`);
           return 0;
         }
         if (sub === 'list') {
-          const l = listBadges(p);
-          io.out(l.length ? l.map((c, i) => `${i + 1}. ${c}`).join('\n') : 'No badges.');
+          const l = listBadges(p), off = unapprovedBadges(p);
+          io.out(l.length ? l.map((c, i) => `${i + 1}. ${c}${off.includes(i + 1) ? ' (not approved on this computer, so it never runs: remove it, then add it again to use it)' : ''}`).join('\n') : 'No badges.');
+          loadSettings(p).warnings.forEach((w) => io.out(`Warning: ${w}`));
           return 0;
         }
         if (sub === 'remove') {
-          const n = Number(rest.find((a) => a !== '--yes'));
+          const n = Number(rest[0]);
           const command = listBadges(p)[n - 1];
           if (!Number.isInteger(n) || command === undefined) { io.err('No badge with that number. Run badges list to see them.'); return 1; }
-          if (!rest.includes('--yes')) { io.out(`This would remove badge ${n}: ${command}`); io.out('Run again with --yes to remove it.'); return 2; }
+          if (!yes) { io.out(`This would remove badge ${n}: ${command}`); io.out('Run again with --yes to remove it.'); return 2; }
           removeBadge(p, n);
           io.out(`Removed badge: ${command}`);
           return 0;

@@ -13,7 +13,7 @@ import { render } from '../src/render/index.js';
 import { vis } from '../src/render/ansi.js';
 import { DEFAULTS, LAYOUT_IDS } from '../src/schema.js';
 import { runStatusLine } from '../src/statusline.js';
-import { readBadges, refreshBadges, run } from '../src/badges.js';
+import { readBadges, refreshBadges, run, approve } from '../src/badges.js';
 import { fableCacheState } from '../src/fable.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '');
@@ -75,7 +75,7 @@ test('badges refresh again after 2.5 s, not after 1 s', async () => {
   const dir = tmp();
   const calls = [];
   const go = (s) => runStatusLine({ stdinText: busyText, env: { CLAUDE_CONFIG_DIR: dir }, now: at(s), platform: 'darwin', spawnDetached: (a) => calls.push(a) });
-  writeFileSync(join(dir, 'juice.json'), JSON.stringify({ badges: [{ command: 'echo hi' }] }));
+  writeFileSync(join(dir, 'juice.json'), JSON.stringify({ badges: [approve(paths({ CLAUDE_CONFIG_DIR: dir }), 'echo hi')] }));
   await go(0);
   await go(1);
   assert.equal(calls.length, 1);
@@ -86,7 +86,7 @@ test('badges refresh again after 2.5 s, not after 1 s', async () => {
 test('a cache stamped in the future counts as stale', async () => {
   assert.equal(fableCacheState({ fetchedAt: +NOW + 5000, used: 1 }, +NOW).stale, true);
   const p = paths({ CLAUDE_CONFIG_DIR: tmp() });
-  await refreshBadges({ p, settings: { badges: [{ command: 'x' }] }, key: 'k', stdinText: '', runImpl: async () => ({ ok: true, stdout: 'a' }) });
+  await refreshBadges({ p, settings: { badges: [approve(p, 'x')] }, key: 'k', stdinText: '', runImpl: async () => ({ ok: true, stdout: 'a' }) });
   assert.equal(readBadges(p, 'k', new Date(Date.now() - 60000), ['x']).stale, true);
 });
 
