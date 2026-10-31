@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { runStatusLine } from '../src/statusline.js';
-import { resolveTarget } from '../bin/launcher.js';
+import { resolveTarget, turnedOff } from '../bin/launcher.js';
 import { badgeKey } from '../src/badges.js';
 
 const setup = (platform = 'win32', settings) => {
@@ -49,6 +49,9 @@ test('fable refresh spawns once per lock window, and not on darwin auto', async 
   const b = setup('darwin');
   await b.run(busy);
   assert.deepEqual(b.calls, []);
+  const c = setup('win32');
+  await c.run(JSON.stringify(fixture('payg')));
+  assert.deepEqual(c.calls, [], 'an API-key user\'s login is never sent for limits they do not have');
 });
 
 test('configured badge with no cache spawns a refresh and stashes stdin', async () => {
@@ -74,5 +77,10 @@ test('launcher picks the highest version, or the pinned one', async () => {
   const gone = mk('plugins', 'cache', 'm', 'juice', '2.0.0');
   writeFileSync(join(gone, '..', '..', '.orphaned_at'), '1');
   assert.equal(resolveTarget(dir, null, 'm'), hi, 'a version Claude Code marked as replaced or uninstalled never runs');
+  assert.equal(turnedOff(dir, 'm'), false, 'no settings: on');
+  writeFileSync(join(dir, 'settings.json'), '﻿' + JSON.stringify({ enabledPlugins: { 'juice@m': false, 'juice@other': true } }));
+  assert.equal(turnedOff(dir, 'm'), true, 'turned off in /plugin');
+  assert.equal(turnedOff(dir, 'other'), false);
+  assert.equal(turnedOff(dir, null), false, 'a pinned dev install has no marketplace to check');
   assert.ok(pathToFileURL(hi).href);
 });

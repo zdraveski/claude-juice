@@ -162,3 +162,13 @@ test('applySet ignores prototype names and bare words without throwing', () => {
     assert.deepEqual(Object.keys(r.settings), Object.keys(DEFAULTS), p);
   }
 });
+
+// The /juice skill can't run code to look these up, so its lists must match the code exactly.
+test('the /juice skill numbers the looks and names the colour sets exactly as the code does', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { PRESETS } = await import('../src/render/palette.js');
+  const skill = readFileSync(new URL('../skills/juice/SKILL.md', import.meta.url), 'utf8');
+  const numbered = /numbered list: ([^(]+?) \(/.exec(skill)[1].split(', ').map((x) => x.split(' ')[1]);
+  assert.deepEqual(numbered, LOOKS.map((l) => l.id));
+  for (const id of PRESET_IDS) assert.ok(skill.includes(`${id} (${PRESETS[id].name}`), `colour set ${id} (${PRESETS[id].name}) is not named in the skill`);
+});

@@ -56,7 +56,7 @@ test('launcher works through a junction or symlink', (t) => {
 test('launcher says how to get back when juice is gone', () => {
   const r = node([join(ROOT, 'bin', 'launcher.js')], tmp(), busyText);
   assert.equal(r.status, 0);
-  assert.equal(r.stdout.trim(), 'juice is not installed. Reinstall it and type /juice restore to get your old status line back.');
+  assert.equal(r.stdout.trim(), 'juice is not installed. Install it again, then type /juice setup to use it or /juice restore to get your old status line back.');
 });
 
 test('64.1 used renders as 64% used in every layout; token memory is whole', () => {

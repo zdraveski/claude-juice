@@ -1,9 +1,10 @@
 import { vis, cut } from './ansi.js';
 
-// [ctx.fit flag, label shown to the user], least important first.
+// [ctx.fit flag, label shown to the user], least important first. The batteries are what juice is for,
+// so hiding the ones that are fine is the very last step, after every word and space has given way.
 export const FIT_STEPS = [['badges', 'badges'], ['noRefills', 'reset times'], ['noEffortWord', 'the effort word'], ['noCost', 'cost'],
-  ['onlyTrouble', 'batteries that are fine'], ['noModel', 'the model name'], ['noEffort', 'the effort level'], ['tight', 'spacing'],
-  ['small', 'battery size'], ['shortWords', 'warning words']];
+  ['noEffort', 'the effort level'], ['noModel', 'the model name'], ['tight', 'spacing'], ['small', 'battery size'],
+  ['shortWords', 'warning words'], ['onlyTrouble', 'batteries that are fine']];
 
 const widest = (t) => Math.max(...t.split('\n').map(vis));
 
@@ -17,12 +18,15 @@ export function fit(layoutFn, data, ctx, columns) {
     flags = { ...flags, [flag]: true };
     text = draw(flags);
   }
-  // A later step can free more room than the earlier ones needed, so give back what still fits, most important first.
+  // A later step can free more room than the earlier ones needed, so give back what still fits, most important
+  // first, and stop at the first that doesn't: giving back a lesser one past it would rank it above a greater one.
   if (widest(text) <= columns) {
     for (const [flag] of [...FIT_STEPS].reverse()) {
       if (!flags[flag]) continue;
       const next = draw(without(flags, flag));
-      if (widest(next) <= columns) { flags = without(flags, flag); text = next; }
+      if (widest(next) > columns) break;
+      flags = without(flags, flag);
+      text = next;
     }
   }
   const dropped = FIT_STEPS.filter(([flag]) => flags[flag] && draw(without(flags, flag)) !== text).map(([, label]) => label);

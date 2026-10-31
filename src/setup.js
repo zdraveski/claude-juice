@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync, realpathSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readJson, writeJsonAtomic } from './cache.js';
 
@@ -12,8 +12,31 @@ const REFRESH_SECONDS = 60;
 // A symlinked settings.json must stay a symlink, so write to what it points at.
 const writeSettings = (p, v) => writeJsonAtomic(existsSync(p.claudeSettings) ? realpathSync(p.claudeSettings) : p.claudeSettings, v);
 
-// By file name, not the exact path: the same folder can be spelled C:\ or c:\, or reached through a link.
-const isJuice = (statusLine) => typeof statusLine?.command === 'string' && /juice-statusline\.mjs"?\s*$/.test(statusLine.command);
+// juice's own line is Node (by name or full path) running a juice-statusline.mjs, and nothing else, so a
+// wrapper script that merely mentions the file is never taken for juice. Any folder counts: the same one can be
+// spelled C:\ or c:\, and settings can be copied from another machine.
+const JUICE_COMMAND = /^\s*(?:node|"[^"]*node(?:\.exe)?"|\S*[\\/]node(?:\.exe)?)\s+"[^"]*[\\/]juice-statusline\.mjs"\s*$/i;
+const isJuice = (statusLine) => typeof statusLine?.command === 'string' && JUICE_COMMAND.test(statusLine.command);
+// Windows paths ignore case and slash direction.
+const samePath = (a, b, platform) => (platform === 'win32' ? fwd(a).toLowerCase() === fwd(b).toLowerCase() : a === b);
+
+// Claude Code started from a desktop app on macOS or Linux runs the status line without the shell's PATH,
+// where Homebrew's or nvm's node is missing, so name this Node by its full path. fnm's per-shell paths vanish, so not those.
+const nodeCommand = (platform, execPath) => (platform === 'win32' || /fnm_multishells/.test(execPath) ? 'node' : JSON.stringify(fwd(execPath)));
+
+// Settings that beat the person's own: a project's .claude/settings(.local).json, and disableAllHooks,
+// which turns status lines off too. juice can't change those, but it can say so instead of claiming success.
+function overrides(p, settings, cwd, platform) {
+  const out = [];
+  if (settings.disableAllHooks === true) out.push("Your Claude Code settings turn hooks off (disableAllHooks), which hides status lines too, so juice won't show until that is turned back on.");
+  const project = resolve(cwd, '.claude');
+  if (samePath(project, resolve(p.config), platform)) return out; // run from the home folder: that is the person's own settings
+  for (const f of ['settings.json', 'settings.local.json']) {
+    const sl = readJson(join(project, f))?.statusLine;
+    if (sl && !isJuice(sl)) out.push(`This project's .claude/${f} sets its own status line, so juice won't show in this project.`);
+  }
+  return out;
+}
 
 export class NeedsConfirm extends Error {}
 
@@ -29,16 +52,20 @@ function readClaudeSettings(p) {
   return v;
 }
 
-export function install(p, { pluginRoot, yes = false }) {
+export function install(p, { pluginRoot, yes = false, platform = process.platform, execPath = process.execPath, cwd = process.cwd() }) {
   // Installed from Claude Code's plugin store: follow updates. Anywhere else (a checkout): pin that folder.
   const inPluginCache = fwd(pluginRoot).includes('/plugins/cache/');
   const settings = readClaudeSettings(p);
-  const command = `node "${fwd(p.launcherFile)}"`;
+  const command = `${nodeCommand(platform, execPath)} "${fwd(p.launcherFile)}"`;
   const ours = isJuice(settings.statusLine);
   const lines = [];
 
+  // A backup that exists but can't be read is set aside like a stale one, so the current line is still saved.
+  const backupThere = existsSync(p.backupFile);
   const old = ours ? null : readJson(p.backupFile);
-  const stale = !!old && 'statusLine' in old && !same(settings.statusLine, old.statusLine);
+  const usable = !!old && typeof old === 'object' && 'statusLine' in old;
+  const damaged = !ours && backupThere && !usable;
+  const stale = usable && !same(settings.statusLine, old.statusLine);
   if (stale && !yes) throw new NeedsConfirm('Your status line has changed since juice saved a copy of the old one, so juice changed nothing. Run setup again with --yes to save your current status line too (the earlier copy is kept under a new name) and switch to juice.');
 
   const template = readFileSync(LAUNCHER_TEMPLATE, 'utf8');
@@ -51,22 +78,28 @@ export function install(p, { pluginRoot, yes = false }) {
   mkdirSync(dirname(p.launcherFile), { recursive: true });
   writeFileSync(p.launcherFile, launcher);
 
-  if (stale) {
+  if (stale || damaged) {
     renameSync(p.backupFile, p.backupFile.replace(/\.json$/, `-${Date.now()}.json`));
-    lines.push('Kept the earlier saved copy next to it under a new name.');
+    lines.push(damaged ? "juice's saved copy of your old status line was damaged, so juice set it aside under a new name." : 'Kept the earlier saved copy next to it under a new name.');
   }
-  if (!ours && (stale || !existsSync(p.backupFile))) {
+  if (!ours && (stale || damaged || !backupThere)) {
     writeJsonAtomic(p.backupFile, { statusLine: settings.statusLine ?? null, savedAt: new Date().toISOString() });
     lines.push(settings.statusLine ? 'Saved your current status line so you can get it back.' : 'You had no status line, so there is nothing to save.');
   }
-  if (ours && settings.statusLine.refreshInterval) lines.push('juice is already your status line. Nothing changed.');
-  else if (ours) {
+  const current = ours && samePath(settings.statusLine.command, command, platform);
+  if (current && settings.statusLine.refreshInterval) lines.push('juice is already your status line. Nothing changed.');
+  else if (current) {
     writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, refreshInterval: REFRESH_SECONDS } });
     lines.push('juice now refreshes once a minute, so the reset countdowns stay current.');
+  } else if (ours) {
+    // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing.
+    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: settings.statusLine.refreshInterval || REFRESH_SECONDS } });
+    lines.push('juice was your status line but pointed somewhere else, so it now points at this copy of juice.');
   } else {
     writeSettings(p, { ...settings, statusLine: { type: 'command', command, padding: 0, refreshInterval: REFRESH_SECONDS } });
     lines.push('juice is now your status line. It shows up the next time Claude Code redraws it.');
   }
+  lines.push(...overrides(p, settings, cwd, platform));
   lines.push('To go back to your old status line, run /juice restore.');
   return lines;
 }

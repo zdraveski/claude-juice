@@ -1,5 +1,5 @@
 // Template: `juice setup` copies this to <config>/juice-statusline.mjs so the status line survives plugin updates.
-import { existsSync, readdirSync, realpathSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -24,10 +24,22 @@ export function resolveTarget(configDir, pinned = PINNED, market = MARKET) {
   return found.sort((a, b) => newer(b.v, a.v))[0]?.f ?? null;
 }
 
+// Turned off in /plugin, juice keeps its folder (no .orphaned_at) but loses its /juice command, so it must not
+// keep drawing as if nothing happened; it says how to get back instead.
+export function turnedOff(configDir, market = MARKET) {
+  if (!market) return false;
+  try {
+    const settings = JSON.parse(readFileSync(join(configDir, 'settings.json'), 'utf8').replace(/^﻿/, ''));
+    return settings?.enabledPlugins?.[`juice@${market}`] === false;
+  } catch { return false; }
+}
+
 // Compare real paths so a symlink or junction to this file still counts as running it.
 const isMain = (() => { try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; } })();
 if (isMain) {
-  const target = resolveTarget(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'));
+  const config = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
+  const target = turnedOff(config) ? null : resolveTarget(config);
   if (target) await import(pathToFileURL(target).href);
-  else console.log('juice is not installed. Reinstall it and type /juice restore to get your old status line back.');
+  else if (turnedOff(config)) console.log('juice is turned off. Turn it back on in /plugin, then type /juice restore to get your old status line back.');
+  else console.log('juice is not installed. Install it again, then type /juice setup to use it or /juice restore to get your old status line back.');
 }

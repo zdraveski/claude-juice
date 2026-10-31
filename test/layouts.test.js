@@ -104,6 +104,19 @@ test('model names', () => {
 test('LAYOUTS keys match LAYOUT_IDS', () => assert.deepEqual(Object.keys(LAYOUTS), [...LAYOUT_IDS]));
 test('256 colour output has no truecolor escapes', () => assert.ok(!/38;2;/.test(run(SAMPLES.busy, {}, { colorDepth: '256' }))));
 test('unknown layout falls back to bar', () => assert.equal(run(SAMPLES.busy, { layout: 'nope' }), run(SAMPLES.busy)));
+test('without colour (NO_COLOR, plain previews) there are no escape codes and unlit cells differ by shape', () => {
+  const t = run(SAMPLES.busy, { layout: 'segments' }, { colorDepth: 'none', ends: 'plain' });
+  assert.ok(!t.includes('\x1b'), t);
+  assert.match(t, /Session +▊▊░░░■ 47%/, 'two of five lit, the rest drawn as ░');
+  assert.match(run(SAMPLES.busy, { layout: 'panel' }, { colorDepth: 'none' }), /▆░/);
+});
+
+test('a cost of $0.00 is never shown: before the first reply it says nothing about money', () => {
+  const d = { ...SAMPLES.busy, account: 'payg', limits: {}, costUsd: 0 };
+  assert.ok(!text(d).includes('$'), text(d));
+  assert.match(text({ ...d, costUsd: 1.25 }), /spent \$1\.25/);
+});
+
 test('grey labels and countdowns are readable (WCAG AA, 4.5:1) on both default backgrounds', () => {
   for (const t of ['dark', 'light']) assert.ok(contrast(NEUTRAL[t].mute, NEUTRAL[t].bg) >= 4.5, t);
 });

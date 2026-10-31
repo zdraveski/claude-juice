@@ -14,16 +14,21 @@ const tmpPaths = () => paths({ CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'ju
 
 test('detects everything from env', () => {
   assert.deepEqual(det({ COLUMNS: '80', TERM_PROGRAM: 'vscode', COLORTERM: 'truecolor' }, DEFAULTS, 'dark'),
-    { columns: 80, theme: 'dark', ends: 'round', colorDepth: 'truecolor' });
+    { columns: 76, theme: 'dark', ends: 'round', colorDepth: 'truecolor' }, "four columns stay free for Claude Code's indent");
 });
 test('columns fallback', () => {
-  assert.equal(det({}).columns, 120);
-  assert.equal(det({ COLUMNS: 'abc' }).columns, 120);
-  assert.equal(det({ COLUMNS: '0' }).columns, 120);
+  assert.equal(det({}).columns, 116);
+  assert.equal(det({ COLUMNS: 'abc' }).columns, 116);
+  assert.equal(det({ COLUMNS: '0' }).columns, 116);
+  assert.equal(det({ COLUMNS: '10' }).columns, 20, 'never below 20');
 });
 test('theme', () => {
   assert.equal(det({}, DEFAULTS, 'light-daltonized').theme, 'light');
   assert.equal(det({}, DEFAULTS, 'auto').theme, 'dark');
+  assert.equal(det({ COLORFGBG: '0;15' }, DEFAULTS, 'auto').theme, 'light', "Claude's auto theme follows a light terminal");
+  assert.equal(det({ COLORFGBG: '0;default;7' }, DEFAULTS, null).theme, 'light');
+  assert.equal(det({ COLORFGBG: '15;0' }, DEFAULTS, 'auto').theme, 'dark');
+  assert.equal(det({ COLORFGBG: '0;15' }, DEFAULTS, 'dark').theme, 'dark', 'an explicit Claude theme wins');
   assert.equal(det({}, { ...DEFAULTS, terminal: 'light' }, 'dark').theme, 'light');
 });
 test('ends', () => {
@@ -34,6 +39,8 @@ test('colour depth', () => {
   assert.equal(det({}).colorDepth, '256');
   assert.equal(det({ COLORTERM: '24bit' }).colorDepth, 'truecolor');
   assert.equal(det({ WT_SESSION: 'a1b2' }).colorDepth, 'truecolor');
+  assert.equal(det({ NO_COLOR: '1', COLORTERM: 'truecolor' }).colorDepth, 'none');
+  assert.equal(det({ NO_COLOR: '' }).colorDepth, '256', 'an empty NO_COLOR does not count');
 });
 test('readClaudeTheme', () => {
   const d = mkdtempSync(join(tmpdir(), 'juice-'));
@@ -50,7 +57,7 @@ test('remember then recall; payg leaves file alone', () => {
   assert.equal(recall(p), null);
   remember(busy, p, NOW);
   const r = recall(p);
-  assert.deepEqual(r, { fiveHour: { used: 47, resetsAt: 1000 }, sevenDay: { used: 12, resetsAt: 2000 }, subscriberSeenAt: NOW.getTime() });
+  assert.deepEqual([r.fiveHour, r.sevenDay, r.subscriberSeenAt], [{ used: 47, resetsAt: 1000 }, { used: 12, resetsAt: 2000 }, NOW.getTime()]);
   remember({}, p, at(60));
   remember({ rate_limits: {} }, p, at(60));
   assert.deepEqual(recall(p), r);
@@ -68,14 +75,25 @@ test('unchanged values within the hour do not rewrite; later they refresh the st
   remember({ rate_limits: { five_hour: { used_percentage: 50, resets_at: 1000 } } }, p, at(3800));
   assert.equal(recall(p).fiveHour.used, 50);
 });
-test('an idle window sending old numbers never overwrites newer ones; a new window does', () => {
+test('an idle window repeating old numbers never overwrites newer ones; real news does, even when lower', () => {
   const p = tmpPaths();
-  const reading = (used, resets_at) => ({ rate_limits: { five_hour: { used_percentage: used, resets_at } } });
-  remember(reading(60, 1000), p, NOW); // the busy session
-  remember(reading(20, 1000), p, at(60)); // an idle session, same window
+  const reading = (session_id, used, resets_at) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at } } });
+  remember(reading('idle', 20, 1000), p, NOW); // the idle session's last reply
+  remember(reading('busy', 60, 1000), p, at(30)); // the busy session's newer reply
+  remember(reading('idle', 20, 1000), p, at(60)); // the idle session redraws its old numbers
   assert.equal(recall(p).fiveHour.used, 60);
-  remember(reading(5, 1000 + 18000), p, at(120)); // the window reset
+  remember(reading('busy', 19, 1000), p, at(90)); // plan upgraded mid-window: lower, but real news
+  assert.equal(recall(p).fiveHour.used, 19);
+  remember(reading('idle', 95, 1000 + 1), p, at(100)); // the idle session gets a reply too: its new numbers are news
+  assert.equal(recall(p).fiveHour.used, 95);
+  remember(reading('busy', 5, 1000 + 18000), p, at(120)); // the window reset
   assert.deepEqual(recall(p).fiveHour, { used: 5, resetsAt: 19000 });
+});
+
+test('remember returns what it saved, so the refresh that saw it already uses it', () => {
+  const p = tmpPaths();
+  assert.equal(remember(busy, p, NOW).fiveHour.used, 47);
+  assert.equal(remember({}, p, at(5)).fiveHour.used, 47, 'nothing new: the saved record');
 });
 
 test('a stamp from the future is rewritten, not kept', () => {

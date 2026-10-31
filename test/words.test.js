@@ -34,7 +34,8 @@ test('limitNote: always the countdown, coloured by how it is going', () => {
   const out = assess({ used: 88, resetsAt: at(7500), windowSec: win }, NOW);
   assert.equal(out.level, 'crit');
   assert.deepEqual(limitNote(out, NOW), { text: 'runs out ~2:44 PM · resets in 2h 5m', tone: 'bad' });
-  assert.equal(limitNote(out, NOW, { squeezed: true }).text, 'resets 2h 5m', 'a tight window keeps only the countdown');
+  assert.equal(limitNote(out, NOW, { squeezed: true }).text, 'out ~2:44 PM', 'a tight window keeps the more urgent half');
+  assert.equal(limitNote(fine, NOW, { squeezed: true }).text, 'resets 2h 10m');
 });
 
 test('clock: AM/PM today, month and day on another day', () => {

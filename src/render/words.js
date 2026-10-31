@@ -27,8 +27,10 @@ const TONE = { ok: 'mute', warn: 'watch', crit: 'bad' };
 export function limitNote(a, now, { squeezed = false, noReset = false } = {}) {
   if (a.resetsAt) {
     const left = `resets ${squeezed ? '' : 'in '}${countdown(a.resetsAt, now)}`;
-    const out = a.outAt && !squeezed ? `runs out ~${clock(a.outAt, now)}` : '';
-    return { text: noReset ? out : out ? `${out} · ${left}` : left, tone: TONE[a.level] };
+    const out = a.outAt ? `${squeezed ? 'out' : 'runs out'} ~${clock(a.outAt, now)}` : '';
+    // Squeezed, only one half fits, and when it runs out before the reset that is the half that matters.
+    const text = noReset ? out : squeezed ? out || left : out ? `${out} · ${left}` : left;
+    return { text, tone: TONE[a.level] };
   }
   if (a.level === 'crit') return { text: squeezed ? 'low' : 'almost empty', tone: 'bad' };
   if (a.level === 'warn') return { text: squeezed ? 'fast' : 'a bit fast', tone: 'watch' };

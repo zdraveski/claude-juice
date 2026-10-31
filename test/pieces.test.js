@@ -90,8 +90,9 @@ test('batteryLow uses only ▆ and ■', () => {
 
 test('ramp', () => {
   const ctx = mk(), s = ramp(ctx, 'high');
-  assert.equal(strip(s), '▂▃▅▆█');
-  assert.equal(s, [0, 1, 2, 3, 4].map((i) => fg(i < 3 ? ctx.P.accent : ctx.P.groove, '▂▃▅▆█'[i])).join(''));
+  assert.equal(strip(s), '▂▃▅▁▁', 'the steps above the level are flat, so the level reads without colour');
+  assert.equal(s, [0, 1, 2, 3, 4].map((i) => (i < 3 ? fg(ctx.P.accent, '▂▃▅▆█'[i]) : fg(ctx.P.groove, '▁'))).join(''));
+  assert.notEqual(strip(ramp(ctx, 'medium')), strip(ramp(ctx, 'max')));
 });
 
 test('palette', () => {

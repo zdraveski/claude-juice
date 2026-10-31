@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paths } from '../src/paths.js';
 import { readJson, writeJsonAtomic } from '../src/cache.js';
-import { readToken, fetchFable, refreshFable, fableCacheState } from '../src/fable.js';
+import { readToken, fetchFable, refreshFable, fableCacheState, keychainService } from '../src/fable.js';
+import { createHash } from 'node:crypto';
 import { fableEnabled } from '../src/schema.js';
 
 const TOKEN = 'test-token-123';
@@ -43,6 +44,17 @@ test('readToken: file on win32, null on problems', () => {
   writeFileSync(join(p.config, '.credentials.json'), '{}');
   assert.equal(readToken({ platform: 'linux', p, execFileSync: noExec }), null);
   assert.equal(readToken({ platform: 'linux', p: paths({ CLAUDE_CONFIG_DIR: join(p.config, 'nope') }), execFileSync: noExec }), null);
+});
+
+test('the Keychain name follows Claude Code: per config folder when CLAUDE_CONFIG_DIR is set', () => {
+  assert.equal(keychainService({}), 'Claude Code-credentials');
+  // sha256('/Users/me/.claude-work').slice(0, 8), computed independently of the code under test
+  const hash = createHash('sha256').update('/Users/me/.claude-work').digest('hex').slice(0, 8);
+  assert.equal(keychainService({ CLAUDE_CONFIG_DIR: '/Users/me/.claude-work' }), `Claude Code-credentials-${hash}`);
+  assert.equal(keychainService({ CLAUDE_CONFIG_DIR: '/x', CLAUDE_SECURESTORAGE_CONFIG_DIR: '' }), 'Claude Code-credentials', 'an empty override means the plain name');
+  const calls = [];
+  readToken({ platform: 'darwin', p: setup(), env: { CLAUDE_CONFIG_DIR: '/Users/me/.claude-work' }, execFileSync: (...a) => { calls.push(a); return creds(); } });
+  assert.equal(calls[0][1][2], `Claude Code-credentials-${hash}`);
 });
 
 test('readToken darwin uses security with exact args', () => {

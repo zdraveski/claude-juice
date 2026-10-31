@@ -1,15 +1,25 @@
 import { execFileSync as realExec } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readJson, writeJsonAtomic } from './cache.js';
 
 const BACKOFF_MS = 900000;
 
+// Claude Code's own name for the Keychain entry: with CLAUDE_CONFIG_DIR (or its storage override) set, each
+// config folder has its own login, named after a hash of the folder. The plain name would be another account's.
+export function keychainService(env = {}) {
+  const store = env.CLAUDE_SECURESTORAGE_CONFIG_DIR;
+  if (store !== undefined ? !store : !env.CLAUDE_CONFIG_DIR) return 'Claude Code-credentials';
+  const dir = (store !== undefined ? store : env.CLAUDE_CONFIG_DIR).normalize('NFC');
+  return `Claude Code-credentials-${createHash('sha256').update(dir).digest('hex').slice(0, 8)}`;
+}
+
 // The token lives only in this call's return value; callers must not store or log it.
-export function readToken({ platform, p, execFileSync = realExec }) {
+export function readToken({ platform, p, env, execFileSync = realExec }) {
   try {
     const raw = platform === 'darwin'
-      ? execFileSync('security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], { timeout: 3000, encoding: 'utf8' })
+      ? execFileSync('security', ['find-generic-password', '-s', keychainService(env), '-w'], { timeout: 3000, encoding: 'utf8' })
       : readFileSync(join(p.config, '.credentials.json'), 'utf8');
     const t = JSON.parse(raw)?.claudeAiOauth?.accessToken;
     return typeof t === 'string' && t ? t : null;
@@ -44,11 +54,11 @@ export async function fetchFable(token, fetchImpl, version, timeoutMs = 5000) {
   } catch { return null; } finally { clearTimeout(timer); }
 }
 
-export async function refreshFable({ p, platform, fetchImpl = globalThis.fetch, execFileSync = realExec, now, version }) {
+export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fetch, execFileSync = realExec, now, version }) {
   const t = +now; // accepts a Date or epoch ms
   const file = join(p.cacheDir, 'fable.json');
   try {
-    const token = readToken({ platform, p, execFileSync });
+    const token = readToken({ platform, p, env, execFileSync });
     const fresh = token && await fetchFable(token, fetchImpl, version);
     if (fresh) {
       writeJsonAtomic(file, { ...fresh, fetchedAt: t });

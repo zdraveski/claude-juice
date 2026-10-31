@@ -3,11 +3,14 @@ import { tone } from './palette.js';
 import { EFFORT } from './words.js';
 
 const EIGHTH = ' ▏▎▍▌▋▊▉', RAMP = '▂▃▅▆█';
+// Without colour (NO_COLOR, plain-text previews) lit and unlit cells must differ by shape.
+const OFF = '░';
 
+// Steps above the level are drawn flat, so the staircase climbs by shape, not by colour alone.
 export function ramp(ctx, effort) {
   const n = EFFORT[effort][0];
   let s = '';
-  for (let i = 0; i < 5; i++) s += fg(i < n ? ctx.P.accent : ctx.P.groove, RAMP[i]);
+  for (let i = 0; i < 5; i++) s += i < n ? fg(ctx.P.accent, RAMP[i]) : fg(ctx.P.groove, '▁');
   return s;
 }
 
@@ -53,13 +56,13 @@ export function batteryPct(ctx, pct, level, w = 7, elapsed) {
 export function batterySeg(ctx, pct, level, n = 5) {
   const lit = pct > 0 ? Math.max(1, Math.round(pct / (100 / n))) : 0;
   let s = '';
-  for (let i = 0; i < n; i++) s += bg(ctx.P.casing, fg(i < lit ? tone(ctx, level) : ctx.P.segOff, '▊'));
+  for (let i = 0; i < n; i++) s += bg(ctx.P.casing, i < lit ? fg(tone(ctx, level), '▊') : fg(ctx.P.segOff, ctx.mono ? OFF : '▊'));
   return shell(ctx, bg(ctx.P.casing, ' ') + s, ctx.P.casing, ctx.P.casing);
 }
 
 export function batteryLow(ctx, pct, level, w = 14, elapsed) {
   const lit = Math.round((pct / 100) * w), t = tickAt(elapsed, w);
   let s = '';
-  for (let i = 0; i < w; i++) s += i === t ? fg(ctx.P.text, '│') : fg(i < lit ? tone(ctx, level) : ctx.P.casing, '▆');
+  for (let i = 0; i < w; i++) s += i === t ? fg(ctx.P.text, '│') : i < lit ? fg(tone(ctx, level), '▆') : fg(ctx.P.casing, ctx.mono ? OFF : '▆');
   return s + fg(ctx.P.nub, '■');
 }

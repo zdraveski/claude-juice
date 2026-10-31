@@ -103,7 +103,7 @@ test('restore with no saved copy removes juice instead of leaving people stuck',
   assert.deepEqual(json(join(d, 'settings.json')), { theme: 'dark' });
 });
 
-test('setup knows its own line under another spelling of the folder, and never saves juice as the old line', async () => {
+test('setup knows its own line under another spelling of the folder, and never saves juice as the old line', { skip: process.platform !== 'win32' && 'folder spelling only varies on Windows' }, async () => {
   const d = env();
   const juiceElsewhere = { type: 'command', command: `node "${d.replaceAll('\\', '/').toUpperCase()}/juice-statusline.mjs"`, refreshInterval: 60 };
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ statusLine: juiceElsewhere }));
@@ -116,6 +116,64 @@ test('setup knows its own line under another spelling of the folder, and never s
   await run(d, ['restore']);
   assert.equal('statusLine' in json(join(d, 'settings.json')), false);
   assert.equal(existsSync(join(d, 'juice-backup.json')), false);
+});
+
+test('a wrapper that merely mentions juice-statusline.mjs is the person\'s own line: backed up, never removed by restore', async () => {
+  const d = env();
+  const mine = { type: 'command', command: 'bash ~/bin/my-wrapper.sh --then juice-statusline.mjs' };
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ statusLine: mine }));
+  assert.match((await run(d, ['restore'])).out, /isn't your status line/);
+  assert.deepEqual(json(join(d, 'settings.json')).statusLine, mine);
+  await run(d, ['setup']);
+  assert.deepEqual(json(join(d, 'juice-backup.json')).statusLine, mine);
+  await run(d, ['restore']);
+  assert.deepEqual(json(join(d, 'settings.json')).statusLine, mine);
+});
+
+test('a juice line pointing at another machine\'s folder is repaired, keeping its other fields', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'node "/Users/someoneelse/.claude/juice-statusline.mjs"', padding: 1, refreshInterval: 30 } }));
+  const r = await run(d, ['setup']);
+  assert.match(r.out, /pointed somewhere else/);
+  const sl = json(join(d, 'settings.json')).statusLine;
+  assert.equal(sl.command, `node "${d.replaceAll('\\', '/')}/juice-statusline.mjs"`);
+  assert.deepEqual([sl.padding, sl.refreshInterval], [1, 30]);
+});
+
+test('a damaged backup is set aside and the current status line is still saved', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD));
+  writeFileSync(join(d, 'juice-backup.json'), '{"statusLine":{"type":"comm');
+  const r = await run(d, ['setup']);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /damaged/);
+  assert.deepEqual(json(join(d, 'juice-backup.json')).statusLine, OLD.statusLine);
+  assert.ok(readdirSync(d).some((f) => /^juice-backup-\d+\.json$/.test(f)), 'the damaged one is kept, not deleted');
+  await run(d, ['restore']);
+  assert.equal(json(join(d, 'settings.json')).statusLine.command, 'node old.js');
+});
+
+test('on macOS and Linux the command names this Node by its full path; restore still knows it', async () => {
+  const { install, restore } = await import('../src/setup.js');
+  const { paths } = await import('../src/paths.js');
+  const d = env(), p = paths({ CLAUDE_CONFIG_DIR: d });
+  install(p, { pluginRoot: '/dev/juice', platform: 'darwin', execPath: '/opt/homebrew/bin/node' });
+  assert.equal(json(join(d, 'settings.json')).statusLine.command, `"/opt/homebrew/bin/node" "${d.replaceAll('\\', '/')}/juice-statusline.mjs"`);
+  install(paths({ CLAUDE_CONFIG_DIR: env() }), { pluginRoot: '/dev/juice', platform: 'linux', execPath: '/run/user/1/fnm_multishells/9_1/bin/node' });
+  assert.match(restore(p).join(' '), /Removed juice/);
+});
+
+test('setup says so when a project setting or disableAllHooks keeps juice from showing', async () => {
+  const { install } = await import('../src/setup.js');
+  const { paths } = await import('../src/paths.js');
+  const d = env(), project = env('project');
+  mkdirSync(join(project, '.claude'), { recursive: true });
+  writeFileSync(join(project, '.claude', 'settings.local.json'), JSON.stringify({ statusLine: { type: 'command', command: 'echo project' } }));
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ disableAllHooks: true }));
+  const out = install(paths({ CLAUDE_CONFIG_DIR: d }), { pluginRoot: '/dev/juice', cwd: project }).join('\n');
+  assert.match(out, /disableAllHooks/);
+  assert.match(out, /\.claude\/settings\.local\.json sets its own status line/);
+  assert.doesNotMatch(install(paths({ CLAUDE_CONFIG_DIR: env() }), { pluginRoot: '/dev/juice', cwd: env() }).join('\n'), /won't show/);
 });
 
 test('invalid settings.json aborts and stays byte-identical', async () => {
@@ -163,6 +221,13 @@ test('badges add needs --yes, then add/list/remove', async () => {
   assert.match((await run(d, ['badges', 'list'])).out, /1\. rtk gain/, 'asking removed nothing');
   assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 0);
   assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 1);
+});
+
+test('set warns when nothing is left to show, instead of quietly leaving an empty line', async () => {
+  const d = env();
+  const r = await run(d, ['set', 'show=']);
+  assert.match(r.out, /status line will be empty/);
+  assert.doesNotMatch((await run(d, ['set', 'show=memory'])).out, /empty/);
 });
 
 test('the /juice flow for removing one of two badges removes only that one', async () => {

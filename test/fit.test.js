@@ -14,23 +14,26 @@ const term = (columns, extra = {}) => ({ columns, theme: 'dark', ends: 'round', 
 const go = (data, layout, columns, extra) => render(data, { ...DEFAULTS, layout }, term(columns, extra));
 const widest = (t) => Math.max(...strip(t).split('\n').map(vis));
 
-test('Pro/trouble/bar at 80 drops five things and keeps the reset times', () => {
+test('Pro/trouble/bar at 80 keeps every red battery and when it runs out', () => {
   const r = go(withAccount(SAMPLES.trouble, 'pro'), 'bar', 80);
   const t = strip(r.text);
   assert.ok(widest(r.text) <= 80, t);
-  assert.ok(t.includes('resets 2h 5m') && t.includes('resets 1d 2h'), t);
-  assert.match(t, /Memory \S+■!!  Session \S+■!! resets 2h 5m  Week \S+■!! resets 1d 2h/, 'marks stay, glued to the battery');
+  assert.match(t, /Memory \S+■!!  Session \S+■!! out ~2:44 PM  Week \S+■!! out ~9:48 PM/, 'marks stay, glued to the battery; the run-out time beats the countdown');
   assert.ok(!t.includes('…'), t);
   assert.ok(t.includes('Week ') && !t.includes('Weekly'), 'squeezed label is the short one');
-  assert.deepEqual(r.dropped, ['the model name', 'the effort level', 'spacing', 'battery size', 'warning words'], 'the effort word fits again once the later steps freed room');
+  assert.deepEqual(r.dropped, ['the effort level', 'the model name', 'spacing', 'battery size', 'warning words']);
 });
 
-test('a step that turned out not to be needed is given back', () => {
-  const r = go(SAMPLES.trouble, 'bar', 120);
-  const t = strip(r.text);
-  assert.ok(widest(r.text) <= 120 && widest(r.text) > 100, `uses the room it has, was ${widest(r.text)}`);
-  assert.ok(t.includes('Opus 5.5'), t);
-  assert.deepEqual(r.dropped, ['batteries that are fine', 'warning words']);
+test('a narrow window keeps every battery and gives up words, names and spacing first', () => {
+  const t = strip(go(SAMPLES.busy, 'bar', 80).text);
+  for (const name of ['Memory', 'Session', 'Fable', 'Week']) assert.ok(t.includes(name), `${name} missing: ${t}`);
+  assert.ok(!t.includes('Opus'), t);
+});
+
+test('a battery that is fine goes only when nothing else is left to give, and then nothing lesser comes back', () => {
+  const r = go(SAMPLES.busy, 'bar', 60);
+  assert.equal(r.dropped.at(-1), 'batteries that are fine');
+  assert.ok(r.dropped.includes('battery size') && r.dropped.includes('warning words'), r.dropped.join(', '));
 });
 
 test('a red Fable battery says when it runs out even while Weekly shows the shared reset', () => {
@@ -63,7 +66,7 @@ test('nothing is ever wider than 20 columns', () => {
 });
 
 test('steps run in order and are all tried before a cut', () => {
-  const labels = ['badges', 'reset times', 'the effort word', 'cost', 'batteries that are fine', 'the model name', 'the effort level', 'spacing', 'battery size', 'warning words'];
+  const labels = FIT_STEPS.map(([, label]) => label);
   let cuts = 0;
   for (const id of Object.keys(LAYOUTS)) for (const [n, d] of Object.entries(SAMPLES)) for (const w of [20, 30, 60, 80, 120, 200]) {
     const r = go(d, id, w), at = `${id}/${n}/${w}`;
@@ -82,7 +85,7 @@ test('steps run in order and are all tried before a cut', () => {
 });
 
 test('FIT_STEPS has the ten steps in the agreed order', () => {
-  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'onlyTrouble', 'noModel', 'noEffort', 'tight', 'small', 'shortWords']);
+  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'noEffort', 'noModel', 'tight', 'small', 'shortWords', 'onlyTrouble']);
 });
 
 test('a missing columns count means 120', () => {

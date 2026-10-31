@@ -28,6 +28,8 @@ const DETAILS = [
   // The preview shows Automatic as rounded, so say plainly where it really is rounded.
   ['ends', 'Battery ends', 'Automatic is rounded in VS Code and plain in other terminals. Rounded needs a terminal that can draw them. Plain works everywhere', [['auto', 'Automatic'], ['round', 'Rounded'], ['plain', 'Plain']]],
   ['refills', 'Reset times', 'Always show them, or only when something needs attention', [['always', 'Always'], ['warnings', 'Only when needed']]],
+  // Without this the copied command can't fix dark colours on a light terminal: the Dark/Light switch above only changes the preview.
+  ['terminal', 'Terminal colour', 'Automatic follows Claude Code’s theme. Pick Light if the text is hard to read on a light background', [['auto', 'Automatic'], ['dark', 'Dark'], ['light', 'Light']]],
 ];
 
 const view = { state: 'busy', term: 'dark', width: 'wide', plan: 'max', model: 'Opus 5.5', hover: null };
@@ -188,7 +190,10 @@ document.addEventListener('click', (e) => {
   else if (t.dataset.preset) {
     if (t.dataset.preset === 'custom') s = { ...s, colors: customColors() };
     else { customs = presetArrs(t.dataset.preset); s = { ...s, colors: t.dataset.preset }; }
-  } else if (t.dataset.key) s = { ...s, [t.dataset.key]: t.dataset.v };
+  } else if (t.dataset.key) {
+    s = { ...s, [t.dataset.key]: t.dataset.v };
+    if (t.dataset.key === 'terminal' && t.dataset.v !== 'auto') view.term = t.dataset.v; // preview what was just chosen
+  }
   else if (t.closest('[data-view]')) view[t.closest('[data-view]').dataset.view] = t.dataset.v;
   else if (t.dataset.copy) return copy($(t.dataset.copy).textContent, 'Copied. Paste it into Claude Code.');
   else if (t.id === 'link') return copy(location.href, 'Link copied. Anyone who opens it gets these settings.');

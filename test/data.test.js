@@ -43,10 +43,27 @@ test('lastSeen within 30 days makes a subscriber and fills the windows', () => {
   assert.equal(d.limits.week.windowSec, 604800);
 });
 
-test('after a reply that cost something but brought no limits, lastSeen is another account', () => {
-  const d = normalize(fixture('payg'), { lastSeen: seen() }, NOW);
+test('after a reply that brought no limits, lastSeen is another account', () => {
+  const replied = { ...fixture('payg'), prompt_cache: { warm: true } }; // Claude Code adds prompt_cache after the first reply
+  const d = normalize(replied, { lastSeen: seen() }, NOW);
   assert.equal(d.account, 'payg');
   assert.deepEqual(d.limits, {});
+});
+
+test('a resumed chat (cost restored, no reply yet) still counts as the subscriber it was', () => {
+  const resumed = fixture('payg'); // cost 1.25, no rate_limits, no prompt_cache
+  const d = normalize(resumed, { lastSeen: seen() }, NOW);
+  assert.equal(d.account, 'subscriber');
+  assert.equal(d.limits.session.used, 30);
+});
+
+test('an idle window shows the newer saved reading, not its own old one', () => {
+  const idle = fixture('busy'); // its own Session: 47%, window ends in 2h 10m
+  const newer = { ...seen(), fiveHour: { used: 60, resetsAt: nowS + 7800 } }; // another session saw 60% since
+  assert.equal(normalize(idle, { lastSeen: newer }, NOW).limits.session.used, 60);
+  idle.rate_limits.five_hour = { used_percentage: 90, resets_at: nowS - 600 }; // its window already ended
+  const nextWindow = { ...seen(), fiveHour: { used: 4, resetsAt: nowS + 17000 } };
+  assert.equal(normalize(idle, { lastSeen: nextWindow }, NOW).limits.session.used, 4);
 });
 
 test('lastSeen older than 30 days is payg', () => {
@@ -96,10 +113,18 @@ test('live usage: in the same window the higher reading wins', () => {
   assert.equal(d.limits.week.used, 50);
 });
 
-test('live usage: a newer window wins even with a lower number', () => {
-  const d = normalize(fixture('busy'), { fable: live({ used: 3, resetsAt: iso(7800 + 18000) }) }, NOW);
+test('live usage: a newer window wins even with a lower number, once ours has ended', () => {
+  const s = fixture('busy');
+  s.rate_limits.five_hour.resets_at = nowS - 60; // an idle window still showing the window that just ended
+  const d = normalize(s, { fable: live({ used: 3, resetsAt: iso(18000 - 60) }) }, NOW);
   assert.equal(d.limits.session.used, 3);
   assert.equal(d.limits.session.windowSec, 18000);
+});
+
+test('live usage from another window while ours is still running is another account, so ours stays', () => {
+  const d = normalize(fixture('busy'), { fable: live({ used: 80, resetsAt: iso(7800 + 9000) }, { used: 70, resetsAt: iso(500000) }) }, NOW);
+  assert.equal(d.limits.session.used, 47);
+  assert.equal(d.limits.week.used, 50);
 });
 
 test('a new chat with no numbers yet shows live usage', () => {

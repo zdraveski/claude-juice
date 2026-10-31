@@ -115,12 +115,15 @@ There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe,
 
 Type `/juice` and then say what you want, in your own words. For example:
 
-- `/juice looks` (shows all 12 looks, numbered, and you answer with a number)
+- `/juice looks` (shows all 12 looks, numbered; then `/juice look 7` switches to number 7)
 - `/juice use the quiet look`
 - `/juice hide the cost`
 - `/juice use the calm colours`
 - `/juice show the reset times only when something needs attention`
 - `/juice make it a panel`
+- `/juice my terminal is light` (if the text is hard to read on a light background)
+
+In a narrow window juice makes room step by step: first badges, reset times, the effort word and cost, then the model name, spacing and battery size, and only last the batteries that are fine. A red battery keeps its warning and when it runs out.
 
 ### The live customizer
 
@@ -134,9 +137,18 @@ Type `/juice` and then say what you want, in your own words. For example:
 
 [![The juice customizer web page: a live preview of the status line, options for plan, model, window size, dark or light terminal and situation, and the ready-made looks to start from.](docs/images/customizer.png)](https://zdraveski.github.io/claude-juice/web/)
 
-## Undo
+## If something looks wrong
 
-`/juice restore` puts your old status line back. Run it before you uninstall juice.
+- **The status line is empty.** Type `/juice setup` again; it repairs the line and says if a project setting or `disableAllHooks` is hiding it. If it is still empty, check that Node is installed (type `node --version` in a terminal; you need 18 or newer, from nodejs.org), then restart Claude Code.
+- **The text is hard to read on a light background.** Type `/juice my terminal is light`.
+- **You see boxes or question marks instead of round battery ends.** Type `/juice use plain ends`.
+- **It says "juice is turned off" or "juice is not installed".** Turn juice back on, or install it again, in `/plugin`. Then `/juice setup` uses it, or `/juice restore` gives you your old status line back.
+
+## Update, undo and uninstall
+
+- **Update:** open `/plugin`, pick juice, and update it. Your settings and badges stay.
+- **Undo:** `/juice restore` puts your old status line back.
+- **Uninstall:** run `/juice restore` first, then remove juice in `/plugin`. If you uninstall first, the status line tells you how to get back.
 
 ## Badges
 

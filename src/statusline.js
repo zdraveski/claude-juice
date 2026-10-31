@@ -6,7 +6,7 @@ import { readJson, takeLock } from './cache.js';
 import { loadSettings } from './settings.js';
 import { fableEnabled } from './schema.js';
 import { detectTerminal, readClaudeTheme } from './terminal.js';
-import { remember, recall } from './lastseen.js';
+import { remember } from './lastseen.js';
 import { normalize } from './data.js';
 import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
@@ -19,7 +19,8 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
   try {
     const p = paths(env);
     const { settings } = loadSettings(p);
-    const extras = { lastSeen: recall(p) };
+    // Saved first, so this refresh already counts what it just saw against what other sessions saw.
+    const extras = { lastSeen: remember(stdin, p, now) };
 
     // Loaded on demand: these pull in child_process and crypto, which most refreshes never need.
     const fableOn = fableEnabled(settings.fable, platform);
@@ -36,8 +37,8 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     const terminal = detectTerminal({ env, settings, claudeTheme: readClaudeTheme(p.claudeSettings) });
     const { text } = render(data, settings, terminal);
 
-    remember(stdin, p, now);
-    if (fable && fable.fableCacheState(fableCache, now).stale && takeLock(p, 'fable', now)) {
+    // Only subscribers have these limits, so nobody else's login is sent to Anthropic for nothing.
+    if (fable && data.account === 'subscriber' && fable.fableCacheState(fableCache, now).stale && takeLock(p, 'fable', now)) {
       quiet(() => spawnDetached(['refresh-fable']));
     }
     if (badges?.stale && takeLock(p, `badges-${key}`, now, 2500)) {

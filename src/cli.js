@@ -14,7 +14,7 @@ import { install, restore, fwd, NeedsConfirm } from './setup.js';
 const ROOT = new URL('..', import.meta.url);
 const USAGE = 'Usage: juice set <key=value>... | get | looks | setup | restore | customize | badges add|list|remove | refresh-fable | refresh-badges <key>';
 // Claude Code shows command output as plain text, so the previews drop colour and the rounded-end glyphs.
-const PREVIEW = { columns: 160, theme: 'dark', ends: 'plain', colorDepth: 'truecolor' };
+const PREVIEW = { columns: 160, theme: 'dark', ends: 'plain', colorDepth: 'none' };
 
 export async function main(argv, io) {
   try {
@@ -26,6 +26,7 @@ export async function main(argv, io) {
         if (changed.length) saveSettings(p, settings);
         io.out(changed.length ? `Changed: ${changed.join(', ')}` : 'Nothing changed.');
         warnings.forEach((w) => io.out(`Warning: ${w}`));
+        if (!settings.show.length) io.out('Warning: nothing is chosen to show, so the status line will be empty. To bring everything back: show=model,effort,memory,session,fable,week,budget');
         return 0;
       }
       case 'get': io.out(JSON.stringify(loadSettings(p).settings, null, 2)); return 0;
@@ -79,7 +80,7 @@ export async function main(argv, io) {
         const { settings } = loadSettings(p);
         if (fableEnabled(settings.fable, io.platform)) {
           const { version } = JSON.parse(readFileSync(new URL('package.json', ROOT), 'utf8'));
-          await refreshFable({ p, platform: io.platform, now: io.now, version });
+          await refreshFable({ p, platform: io.platform, env: io.env, now: io.now, version });
         }
         return 0;
       }

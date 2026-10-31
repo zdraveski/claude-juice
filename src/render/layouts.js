@@ -20,7 +20,7 @@ function head(data, ctx, word = true) {
   return join([model, effort], '  ');
 }
 
-const costShown = (data, ctx) => !ctx.fit.noCost && data.costUsd !== null
+const costShown = (data, ctx) => !ctx.fit.noCost && data.costUsd > 0
   && (ctx.settings.cost === 'on' || (ctx.settings.cost === 'auto' && data.account === 'payg'));
 
 // On an API key the cost is real money; on Pro/Max it is only what the chat would have cost.
