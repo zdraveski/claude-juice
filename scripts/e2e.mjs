@@ -61,7 +61,7 @@ assert.equal(doctor.status, 0, 'doctor');
 assert.match(doctor.stdout, /^✓ juice is your status line, refreshing once a minute$/m, doctor.stdout);
 assert.match(doctor.stdout, new RegExp(`^✓ The status line runs juice ${version.replaceAll('.', '\\.')}$`, 'm'), doctor.stdout);
 assert.match(doctor.stdout, /^✓ Drawing works/m, doctor.stdout);
-if (process.platform === 'darwin') assert.match(doctor.stdout, /Fable limit: off on macOS unless you turn it on/, doctor.stdout);
+if (process.platform === 'darwin') assert.match(doctor.stdout, /Fable battery: off on a Mac until you type/, doctor.stdout);
 console.log('ok doctor');
 
 // A hung badge is killed with its child after 2 s, and the refresher itself exits.

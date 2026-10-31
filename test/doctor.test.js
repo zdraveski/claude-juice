@@ -82,8 +82,74 @@ test('doctor: shows the status line\'s last problem with juice\'s file and line,
   const err = JSON.parse(readFileSync(join(d, 'juice-cache', 'last-error.json'), 'utf8'));
   assert.match(err.where, /^[\w.-]+\.js:\d+$/);
   const report = check(d, { now: new Date(err.at + 5 * 60000) });
-  assert.match(report, /^! The status line last hit a problem 5 min ago: clock broke \([\w.-]+\.js:\d+\)$/m);
+  assert.match(report, /^! The status line hit a problem 5 min ago: clock broke \([\w.-]+\.js:\d+\)\. Run \/juice setup;/m);
   assert.doesNotMatch(report, new RegExp(d.replaceAll('\\', '\\\\')));
+  // A problem from more than a day ago has passed: the doctor no longer flags it.
+  assert.doesNotMatch(check(d, { now: new Date(err.at + 25 * 3600000) }), /hit a problem/);
+});
+
+test('doctor: a saved error keeps file names but never the folders around them', async () => {
+  const d = config();
+  // A home folder with a space in its name, as many Windows ones have.
+  const home = process.platform === 'win32' ? 'C:\\Users\\Zoë Smith' : '/Users/zoë smith';
+  const where = join(home, 'AppData', 'juice', 'src', 'fable.js');
+  const thrower = { getTime() { throw new Error(`Cannot find module '${where}' imported from file:///C:/Opt/x/statusline.js`); } };
+  const stdinText = JSON.stringify({ rate_limits: { five_hour: { used_percentage: 10, resets_at: Math.floor(NOW / 1000) + 3600 } } });
+  await runStatusLine({ stdinText, env: { CLAUDE_CONFIG_DIR: d, HOME: home, USERPROFILE: home }, now: thrower, platform: 'linux', spawnDetached() {} });
+  const err = JSON.parse(readFileSync(join(d, 'juice-cache', 'last-error.json'), 'utf8'));
+  assert.equal(err.message, "Cannot find module 'fable.js' imported from statusline.js");
+});
+
+test('doctor: the home folder shows as ~, so the report can be pasted', () => {
+  const home = mkdtempSync(join(tmpdir(), 'juice-home-'));
+  const d = join(home, '.claude'), proj = join(home, 'proj');
+  mkdirSync(d, { recursive: true });
+  mkdirSync(join(proj, '.claude'), { recursive: true });
+  writeFileSync(join(proj, '.claude', 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'mine --key sk-1' } }));
+  const text = check(d, { cwd: proj, env: { HOME: home, USERPROFILE: home } });
+  assert.match(text, /^! ~\/proj\/\.claude\/settings\.json sets its own status line.*take that setting out/m);
+  assert.doesNotMatch(text, new RegExp(home.replaceAll('\\', '\\\\')));
+  assert.doesNotMatch(text, /sk-1/);
+});
+
+test('doctor: never a false ✓ about the launcher, and never crashes on a strange one', async () => {
+  const d = config();
+  await run(d, ['setup']);
+  writeFileSync(join(d, 'juice-statusline.mjs'), 'this is not javascript {{{');
+  assert.match(check(d), /launcher file is damaged/);
+  writeFileSync(join(d, 'juice-statusline.mjs'), 'const PINNED = "\\x41";');
+  assert.match(check(d), /launcher file is damaged/, 'a hand-edited constant that is not valid JSON');
+  unlinkSync(join(d, 'juice-statusline.mjs'));
+  mkdirSync(join(d, 'juice-statusline.mjs'));
+  assert.match(check(d), /launcher file is missing|damaged/, 'a folder where the file should be');
+  // A juice line for another folder: only the "points elsewhere" line, no ✓ about this folder's launcher.
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'node "/elsewhere/.claude/juice-statusline.mjs"', refreshInterval: 60 } }));
+  const text = check(d);
+  assert.match(text, /points at a folder that isn't this one/);
+  assert.doesNotMatch(text, /✓ The status line runs/);
+});
+
+test('doctor: the real refresh time, and a Node that setup pinned but is gone', async () => {
+  const d = config();
+  await run(d, ['setup']);
+  const s = JSON.parse(readFileSync(join(d, 'settings.json'), 'utf8'));
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 600 } }));
+  assert.match(check(d), /^✓ juice is your status line, refreshing every 600 seconds$/m);
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 'abc' } }));
+  assert.match(check(d), /doesn't refresh on its own/);
+  const launcher = s.statusLine.command.replace(/^.*\s(?="[^"]*"\s*$)/, '').trim();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, command: `PATH="/gone/nvm/v20/bin:$PATH" node ${launcher}` } }));
+  assert.match(check(d), /The Node juice was set up with is gone/);
+});
+
+test('doctor: a bad juice setting says how to fix it, and changing any setting does', async () => {
+  const d = config();
+  writeFileSync(join(d, 'juice.json'), JSON.stringify({ layout: 'nope' }));
+  assert.match(check(d), /^! juice settings: .*Changing any setting with \/juice saves a clean copy\.$/m);
+  await run(d, ['set', 'cost=on']);
+  assert.doesNotMatch(check(d), /juice settings:/);
+  writeFileSync(join(d, 'juice.json'), JSON.stringify({ show: [] }));
+  assert.match(check(d), /Type \/juice show all the batteries to bring them back/);
 });
 
 test('doctor: badges are counted, unapproved ones flagged, commands never printed', () => {
@@ -98,14 +164,19 @@ test('doctor: badges are counted, unapproved ones flagged, commands never printe
 test('doctor: Fable off, failing, and checked', () => {
   const d = config();
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ fable: 'off' }));
-  assert.match(check(d), /Fable limit: turned off\./);
+  assert.match(check(d), /Fable battery: turned off\./);
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ fable: 'auto' }));
-  assert.match(check(d, { platform: 'darwin' }), /off on macOS unless you turn it on/);
+  assert.match(check(d, { platform: 'darwin' }), /off on a Mac until you type \/juice set fable=on/);
   mkdirSync(join(d, 'juice-cache'), { recursive: true });
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 10 * 60000 }));
-  assert.match(check(d), /^! Fable limit: the last check failed; juice tries again in 10 min/m);
+  assert.match(check(d), /^! Fable battery: the last check failed; juice tries again in 10 min\. If it keeps failing, type \/login/m);
+  // Stamped by a clock that was ahead: juice ignores these, and so does the doctor.
+  writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 30 * 86400000 }));
+  assert.doesNotMatch(check(d), /last check failed/);
+  writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ used: 5, fetchedAt: NOW.getTime() + 3600000 }));
+  assert.match(check(d), /^· Fable battery: not checked in the last hour/m);
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ used: 5, fetchedAt: NOW.getTime() - 3 * 60000 }));
-  assert.match(check(d), /^· Fable limit: last checked 3 min ago$/m);
+  assert.match(check(d), /^· Fable battery: last checked 3 min ago$/m);
 });
 
 test('ago: plain words for how long ago', () => {

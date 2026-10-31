@@ -23,8 +23,10 @@ export async function main(argv, io) {
     const [cmd, ...args] = argv;
     switch (cmd) {
       case 'set': {
-        const { settings, warnings, changed } = applySet(loadSettings(p).settings, args);
-        if (changed.length) saveSettings(p, settings);
+        const loaded = loadSettings(p);
+        const { settings, warnings, changed } = applySet(loaded.settings, args);
+        // A juice.json with a bad value (or unreadable) is saved clean too, so the doctor's "change any setting" fixes it.
+        if (changed.length || loaded.warnings.length) saveSettings(p, settings);
         io.out(changed.length ? `Changed: ${changed.join(', ')}` : 'Nothing changed.');
         warnings.forEach((w) => io.out(`Warning: ${w}`));
         if (!settings.show.length) io.out('Warning: nothing is chosen to show, so the status line will be empty. To bring everything back: show=model,effort,memory,session,fable,week,budget');

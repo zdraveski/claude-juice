@@ -74,7 +74,8 @@ export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fe
 export function fableCacheState(cache, now) {
   // A timestamp in the future (clock skew) is never trusted.
   const age = Number.isFinite(cache?.fetchedAt) && cache.fetchedAt <= now ? now - cache.fetchedAt : Infinity;
+  // A wait longer than BACKOFF_MS can only come from a clock that was ahead, so it is ignored.
   const backedOff = cache?.backoffUntil > now && cache.backoffUntil - now <= BACKOFF_MS;
-  // Whether a reading is still usable (under an hour old) is decided where it is used, in data.js.
-  return { stale: (!cache || age > 300000) && !backedOff };
+  // Whether a reading is still usable (under an hour old) is decided where it is used, in readings.js.
+  return { stale: (!cache || age > 300000) && !backedOff, backedOff };
 }

@@ -40,7 +40,7 @@ Juice saves your old status line first, if you had one, so `/juice restore` can 
 
 Next to the batteries you also see the model's name and its effort level: a little staircase that climbs from 1 step (low) to 5 steps (max), with the word beside it.
 
-Session and Weekly also say when they reset: how long, when it is less than a day away ("resets in 1h 31m"), and otherwise which day and at what time ("resets Sat 7:20 PM"). In a narrow window it is the short countdown ("resets 2d 5h").
+Session and Weekly also say when they reset: how long, when it is less than a day away ("resets in 1h 31m"), and otherwise which day and at what time ("resets Sat 7:20 PM", or "Nov 10, 6:23 PM" when it is more than a week away). Times are in your computer's time zone; on a computer set to UTC, such as a server you reach over SSH, they say "UTC". In a narrow window it is the short countdown ("resets 2d 5h").
 
 The colours for Session, Weekly and Fable weekly depend on your pace as well as on how much is used:
 
@@ -141,7 +141,7 @@ In a narrow window juice makes room step by step: first badges, reset times, the
 
 ## If something looks wrong
 
-Type `/juice doctor` first. It checks, in plain words, whether juice is your status line, which juice it runs, whether drawing works with your settings, when juice last saw your limits, how the Fable battery is doing and the last problem the status line hit, and says what to do about each. It never shows your badge commands or another status line's command. If you ask for help, include what it says.
+Type `/juice doctor` first. It checks, in plain words, whether juice is your status line, which juice it runs, whether drawing works with your settings, when juice last saw your limits, how the Fable battery is doing and the last problem the status line hit, and says what to do about each. It never shows your badge commands or another status line's command, and your home folder reads `~`, so it doesn't show your user name. If you ask for help, include what it says.
 
 - **The status line is empty.** Type `/juice setup` again; it repairs the line and says if a project setting or `disableAllHooks` is hiding it. If it is still empty, check that Node is installed (type `node --version` in a terminal; you need 18 or newer, from nodejs.org), then restart Claude Code.
 - **The text is hard to read on a light background.** Type `/juice my terminal is light`.

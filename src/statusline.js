@@ -1,7 +1,7 @@
 // The per-refresh pipeline: stdin text in, status line text out. Never throws, never waits on a refresher.
 import { join } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { paths } from './paths.js';
+import { paths, hideHome } from './paths.js';
 import { readJson, takeLock, writeJsonAtomic, HOT_WRITE } from './cache.js';
 import { loadSettings } from './settings.js';
 import { fableEnabled } from './schema.js';
@@ -52,10 +52,11 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     }
     return text;
   } catch (e) {
-    // Kept for /juice doctor: the message and juice's own file and line, never a full path.
+    // Kept for /juice doctor: the message and juice's own file and line, with every folder taken out of paths
+    // (they hold the person's name), so the doctor's report can be pasted into a bug report.
     if (p) quiet(() => writeJsonAtomic(join(p.cacheDir, 'last-error.json'), {
       at: Date.now(),
-      message: String(e?.message ?? e).slice(0, 300),
+      message: hideHome(String(e?.message ?? e), env).replace(/(?:file:\/*)?(?:[A-Za-z]:|~)?[\\/](?:[^\\/\s'"`]+[\\/])+/g, '').slice(0, 300),
       where: /([\w.-]+\.js):(\d+)/.exec(String(e?.stack).split('\n').slice(1).join('\n'))?.slice(1).join(':') ?? null,
     }, HOT_WRITE));
     const name = stdin?.model?.display_name;

@@ -120,7 +120,7 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   if (current && settings.statusLine.refreshInterval) lines.push('juice is already your status line. Nothing changed.');
   else if (current) {
     writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, refreshInterval: REFRESH_SECONDS } });
-    lines.push('juice now refreshes once a minute, so the reset countdowns stay current.');
+    lines.push('juice now refreshes once a minute, so its numbers and reset times stay current.');
   } else if (ours) {
     // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing;
     // one with the right launcher but an older way of finding Node just gets the current one.

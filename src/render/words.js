@@ -1,4 +1,4 @@
-// Plain-language wording: reset countdowns and warnings.
+// Plain-language wording: when limits reset, and warnings.
 
 // Time until t: "31m", "1h 31m" or "2d 5h". Rounded, because resets arrive a few ms either side of the minute.
 export function countdown(t, now) {
@@ -14,22 +14,30 @@ export function countdown(t, now) {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const toMinute = (t) => new Date(Math.round(t.getTime() / 60000) * 60000);
-const timeOfDay = (d) => `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
+// A server, container or SSH session often runs on UTC rather than the person's own clock, so say so there:
+// zero hours from UTC in both January and July. (Asking for the zone's name costs ~25 ms on every refresh.)
+const zone = () => {
+  const y = new Date().getFullYear();
+  return new Date(y, 0, 1).getTimezoneOffset() === 0 && new Date(y, 6, 1).getTimezoneOffset() === 0 ? ' UTC' : '';
+};
+const timeOfDay = (d) => `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'AM' : 'PM'}${zone()}`;
+const midnight = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-// "2:44 PM" today, "Nov 1, 3:20 PM" on another day. A real date, never "tomorrow" or a weekday.
+// "2:44 PM" today, "Sat 7:20 PM" later this week, "next Wed 2:19 PM" a week from today, "Nov 10, 6:23 PM" further
+// (or earlier). Days count on the calendar, not in 24-hour steps, so a daylight-saving night never shifts the day.
 export function clock(t, now) {
-  const d = toMinute(t);
-  return d.toDateString() === now.toDateString() ? timeOfDay(d) : `${MONTHS[d.getMonth()]} ${d.getDate()}, ${timeOfDay(d)}`;
+  const d = toMinute(t), days = Math.round((midnight(d) - midnight(now)) / 86400000);
+  if (days === 0) return timeOfDay(d);
+  if (days > 0 && days < 7) return `${DAYS[d.getDay()]} ${timeOfDay(d)}`;
+  if (days === 7) return `next ${DAYS[d.getDay()]} ${timeOfDay(d)}`;
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${timeOfDay(d)}`;
 }
 
-// When a limit resets: under a day, how long ("in 2h 10m"); a day or more, which day and when ("Sat 7:20 PM").
-// A reset a whole week away falls on today's weekday, so it says "next Wed" rather than read as today.
+// When a limit resets: under a day, how long ("in 2h 10m"); otherwise when, as clock() says it ("Sat 7:20 PM").
 // Squeezed into a narrow window it is always the countdown ("3d 5h"): the day and time are longer.
 export function resetWhen(t, now, squeezed = false) {
-  if (squeezed) return countdown(t, now);
-  if (t.getTime() - now.getTime() < 86400000) return `in ${countdown(t, now)}`;
-  const d = toMinute(t), day = DAYS[d.getDay()];
-  return `${d.getDay() === now.getDay() ? `next ${day}` : day} ${timeOfDay(d)}`;
+  if (squeezed || Math.round((t.getTime() - now.getTime()) / 60000) < 1440) return `${squeezed ? '' : 'in '}${countdown(t, now)}`;
+  return clock(t, now);
 }
 
 const TONE = { ok: 'mute', warn: 'watch', crit: 'bad' };

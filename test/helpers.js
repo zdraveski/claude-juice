@@ -1,4 +1,4 @@
-process.env.TZ = 'UTC';
+process.env.TZ = 'Europe/London'; // GMT for every date the tests use (Oct 28 - Nov 5), and not called UTC, so times carry no ' UTC'
 import { readFileSync } from 'node:fs';
 import { strip } from '../src/render/ansi.js';
 

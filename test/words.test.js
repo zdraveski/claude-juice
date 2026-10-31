@@ -51,22 +51,42 @@ test('limitNote: always when it resets, coloured by how it is going', () => {
   assert.equal(limitNote(fine, NOW, { squeezed: true }).text, 'resets 2h 10m');
 });
 
-test('clock: AM/PM today, month and day on another day', () => {
+test('clock: the time today, the weekday this week, "next" a week out, the date further', () => {
   assert.equal(clock(at(1432), NOW), '2:44 PM');
-  assert.equal(clock(at(10 * 3600), NOW), 'Oct 29, 12:20 AM', 'after midnight is another day');
-  assert.equal(clock(at(4 * 86400 + 3600), NOW), 'Nov 1, 3:20 PM');
+  assert.equal(clock(at(10 * 3600), NOW), 'Thu 12:20 AM', 'after midnight is another day');
+  assert.equal(clock(at(4 * 86400 + 3600), NOW), 'Sun 3:20 PM');
   assert.equal(clock(at(-14 * 3600), NOW), '12:20 AM');
+  assert.equal(clock(at(7 * 86400), NOW), 'next Wed 2:20 PM');
+  assert.equal(clock(at(10 * 86400), NOW), 'Nov 7, 2:20 PM', 'a monthly budget 10 days out is not "this Saturday"');
+  assert.equal(clock(at(-86400), NOW), 'Oct 27, 2:20 PM');
 });
 
-// Every other test runs in UTC (helpers.js); people don't, and daylight saving moves clocks.
+test('resetWhen counts days on the calendar, across daylight saving and a slow clock', () => {
+  const keep = process.env.TZ;
+  try {
+    process.env.TZ = 'America/New_York';
+    // The night clocks go back has 25 hours: 24h10m after 12:30 AM is still the same day.
+    assert.equal(resetWhen(new Date(Date.UTC(2026, 10, 2, 4, 40)), new Date(Date.UTC(2026, 10, 1, 4, 30))), '11:40 PM');
+    // The week clocks go forward: 6d23h45m after Sat 11:30 PM is the Sunday after next, not tomorrow.
+    assert.equal(resetWhen(new Date(Date.UTC(2026, 2, 15, 4, 15)), new Date(Date.UTC(2026, 2, 8, 4, 30))), 'Mar 15, 12:15 AM');
+    process.env.TZ = 'Europe/London';
+    // Rounding a reset at 11:59:45 PM a week out to midnight lands on the day after: a date, not "Thu".
+    assert.equal(resetWhen(new Date(2026, 10, 4, 23, 59, 45), new Date(2026, 9, 28, 23, 59, 50)), 'Nov 5, 12:00 AM');
+    assert.equal(resetWhen(new Date(2026, 9, 29, 23, 59, 40), new Date(2026, 9, 29, 0, 0)), 'Fri 12:00 AM', 'the weekday of the time shown');
+    process.env.TZ = 'UTC';
+    assert.equal(resetWhen(at(3 * 86400), NOW), 'Sat 2:20 PM UTC', 'a computer on UTC says so');
+  } finally { process.env.TZ = keep; }
+});
+
+// Every other test runs in London's winter time (helpers.js); people don't, and daylight saving moves clocks.
 test('clock reads the local time zone, across the night daylight saving ends', () => {
   const keep = process.env.TZ;
   try {
     process.env.TZ = 'America/New_York'; // EDT until 2026-11-01 06:00 UTC, then EST
     const now = new Date(Date.UTC(2026, 9, 31, 20, 0)); // 4:00 PM EDT on Oct 31
     assert.equal(clock(new Date(Date.UTC(2026, 9, 31, 21, 15)), now), '5:15 PM');
-    assert.equal(clock(new Date(Date.UTC(2026, 10, 1, 5, 30)), now), 'Nov 1, 1:30 AM', 'still EDT');
-    assert.equal(clock(new Date(Date.UTC(2026, 10, 1, 7, 30)), now), 'Nov 1, 2:30 AM', 'now EST: an hour later in UTC, the same hour on the clock');
+    assert.equal(clock(new Date(Date.UTC(2026, 10, 1, 5, 30)), now), 'Sun 1:30 AM', 'still EDT');
+    assert.equal(clock(new Date(Date.UTC(2026, 10, 1, 7, 30)), now), 'Sun 2:30 AM', 'now EST: an hour later in UTC, the same hour on the clock');
     assert.equal(countdown(new Date(Date.UTC(2026, 10, 1, 20, 0)), now), '1d', 'a countdown is real time: 24 hours, though the clock moves 25 that night');
   } finally { process.env.TZ = keep; }
 });

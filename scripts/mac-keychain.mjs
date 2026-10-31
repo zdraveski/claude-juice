@@ -9,8 +9,8 @@ import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { keychainService, readToken } from '../src/fable.js';
 
-if (process.platform !== 'darwin' || process.env.CI !== 'true') {
-  console.log('Skipped: this check only runs on macOS in CI, because it changes the keychain search list.');
+if (process.platform !== 'darwin' || process.env.CI !== 'true' || process.env.GITHUB_ACTIONS !== 'true') {
+  console.log('Skipped: this check only runs on macOS in GitHub Actions, because it changes the keychain search list.');
   process.exit(0);
 }
 

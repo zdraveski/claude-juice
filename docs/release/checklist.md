@@ -10,6 +10,7 @@ its child, restore) on Windows, macOS and Linux with Node 18, 22 and 24 on every
 - [ ] `node scripts/check-customizer.js` passes all eight browser checks (needs Playwright: `npm i -g playwright`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
 - [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json` (a test fails if they differ; Claude Code uses plugin.json's to find updates).
+- [ ] 0.3.0 only: delete `test/oracle/` and check 1 of `test/readings.property.test.js` (with its oracle imports): the readings rewrite is proven, and the frozen copy would otherwise ship in the plugin.
 
 ## 2. Inside Claude Code, on each system you have
 
@@ -24,8 +25,9 @@ Each step says what passes.
    juice answers that the value isn't valid. Fail if `whoami` runs.
 4. **Setup asks first.** Change `statusLine` in `~/.claude/settings.json` by hand, then `/juice setup`.
    Pass: it explains and asks, and runs `setup --yes` only after you agree.
-5. **Doctor.** `/juice doctor`. Pass: it ends with "Everything looks fine." Then break something (turn juice off in
-   `/plugin`, or set `show=` to nothing) and run it again. Pass: a `!` line names the problem and the fix, in plain words.
+5. **Doctor.** `/juice doctor`. Pass: it ends with "Everything looks fine." Then break something (delete
+   `~/.claude/juice-statusline.mjs`, or ask `/juice` to show nothing) and run it again. Pass: a `!` line names the problem
+   and the fix, in plain words, and nothing in the report shows your user name (your home folder reads `~`).
 6. **Reset wording.** Look at the status line. Pass: Session says how long ("resets in 2h 10m"); Weekly says the day and
    time ("resets Sat 7:20 PM") in your time zone, matching Anthropic's usage page. In a narrow window Weekly may say "resets 3d 5h".
 7. **Restore.** `/juice restore`. Pass: your old status line is back, and `juice-statusline.mjs` and `juice-backup.json` are gone.
@@ -44,8 +46,8 @@ Each step says what passes.
 GitHub's Mac runs these on every push, so they need no Mac here:
 - the Keychain names (`scripts/mac-keychain.mjs`: a fake sign-in in a throwaway keychain, read through the real `security` tool, with and without `CLAUDE_CONFIG_DIR`, the accent typed either way);
 - Claude Code started from an app (`scripts/e2e.mjs`: `sh` with a bare `PATH`);
-- a Node upgrade (`scripts/e2e.mjs`: the Node setup pinned is removed, the line still draws);
-- `/juice doctor` (`scripts/e2e.mjs`, including "Fable limit: off on macOS unless you turn it on").
+- a Node upgrade (`scripts/e2e.mjs`: the Node setup pinned is removed and the line still draws, as long as another Node is on PATH; with none, `/juice doctor` says the Node is gone and to run `/juice setup`);
+- `/juice doctor` (`scripts/e2e.mjs`, including "Fable battery: off on a Mac until you type /juice set fable=on").
 
 Only a person can do this one. The Fable battery is off on a Mac until someone turns it on, so it can wait for a Mac user:
 - [ ] **Keychain prompt** (Mac with a Max login). `/juice set fable=on`. If macOS asks, wait 10 seconds, then click Always Allow.
