@@ -5,6 +5,6 @@
   "keywords": ["status line", "statusline", "usage limits", "rate limit", "session limit", "weekly limit", "fable", "context", "battery"],
   "homepage": "https://zdraveski.github.io/claude-juice/web/",
   "repository": "https://github.com/zdraveski/claude-juice",
-  "author": { "name": "KIRE" },
+  "author": { "name": "zdraveski", "url": "https://github.com/zdraveski" },
   "license": "MIT"
 }

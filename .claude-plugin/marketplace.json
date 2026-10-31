@@ -1,6 +1,11 @@
 {
   "name": "juice",
-  "owner": { "name": "KIRE" },
+  "owner": {
+    "name": "zdraveski"
+  },
+  "metadata": {
+    "description": "juice: a Claude Code status line that shows your usage limits as batteries."
+  },
   "plugins": [
     {
       "name": "juice",
