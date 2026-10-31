@@ -1,9 +1,9 @@
 // Plays thousands of made-up histories (several sessions, idle windows, /clear, limits resetting, an account switch,
 // numbers fetched from Anthropic, a clock that jumps back) through juice's readings rules and requires:
-// 1. the same numbers as the frozen 0.2.6 rules in test/oracle/, on every refresh (the readings rewrite must not
-//    change what anyone sees);
-// 2. a limit that has reset is never shown while any source has a current one;
-// 3. a session seen for the first time never lowers a number in the same window.
+// 1. a limit that has reset is never shown while any source has a current one;
+// 2. a session seen for the first time never lowers a number in the same window.
+// (Until 1.0.0 it also compared every refresh with a frozen copy of 0.2.6's rules: the readings rewrite showed
+// exactly the same numbers, so that copy was deleted.)
 // A failure names its seed: JUICE_SEED=<n> node --test test/readings.property.test.js replays just that history.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,8 +12,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { remember } from '../src/lastseen.js';
 import { normalize } from '../src/data.js';
-import { remember as oldRemember } from './oracle/lastseen.js';
-import { normalize as oldNormalize } from './oracle/data.js';
 
 const HISTORIES = 150, STEPS = 40;
 const MIN = 60e3, HOUR = 60 * MIN, DAY = 24 * HOUR;
@@ -53,8 +51,8 @@ const iso = (ms) => new Date(ms).toISOString();
 
 function history(seed) {
   const r = rng(seed);
-  const dirs = [mkdtempSync(join(tmpdir(), 'juice-prop-')), mkdtempSync(join(tmpdir(), 'juice-prop-'))];
-  const [p, oldP] = dirs.map((d) => ({ cacheDir: d }));
+  const dir = mkdtempSync(join(tmpdir(), 'juice-prop-'));
+  const p = { cacheDir: dir };
   const log = [];
   try {
     let now = START;
@@ -120,13 +118,9 @@ function history(seed) {
 
       const rec = remember(stdin, p, at);
       const data = normalize(stdin, { lastSeen: rec, fable }, at);
-      const oldData = oldNormalize(stdin, { lastSeen: oldRemember(stdin, oldP, at), fable }, at);
       const where = `seed ${seed}, step ${step}\n${log.slice(-8).join('\n')}`;
 
-      // 1. Exactly what 0.2.6 showed.
-      assert.deepStrictEqual(data, oldData, `differs from 0.2.6 at ${where}`);
-
-      // 2. A reset limit never hides a current one from any source.
+      // 1. A reset limit never hides a current one from any source.
       for (const [key, five, kept] of [['session', 'five_hour', 'fiveHour'], ['week', 'seven_day', 'sevenDay']]) {
         const shown = data.limits[key];
         if (!shown?.resetsAt || shown.resetsAt.getTime() > now) continue;
@@ -137,7 +131,7 @@ function history(seed) {
         assert.ok(!current, `${key} shows a reset limit while a current one exists at ${where}`);
       }
 
-      // 3. A session seen for the first time never lowers a number in the same window.
+      // 2. A session seen for the first time never lowers a number in the same window.
       if (isNew && prev && prev.now === now && prev.fable === fable && data.account === 'subscriber' && prev.data.account === 'subscriber') {
         for (const key of ['session', 'week']) {
           const a = prev.data.limits[key], b = data.limits[key];
@@ -149,11 +143,11 @@ function history(seed) {
       prev = { now, fable, data };
     }
   } finally {
-    for (const d of dirs) rmSync(d, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true });
   }
 }
 
-test('readings: same numbers as 0.2.6, no reset limit hiding a current one, no new session lowering a number', () => {
+test('readings: no reset limit hiding a current one, no new session lowering a number', () => {
   const only = process.env.JUICE_SEED;
   const seeds = only ? [Number(only)] : Array.from({ length: HISTORIES }, (_, i) => i + 1);
   for (const seed of seeds) history(seed);

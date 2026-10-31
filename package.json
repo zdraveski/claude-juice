@@ -1,6 +1,6 @@
 {
   "name": "juice",
-  "version": "0.2.6",
+  "version": "1.0.0",
   "type": "module",
   "engines": { "node": ">=18" },
   "scripts": { "test": "node --test" }

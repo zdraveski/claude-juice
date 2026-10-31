@@ -10,7 +10,6 @@ its child, restore) on Windows, macOS and Linux with Node 18, 22 and 24 on every
 - [ ] `node scripts/check-customizer.js` passes every browser check (needs Playwright: `npm i -g playwright`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
 - [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json` (a test fails if they differ; Claude Code uses plugin.json's to find updates).
-- [ ] 0.3.0 only: delete `test/oracle/` and check 1 of `test/readings.property.test.js` (with its oracle imports): the readings rewrite is proven, and the frozen copy would otherwise ship in the plugin.
 
 ## 2. Inside Claude Code, on each system you have
 
@@ -58,14 +57,23 @@ Only a person can do this one. The Fable battery is off on a Mac until someone t
 For each, check dark and light: "rounded ends OK" and "truecolor OK". Save no screenshots.
 Run `node scripts/terminal-check.js` in the terminal and answer its five questions; it also prints what juice picks there on its own.
 
-- [ ] VS Code on Windows: dark / light, rounded ends OK / truecolor OK
+- [x] VS Code on Windows: all five yes (1.0.0)
 - [ ] VS Code on macOS: dark / light, rounded ends OK / truecolor OK
-- [ ] Windows Terminal: dark / light, rounded ends OK / truecolor OK
+- [x] Windows Terminal: all five yes (1.0.0)
 - [ ] iTerm2: dark / light, rounded ends OK / truecolor OK
 - [ ] macOS Terminal: dark / light, rounded ends OK / truecolor OK
 - [ ] One Linux terminal (name it here): dark / light, rounded ends OK / truecolor OK
 
-## Done before 0.3.0 (kept for the record)
+## Results for 1.0.0 (2026-10-31, Windows 10, Claude Code 2.1.316)
+
+- Section 1: 282 tests, GitHub 9/9 with e2e and the Mac Keychain check, 9 browser checks, bench 65 ms of 75.
+- Section 2: steps 1-7 and 9-12 pass. Step 12: the Claude desktop app's Code tab shows the batteries.
+  Step 8 (update) is checked right after publishing, from 0.2.6 to 1.0.0.
+- Section 3: everything GitHub's Mac can check passes; the Keychain prompt waits for a Mac user.
+- Section 4: Windows Terminal and VS Code on Windows, all five questions yes. macOS and Linux terminals wait for users there.
+- Before release: a full audit of the whole repo (three reviewers), all 20 findings fixed.
+
+## Done before 1.0.0 (kept for the record)
 
 - [x] Install from the marketplace works, and `/juice` resolves to this plugin's skill (2026-10-29, Windows).
 - [x] `/juice make it the panel layout` changes `juice.json` and the line (2026-10-29).
