@@ -150,7 +150,7 @@ Type `/juice doctor` first. It checks, in plain words, whether juice is your sta
 
 ## Update, undo and uninstall
 
-- **Update:** open `/plugin`, pick juice, and update it. Your settings and badges stay.
+- **Update:** open `/plugin`, pick juice, and update it. Your settings and badges stay. [What's new](CHANGELOG.md) lists what each version changed.
 - **Undo:** `/juice restore` puts your old status line back.
 - **Uninstall:** run `/juice restore` first, then remove juice in `/plugin`. If you uninstall first, the status line tells you how to get back.
 - **Leave nothing behind:** after uninstalling, juice's own files are still in your Claude folder (`~/.claude`): `juice.json` (your settings and badge commands), the `juice-cache` folder (usage numbers, the approval of your badges, and, for up to a week, which project each chat was in), any `juice-backup-….json` copies, and `juice-statusline.mjs` if you uninstalled before `/juice restore`. Delete them if you want nothing left. (Deleting `juice-cache` while juice is installed is harmless, except that your badges then need adding again.)

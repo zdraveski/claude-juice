@@ -10,6 +10,8 @@ its child, restore) on Windows, macOS and Linux with Node 18, 22 and 24 on every
 - [ ] `node scripts/check-customizer.js` passes every browser check (needs Playwright: `npm i -g playwright`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
 - [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json` (a test fails if they differ; Claude Code uses plugin.json's to find updates).
+- [ ] `CHANGELOG.md` has a section for the new version, in plain words for users.
+- [ ] After pushing: tag `v<version>` and publish a GitHub release with that section as its notes (`gh release create v<version> --verify-tag --notes-file -`).
 
 ## 2. Inside Claude Code, on each system you have
 
