@@ -1,7 +1,8 @@
 {
   "name": "juice",
   "version": "1.0.2",
-  "description": "A battery-style status line for Claude Code that shows how much of your usage you have used, and when it resets.",
+  "description": "A Claude Code status line that shows your usage limits as batteries: the 5-hour session, weekly and Fable limits, this chat's memory, when each one resets, and a warning before you run out.",
+  "keywords": ["status line", "statusline", "usage limits", "rate limit", "session limit", "weekly limit", "fable", "context", "battery"],
   "homepage": "https://zdraveski.github.io/claude-juice/web/",
   "repository": "https://github.com/zdraveski/claude-juice",
   "author": { "name": "KIRE" },

@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/zdraveski/claude-juice/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/zdraveski/claude-juice/actions/workflows/test.yml) [![Latest release](https://img.shields.io/github/v/release/zdraveski/claude-juice?label=release)](https://github.com/zdraveski/claude-juice/releases/latest) [![Node 18 or newer](https://img.shields.io/badge/node-18%2B-5fa04e)](https://nodejs.org) [![License: MIT](https://img.shields.io/github/license/zdraveski/claude-juice)](LICENSE)
 
-Juice replaces the row under your Claude Code prompt with little batteries. Each battery shows how much you have **used**, counted the same way as Anthropic's usage page, and when it resets.
+juice is a Claude Code status line that shows your usage limits as little batteries, in the row under your prompt: your 5-hour session, weekly and Fable limits and this chat's memory. Each battery shows how much you have **used**, counted the same way as Anthropic's usage page, when it resets, and warns you before you run out.
 
 ![claude-juice: your Claude usage at a glance. A battery-style status line for Claude Code, showing Memory, Session, Fable and Weekly, and when Session and Weekly reset.](docs/images/hero.png)
 

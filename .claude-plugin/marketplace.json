@@ -5,7 +5,7 @@
     {
       "name": "juice",
       "source": "./",
-      "description": "A battery-style status line for Claude Code that shows how much of your usage you have used, and when it resets."
+      "description": "A Claude Code status line that shows your usage limits as batteries: the 5-hour session, weekly and Fable limits, this chat's memory, when each one resets, and a warning before you run out."
     }
   ]
 }
