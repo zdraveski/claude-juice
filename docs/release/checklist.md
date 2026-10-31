@@ -1,24 +1,57 @@
-# Manual checklist (inside Claude Code)
+# Release checklist
 
-- [x] `/plugin marketplace add zdraveski/claude-juice` then `/plugin install juice@juice` succeeds (2026-10-29, Windows).
-- [x] Typing `/juice` resolves to this plugin's skill (shows as `juice:juice`).
-- [ ] `${CLAUDE_PLUGIN_ROOT}` is expanded in the Bash call and runs without a permission prompt. (Expansion confirmed 2026-10-29; the prompt part needs a session in normal permission mode, since auto mode approves on its own.)
-- [ ] `/juice setup` shows the status line, and the old entry is in `juice-backup.json`.
-- [x] `/juice make it the panel layout` sets `layout: 'panel'` in `juice.json` and the status line changes (2026-10-29).
-- [ ] `/juice restore` brings the previous status line back.
-- [ ] When `setup` answers exit 2, `/juice` explains it and asks before running `setup --yes`.
-- [x] `/juice badges add ...` shows the exact command and waits for a yes; nothing is added without it (2026-10-29).
-- [ ] `badges add` triggers Claude Code's own permission prompt. (Needs a session in normal permission mode; auto mode ran it without asking.)
-- [ ] On macOS, the Keychain prompt for Fable appears only after `fable=on`.
-- [ ] On macOS and Linux, a hung badge command is killed with its child processes after 2 seconds (check that no stray processes are left).
-- [x] In the web customizer, drag-and-drop reorder, the arrow buttons, every Copy button and Copy link work (automated in `scripts/check-customizer.js`).
-- [x] On a Max account, the Fable battery appears and matches Anthropic's usage numbers (24% = 24%, 2026-10-29).
-- [x] The status line works on Node 18 and Node 20: the full test suite, including the real launcher run, passes on 18.20.8 and 20.9.0 (official portable builds, Windows, 2026-10-29).
-- [x] `node scripts/check-customizer.js` passes all eight browser checks (needs Playwright: `npm i -g playwright`).
-- [x] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting (56 ms on a 2011 i5, 2026-10-29).
-- [ ] Bump `version` in `.claude-plugin/plugin.json` and `package.json` together on every release (Claude Code uses plugin.json's version to detect updates).
+Everything here is what GitHub's tests can't do: a real Claude Code, a real Mac, real terminals. GitHub already
+runs every test and the end-to-end check (install, the real command through bash and sh, a hung badge killed with
+its child, restore) on Windows, macOS and Linux with Node 18, 22 and 24 on every push.
 
-# Terminal matrix (KIRE, needs real terminals)
+## 1. Run here before every release
+
+- [ ] `node --test` passes, and GitHub's run for the release commit is green on all 9.
+- [ ] `node scripts/check-customizer.js` passes all eight browser checks (needs Playwright: `npm i -g playwright`).
+- [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
+- [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json` (a test fails if they differ; Claude Code uses plugin.json's to find updates).
+
+## 2. Inside Claude Code, on each system you have
+
+Use a normal session, not auto mode: auto mode approves on its own, so permission prompts can't be checked there.
+Each step says what passes.
+
+1. **Install.** `/plugin marketplace add zdraveski/claude-juice`, `/plugin install juice@juice`, restart Claude Code, `/juice setup`.
+   Pass: the batteries appear within a minute, and `~/.claude/juice-backup.json` holds your previous status line.
+2. **Permissions.** `/juice get` and `/juice doctor` run without a permission prompt. `/juice badges add 'echo hi'` shows the
+   command and waits; after you say yes, Claude Code asks permission. Fail on any other order.
+3. **PowerShell and `set` (Windows).** Ask `/juice` to set `show=$(whoami)`. Pass: Claude Code asks before running it, or
+   juice answers that the value isn't valid. Fail if `whoami` runs.
+4. **Setup asks first.** Change `statusLine` in `~/.claude/settings.json` by hand, then `/juice setup`.
+   Pass: it explains and asks, and runs `setup --yes` only after you agree.
+5. **Doctor.** `/juice doctor`. Pass: it ends with "Everything looks fine." Then break something (turn juice off in
+   `/plugin`, or set `show=` to nothing) and run it again. Pass: a `!` line names the problem and the fix, in plain words.
+6. **Reset wording.** Look at the status line. Pass: Session says how long ("resets in 2h 10m"); Weekly says the day and
+   time ("resets Sat 7:20 PM") in your time zone, matching Anthropic's usage page. In a narrow window Weekly may say "resets 3d 5h".
+7. **Restore.** `/juice restore`. Pass: your old status line is back, and `juice-statusline.mjs` and `juice-backup.json` are gone.
+8. **Update.** After publishing a version bump, `/plugin update`. Pass: the old version's folder gets `.orphaned_at`, and the
+   line keeps drawing with the new version (`/juice doctor` names it).
+9. **Turn off and uninstall.** Turn juice off in `/plugin`. Pass: the line reads "juice is turned off…". Uninstall.
+   Pass: "juice is not installed…".
+10. **No flashing windows (Windows).** Add the badge `git branch --show-current`, then work for 2 minutes.
+    Pass: no console window ever flashes.
+11. **Fable numbers.** On a Max account, the Fable battery matches Anthropic's usage page.
+12. **Desktop app.** Open a Code tab in the Claude desktop app. Write down whether the status line shows there at all
+    (this decides how much the 0.4.0 mod matters).
+
+## 3. On a Mac with a Max login
+
+1. **Keychain name.** `security find-generic-password -s "Claude Code-credentials" >/dev/null; echo $?`. Pass: `0`.
+   With `CLAUDE_CONFIG_DIR` set, print the name juice uses:
+   `node -e "import('<plugin folder>/src/fable.js').then(m=>console.log(m.keychainService(process.env)))"`, then run the
+   same `security` command with that name. Pass: `0`.
+2. **Keychain prompt.** `/juice set fable=on`. If macOS asks, wait 10 seconds, then click Always Allow.
+   Pass: the Fable battery shows within 5 minutes, and no second prompt comes in the next 30 minutes.
+3. **Started from an app.** Open VS Code from the Dock (not from a terminal) and start Claude Code in it. Pass: the batteries show.
+4. **Node upgrade.** With nvm: `nvm install 24`, then `nvm uninstall <the old version>`. Pass: the line still draws.
+5. **Doctor on a Mac.** `/juice doctor`. Pass: it says "Fable limit: off on macOS unless you turn it on" before step 2, and "last checked" after it.
+
+## 4. Terminal matrix (needs real terminals)
 
 For each, check dark and light: "rounded ends OK" and "truecolor OK". Save no screenshots.
 Run `node scripts/terminal-check.js` in the terminal and answer its five questions; it also prints what juice picks there on its own.
@@ -30,14 +63,22 @@ Run `node scripts/terminal-check.js` in the terminal and answer its five questio
 - [ ] macOS Terminal: dark / light, rounded ends OK / truecolor OK
 - [ ] One Linux terminal (name it here): dark / light, rounded ends OK / truecolor OK
 
-# Name check
+## Done before 0.3.0 (kept for the record)
+
+- [x] Install from the marketplace works, and `/juice` resolves to this plugin's skill (2026-10-29, Windows).
+- [x] `/juice make it the panel layout` changes `juice.json` and the line (2026-10-29).
+- [x] `/juice badges add …` shows the exact command and waits for a yes (2026-10-29).
+- [x] Fable battery matches Anthropic's usage page on a Max account (24% = 24%, 2026-10-29).
+- [x] A hung badge is killed with its child processes on macOS and Linux: covered by `scripts/e2e.mjs` in CI since 0.2.6.
+
+## Name check
 
 - Searched the web on 2026-10-29 with two queries: no existing Claude Code plugin or marketplace entry named `juice`.
 - Similar status line plugins exist under other names: claude-statusline, claudeline, claude-code-plugin-hud, ccstatusline.
 - [x] Searched GitHub again on 2026-10-29: two small usage-limit projects are called `juice` (michaelofengenden/juice, namzug16/juice), so the repo is named `claude-juice`; the command stays `/juice`.
 - [ ] Check Anthropic's plugin directory for `juice` before submitting there.
 
-# Hosting (public since 2026-10-29)
+## Hosting (public since 2026-10-29)
 
 - [x] Create the GitHub repo: `zdraveski/claude-juice`, public.
 - [x] Enable GitHub Pages from the main branch **root** (`web/app.js` imports `../src/`, and the customizer lives at `/web/`).
