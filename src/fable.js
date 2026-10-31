@@ -33,7 +33,7 @@ export async function fetchFable(token, fetchImpl, version, timeoutMs = 5000) {
     });
     if (!res.ok) return null;
     const body = await res.json();
-    const e = Array.isArray(body?.limits) && body.limits.find((l) => l?.kind === 'weekly_scoped' && l.scope?.model?.display_name === 'Fable');
+    const e = Array.isArray(body?.limits) && body.limits.find((l) => l?.kind === 'weekly_scoped' && /fable/i.test(l.scope?.model?.display_name)); // same loose match as data.js, so "Fable 5.1" still counts
     const reading = (used, at) => (Number.isFinite(used) && !Number.isNaN(Date.parse(at)) ? { used, resetsAt: at } : null);
     // The same answer carries Session and Weekly, which keep idle and new windows current.
     const fable = e ? reading(e.percent, e.resets_at) : null;

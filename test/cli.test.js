@@ -211,6 +211,16 @@ test('a plugin path with $ replacement patterns still gives a valid launcher', a
   assert.ok(readFileSync(f, 'utf8').includes(`"C:/dev/it$'s/$&/juice"`));
 });
 
+test('setup from the plugin cache writes its marketplace into the launcher', async () => {
+  const { install } = await import('../src/setup.js');
+  const { paths } = await import('../src/paths.js');
+  const d = env();
+  install(paths({ CLAUDE_CONFIG_DIR: d }), { pluginRoot: `${d.replaceAll('\\', '/')}/plugins/cache/juice-mk/juice/0.2.0`, inPluginCache: true });
+  const text = readFileSync(join(d, 'juice-statusline.mjs'), 'utf8');
+  assert.ok(text.includes('const MARKET = "juice-mk";'));
+  assert.ok(text.includes('const PINNED = null;'));
+});
+
 test('a BOM in settings.json is accepted and not written back', async () => {
   const d = env();
   writeFileSync(join(d, 'settings.json'), '\uFEFF' + JSON.stringify(OLD));

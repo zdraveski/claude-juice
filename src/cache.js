@@ -26,7 +26,8 @@ export function writeJsonAtomic(file, value, { maxWaitMs = 2500 } = {}) {
 export function takeLock(p, name, now, maxAgeMs = 30000) {
   const file = join(p.cacheDir, `${name}.lock`);
   const t = readJson(file);
-  if (typeof t === 'number' && now.getTime() - t < maxAgeMs) return false;
+  const age = now.getTime() - t;
+  if (typeof t === 'number' && age >= 0 && age < maxAgeMs) return false; // a lock from the future (clock was ahead) is ignored
   try { writeJsonAtomic(file, now.getTime(), HOT_WRITE); } catch { return false; } // no lock recorded, so no refresher
   return true;
 }

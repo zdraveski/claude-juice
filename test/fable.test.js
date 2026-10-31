@@ -66,6 +66,12 @@ test('fetchFable sends the exact request and picks the Fable entry', async () =>
   });
 });
 
+test('fetchFable still finds the entry when it carries a version, like "Fable 5.1"', async () => {
+  const b = body();
+  b.limits.find((l) => l.kind === 'weekly_scoped').scope.model.display_name = 'Fable 5.1';
+  assert.equal((await fetchFable(TOKEN, okFetch(b), 'v')).used, 41);
+});
+
 test('fetchFable returns null on bad responses', async () => {
   assert.equal(await fetchFable(TOKEN, async () => ({ ok: false, status: 401 }), 'v'), null);
   assert.equal(await fetchFable(TOKEN, async () => { throw new Error('net'); }, 'v'), null);

@@ -59,6 +59,8 @@ test('takeLock', () => {
   assert.equal(takeLock(p, 'u', NOW), true);
   assert.equal(takeLock(p, 'u', at(10)), false);
   assert.equal(takeLock(p, 'u', at(31)), true);
+  assert.equal(takeLock(p, 'v', at(7200)), true); // taken while the clock was 2 hours ahead
+  assert.equal(takeLock(p, 'v', at(60)), true); // clock corrected: refreshes carry on
 });
 
 test('loadSettings: missing -> fresh defaults, corrupt -> warning, save round trips', () => {

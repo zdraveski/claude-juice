@@ -68,5 +68,8 @@ test('launcher picks the highest version, or the pinned one', async () => {
   const pin = mk('pinned');
   assert.equal(resolveTarget(dir, join(dir, 'pinned')), pin);
   assert.equal(resolveTarget(join(dir, 'nothing'), null), null);
+  const other = mk('plugins', 'cache', 'someone-else', 'juice', '9.0.0');
+  assert.equal(resolveTarget(dir, null), other); // without a marketplace, any juice can win
+  assert.equal(resolveTarget(dir, null, 'm'), hi); // with one, only its own copy runs
   assert.ok(pathToFileURL(hi).href);
 });

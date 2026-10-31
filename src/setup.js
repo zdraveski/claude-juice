@@ -37,10 +37,12 @@ export function install(p, { pluginRoot, inPluginCache, yes = false }) {
   if (stale && !yes) throw new NeedsConfirm('Your status line has changed since juice saved a copy of the old one, so juice changed nothing. Run setup again with --yes to save your current status line too (the earlier copy is kept under a new name) and switch to juice.');
 
   const template = readFileSync(LAUNCHER_TEMPLATE, 'utf8');
-  const literal = 'const PINNED = null;';
-  if (!inPluginCache && !template.includes(literal)) throw new Error("juice's launcher template is damaged. Reinstall the plugin.");
+  const pin = 'const PINNED = null;', market = 'const MARKET = null;';
+  if (!template.includes(pin) || !template.includes(market)) throw new Error("juice's launcher template is damaged. Reinstall the plugin.");
   // A replacer function stops $' and $& in the path being expanded.
-  const launcher = inPluginCache ? template : template.replace(literal, () => `const PINNED = ${JSON.stringify(fwd(pluginRoot))};`);
+  const launcher = inPluginCache
+    ? template.replace(market, () => `const MARKET = ${JSON.stringify(fwd(pluginRoot).split('/plugins/cache/')[1].split('/')[0])};`)
+    : template.replace(pin, () => `const PINNED = ${JSON.stringify(fwd(pluginRoot))};`);
   mkdirSync(dirname(p.launcherFile), { recursive: true });
   writeFileSync(p.launcherFile, launcher);
 

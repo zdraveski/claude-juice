@@ -5,17 +5,18 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const PINNED = null;
+const MARKET = null; // the marketplace setup ran from, so another plugin also named juice is never run
 const TARGET = ['bin', 'juice-statusline.js'];
 
 const dirs = (d) => { try { return readdirSync(d); } catch { return []; } };
 const parts = (v) => v.split(/[.\-+]/).map((s) => parseInt(s, 10) || 0);
 const newer = (a, b) => { const x = parts(a), y = parts(b); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
 
-export function resolveTarget(configDir, pinned = PINNED) {
+export function resolveTarget(configDir, pinned = PINNED, market = MARKET) {
   if (pinned) { const f = join(pinned, ...TARGET); return existsSync(f) ? f : null; }
   const cache = join(configDir, 'plugins', 'cache');
   const found = [];
-  for (const m of dirs(cache)) for (const v of dirs(join(cache, m, 'juice'))) {
+  for (const m of market ? [market] : dirs(cache)) for (const v of dirs(join(cache, m, 'juice'))) {
     const f = join(cache, m, 'juice', v, ...TARGET);
     if (existsSync(f)) found.push({ v, f });
   }
