@@ -162,7 +162,7 @@ Badges are small optional extras that show the output of a command you choose. J
 ## Privacy
 
 - The Fable battery needs your Claude login token, the key Claude Code keeps on your computer to sign you in. Juice reads it from `~/.claude/.credentials.json`.
-- The Fable battery is on by default on Windows and Linux. On a Mac it stays off until you type `/juice set fable=on`, and macOS will then ask once for permission to read it from the Keychain (the Mac's password store). Share links and the customizer's command never turn it on or off; only you do.
+- The Fable battery is on by default on Windows and Linux. On a Mac it stays off until you type `/juice set fable=on`, and macOS will then ask once for permission to read it from the Keychain (the Mac's password store). This is new on the Mac: if macOS asks more than once, or the battery doesn't appear within a few minutes, please [tell us](https://github.com/zdraveski/claude-juice/issues/new) what `/juice doctor` says. Share links and the customizer's command never turn it on or off; only you do.
 - Juice sends that token only to `api.anthropic.com`, to read your usage, about every 5 minutes. It never stores or logs it.
 - The same usage reading also keeps Session and Weekly up to date in every window, including idle ones and brand-new chats. With the Fable battery off, those two come only from Claude Code itself, so an idle window can show older numbers.
 - To switch the Fable battery off, run `/juice set fable=off`.

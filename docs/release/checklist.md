@@ -39,17 +39,17 @@ Each step says what passes.
 12. **Desktop app.** Open a Code tab in the Claude desktop app. Write down whether the status line shows there at all
     (this decides how much the 0.4.0 mod matters).
 
-## 3. On a Mac with a Max login
+## 3. On a Mac
 
-1. **Keychain name.** `security find-generic-password -s "Claude Code-credentials" >/dev/null; echo $?`. Pass: `0`.
-   With `CLAUDE_CONFIG_DIR` set, print the name juice uses:
-   `node -e "import('<plugin folder>/src/fable.js').then(m=>console.log(m.keychainService(process.env)))"`, then run the
-   same `security` command with that name. Pass: `0`.
-2. **Keychain prompt.** `/juice set fable=on`. If macOS asks, wait 10 seconds, then click Always Allow.
-   Pass: the Fable battery shows within 5 minutes, and no second prompt comes in the next 30 minutes.
-3. **Started from an app.** Open VS Code from the Dock (not from a terminal) and start Claude Code in it. Pass: the batteries show.
-4. **Node upgrade.** With nvm: `nvm install 24`, then `nvm uninstall <the old version>`. Pass: the line still draws.
-5. **Doctor on a Mac.** `/juice doctor`. Pass: it says "Fable limit: off on macOS unless you turn it on" before step 2, and "last checked" after it.
+GitHub's Mac runs these on every push, so they need no Mac here:
+- the Keychain names (`scripts/mac-keychain.mjs`: a fake sign-in in a throwaway keychain, read through the real `security` tool, with and without `CLAUDE_CONFIG_DIR`, the accent typed either way);
+- Claude Code started from an app (`scripts/e2e.mjs`: `sh` with a bare `PATH`);
+- a Node upgrade (`scripts/e2e.mjs`: the Node setup pinned is removed, the line still draws);
+- `/juice doctor` (`scripts/e2e.mjs`, including "Fable limit: off on macOS unless you turn it on").
+
+Only a person can do this one. The Fable battery is off on a Mac until someone turns it on, so it can wait for a Mac user:
+- [ ] **Keychain prompt** (Mac with a Max login). `/juice set fable=on`. If macOS asks, wait 10 seconds, then click Always Allow.
+  Pass: the Fable battery shows within 5 minutes, no second prompt comes in the next 30 minutes, and `/juice doctor` says "last checked".
 
 ## 4. Terminal matrix (needs real terminals)
 

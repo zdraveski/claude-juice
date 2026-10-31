@@ -30,3 +30,6 @@ jobs:
       - name: End to end, through the shell Claude Code uses
         shell: bash
         run: node scripts/e2e.mjs
+      - name: Mac Keychain, through the real security tool
+        if: runner.os == 'macOS'
+        run: node scripts/mac-keychain.mjs
