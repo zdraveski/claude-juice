@@ -1,7 +1,8 @@
 import { NOW, fixture } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalize, sendsPromptCache } from '../src/data.js';
+import { normalize } from '../src/data.js';
+import { sendsPromptCache } from '../src/readings.js';
 
 const nowS = Math.floor(NOW / 1000);
 const seen = (ago = 86400000) => ({
