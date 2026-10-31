@@ -39,7 +39,7 @@ export async function main(argv, io) {
       }
       case 'setup': {
         const pluginRoot = fwd(fileURLToPath(ROOT)).replace(/\/$/, '');
-        install(p, { pluginRoot, inPluginCache: pluginRoot.includes('/plugins/cache/'), yes: args.includes('--yes') }).forEach(io.out);
+        install(p, { pluginRoot, yes: args.includes('--yes') }).forEach(io.out);
         return 0;
       }
       case 'restore': restore(p).forEach(io.out); return 0;

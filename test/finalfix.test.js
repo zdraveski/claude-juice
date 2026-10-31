@@ -25,7 +25,7 @@ const node = (args, dir, input = '') => spawnSync(process.execPath, args, { inpu
 const installed = () => {
   const d = tmp();
   const p = paths({ CLAUDE_CONFIG_DIR: d });
-  install(p, { pluginRoot: ROOT.replaceAll('\\', '/'), inPluginCache: false });
+  install(p, { pluginRoot: ROOT.replaceAll('\\', '/') });
   return { d, p };
 };
 
@@ -85,8 +85,6 @@ test('badges refresh again after 2.5 s, not after 1 s', async () => {
 
 test('a cache stamped in the future counts as stale', async () => {
   assert.equal(fableCacheState({ fetchedAt: +NOW + 5000, used: 1 }, +NOW).stale, true);
-  assert.equal(fableCacheState({ fetchedAt: +NOW + 5000, used: 1 }, +NOW).usable, false);
-  assert.equal(fableCacheState({ fetchedAt: +NOW - 1000, used: 1 }, +NOW).usable, true);
   const p = paths({ CLAUDE_CONFIG_DIR: tmp() });
   await refreshBadges({ p, settings: { badges: [{ command: 'x' }] }, key: 'k', stdinText: '', runImpl: async () => ({ ok: true, stdout: 'a' }) });
   assert.equal(readBadges(p, 'k', new Date(Date.now() - 60000), ['x']).stale, true);
@@ -129,7 +127,7 @@ test('setup and restore write through a symlinked settings.json', (t) => {
   writeFileSync(real, JSON.stringify({ theme: 'dark', statusLine: { type: 'command', command: 'old' } }));
   try { symlinkSync(real, join(d, 'settings.json'), 'file'); } catch { return t.skip('cannot create a symlink here'); }
   const p = paths({ CLAUDE_CONFIG_DIR: d });
-  install(p, { pluginRoot: ROOT.replaceAll('\\', '/'), inPluginCache: false });
+  install(p, { pluginRoot: ROOT.replaceAll('\\', '/') });
   assert.ok(lstatSync(join(d, 'settings.json')).isSymbolicLink());
   assert.match(JSON.parse(readFileSync(real, 'utf8')).statusLine.command, /juice-statusline\.mjs/);
   restore(p);

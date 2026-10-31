@@ -122,9 +122,14 @@ export function applySet(settings, pairs) {
 const colorWord = (c) => (typeof c === 'string' ? c
   : ['dark', 'light'].map((t) => `${t}:${COLOR_KEYS.map((k) => c[t][k]).join(',')}`).join('/'));
 
+// The customizer has no controls for terminal and fable, so their 'auto' there means "not chosen here"
+// and must not reset a choice the person made with /juice set.
+const UNSET_WHEN_AUTO = ['terminal', 'fable'];
+
 export function toCommand(s) {
   const v = { ...s, show: s.show.join(','), colors: colorWord(s.colors) };
-  return '/juice set ' + ['layout', 'show', 'cost', 'colors', 'ends', 'terminal', 'refills', 'fable'].map((k) => `${k}=${v[k]}`).join(' ');
+  return '/juice set ' + ['layout', 'show', 'cost', 'colors', 'ends', 'terminal', 'refills', 'fable']
+    .filter((k) => !(UNSET_WHEN_AUTO.includes(k) && v[k] === 'auto')).map((k) => `${k}=${v[k]}`).join(' ');
 }
 
 // Badges run shell commands, so they never travel in a link.
@@ -140,8 +145,4 @@ export function parseLink(hash) {
   const bin = atob(payload);
   const json = new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
   return sanitize(JSON.parse(json), { allowBadges: false }).settings;
-}
-
-export function decodeLink(hash) {
-  try { return parseLink(hash); } catch { return sanitize({}, { allowBadges: false }).settings; }
 }

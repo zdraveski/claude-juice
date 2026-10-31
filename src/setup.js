@@ -29,7 +29,9 @@ function readClaudeSettings(p) {
   return v;
 }
 
-export function install(p, { pluginRoot, inPluginCache, yes = false }) {
+export function install(p, { pluginRoot, yes = false }) {
+  // Installed from Claude Code's plugin store: follow updates. Anywhere else (a checkout): pin that folder.
+  const inPluginCache = fwd(pluginRoot).includes('/plugins/cache/');
   const settings = readClaudeSettings(p);
   const command = `node "${fwd(p.launcherFile)}"`;
   const ours = isJuice(settings.statusLine);

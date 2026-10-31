@@ -34,7 +34,8 @@ test('refreshBadges writes cache that readBadges returns', async () => {
   await refreshBadges({ p, settings, key: 'k', stdinText: '{}', runImpl: ok('[RTK 98]\n') });
   assert.deepEqual(readBadges(p, 'k', new Date(), ['rtk']).texts, ['[RTK 98]']);
   assert.equal(readBadges(p, 'k', new Date(), ['rtk']).stale, false);
-  assert.equal(readBadges(p, 'k', new Date(Date.now() + 5000), ['rtk']).stale, true);
+  assert.equal(readBadges(p, 'k', new Date(Date.now() + 20000), ['rtk']).stale, false, 'fresh for 30 s, so commands do not re-run on every redraw');
+  assert.equal(readBadges(p, 'k', new Date(Date.now() + 31000), ['rtk']).stale, true);
   assert.deepEqual(readBadges(p, 'none', NOW, ['rtk']), { texts: [''], stale: true });
 });
 
@@ -69,6 +70,24 @@ test('add, list and remove badges', () => {
 test('default run captures stdout and honours the timeout', async () => {
   assert.deepEqual(await run(`node -e "process.stdout.write('hi')"`, { input: '', timeoutMs: 5000 }), { ok: true, stdout: 'hi' });
   assert.equal((await run(`node -e "setTimeout(()=>{},5000)"`, { input: '', timeoutMs: 200 })).ok, false);
+});
+
+test('a failing command is not ok, so the badge keeps its last good text', async () => {
+  assert.equal((await run('exit 3', { input: '', timeoutMs: 5000 })).ok, false);
+});
+
+test('a command that leaves a helper running still counts, and does not keep us waiting', async () => {
+  const t0 = Date.now();
+  // The helper inherits stdout and stderr and lives 3 s after the command itself has exited.
+  const cmd = `node -e "require('child_process').spawn(process.execPath,['-e','setTimeout(()=>{},3000)'],{stdio:'inherit'}).unref(); process.stdout.write('hi')"`;
+  const r = await run(cmd, { input: '', timeoutMs: 2500 });
+  assert.deepEqual(r, { ok: true, stdout: 'hi' });
+  assert.ok(Date.now() - t0 < 2000, `took ${Date.now() - t0}ms`);
+});
+
+test('C1 control characters never reach the terminal', () => {
+  assert.equal(cleanBadge('main \u009b31mX'), 'main 31mX');
+  assert.equal(strip('a\u0085b\u009bc'), 'abc');
 });
 
 test('cleanBadge strips ESC-backslash OSC and unterminated OSC', () => {

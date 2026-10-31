@@ -65,8 +65,6 @@ export function fableCacheState(cache, now) {
   // A timestamp in the future (clock skew) is never trusted.
   const age = Number.isFinite(cache?.fetchedAt) && cache.fetchedAt <= now ? now - cache.fetchedAt : Infinity;
   const backedOff = cache?.backoffUntil > now && cache.backoffUntil - now <= BACKOFF_MS;
-  return {
-    stale: (!cache || age > 300000) && !backedOff,
-    usable: !!cache && age <= 3600000,
-  };
+  // Whether a reading is still usable (under an hour old) is decided where it is used, in data.js.
+  return { stale: (!cache || age > 300000) && !backedOff };
 }

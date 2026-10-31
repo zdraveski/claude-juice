@@ -14,7 +14,7 @@ const term = (columns, extra = {}) => ({ columns, theme: 'dark', ends: 'round', 
 const go = (data, layout, columns, extra) => render(data, { ...DEFAULTS, layout }, term(columns, extra));
 const widest = (t) => Math.max(...strip(t).split('\n').map(vis));
 
-test('Pro/trouble/bar at 80 drops six things and keeps the reset times', () => {
+test('Pro/trouble/bar at 80 drops five things and keeps the reset times', () => {
   const r = go(withAccount(SAMPLES.trouble, 'pro'), 'bar', 80);
   const t = strip(r.text);
   assert.ok(widest(r.text) <= 80, t);
@@ -22,7 +22,29 @@ test('Pro/trouble/bar at 80 drops six things and keeps the reset times', () => {
   assert.match(t, /Memory \S+■!!  Session \S+■!! resets 2h 5m  Week \S+■!! resets 1d 2h/, 'marks stay, glued to the battery');
   assert.ok(!t.includes('…'), t);
   assert.ok(t.includes('Week ') && !t.includes('Weekly'), 'squeezed label is the short one');
-  assert.deepEqual(r.dropped, ['the effort word', 'the model name', 'the effort level', 'spacing', 'battery size', 'warning words']);
+  assert.deepEqual(r.dropped, ['the model name', 'the effort level', 'spacing', 'battery size', 'warning words'], 'the effort word fits again once the later steps freed room');
+});
+
+test('a step that turned out not to be needed is given back', () => {
+  const r = go(SAMPLES.trouble, 'bar', 120);
+  const t = strip(r.text);
+  assert.ok(widest(r.text) <= 120 && widest(r.text) > 100, `uses the room it has, was ${widest(r.text)}`);
+  assert.ok(t.includes('Opus 5.5'), t);
+  assert.deepEqual(r.dropped, ['batteries that are fine', 'warning words']);
+});
+
+test('a red Fable battery says when it runs out even while Weekly shows the shared reset', () => {
+  const red = { ...SAMPLES.busy, limits: { ...SAMPLES.busy.limits, fable: { ...SAMPLES.busy.limits.fable, used: 80 } } };
+  for (const id of ['bar', 'segments', 'panel']) {
+    const fable = strip(go(red, id, 400).text).split(/Fable/)[1].split(/Weekly/)[0];
+    assert.match(fable, /runs out ~/, id);
+    assert.doesNotMatch(fable, /resets/, `${id}: the countdown is Weekly's to show`);
+  }
+});
+
+test('focus respects refills=warnings for its big battery', () => {
+  const ctx = makeCtx(SAMPLES.quiet, { ...DEFAULTS, layout: 'focus', refills: 'warnings' }, term(400));
+  assert.doesNotMatch(strip(fit(LAYOUTS.focus, SAMPLES.quiet, ctx, 400).text), /resets/);
 });
 
 test('busy/bar at 200 drops nothing', () => {
@@ -50,9 +72,9 @@ test('steps run in order and are all tried before a cut', () => {
     if (strip(r.text).includes('…')) {
       cuts++;
       const ctx = makeCtx(d, { ...DEFAULTS, layout: id }, term(w));
-      let used = {};
-      const probe = fit((x, c) => { used = c.fit; return LAYOUTS[id](x, c); }, d, ctx, w);
-      assert.ok(FIT_STEPS.every(([f]) => used[f]), at);
+      let allTried = false;
+      const probe = fit((x, c) => { allTried ||= FIT_STEPS.every(([f]) => c.fit[f]); return LAYOUTS[id](x, c); }, d, ctx, w);
+      assert.ok(allTried, at);
       assert.equal(probe.dropped.at(-1), 'the end of the line', at);
     }
   }

@@ -68,6 +68,23 @@ test('unchanged values within the hour do not rewrite; later they refresh the st
   remember({ rate_limits: { five_hour: { used_percentage: 50, resets_at: 1000 } } }, p, at(3800));
   assert.equal(recall(p).fiveHour.used, 50);
 });
+test('an idle window sending old numbers never overwrites newer ones; a new window does', () => {
+  const p = tmpPaths();
+  const reading = (used, resets_at) => ({ rate_limits: { five_hour: { used_percentage: used, resets_at } } });
+  remember(reading(60, 1000), p, NOW); // the busy session
+  remember(reading(20, 1000), p, at(60)); // an idle session, same window
+  assert.equal(recall(p).fiveHour.used, 60);
+  remember(reading(5, 1000 + 18000), p, at(120)); // the window reset
+  assert.deepEqual(recall(p).fiveHour, { used: 5, resetsAt: 19000 });
+});
+
+test('a stamp from the future is rewritten, not kept', () => {
+  const p = tmpPaths();
+  remember(busy, p, at(7200)); // clock 2 hours ahead
+  remember(busy, p, at(60)); // clock corrected
+  assert.equal(recall(p).subscriberSeenAt, at(60).getTime());
+});
+
 test('remember never throws; recall of corrupt file is null', () => {
   const p = tmpPaths();
   writeFileSync(join(p.config, 'juice-cache'), 'a file where the dir should be');

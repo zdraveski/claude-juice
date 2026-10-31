@@ -256,7 +256,7 @@ test('a plugin path with $ replacement patterns still gives a valid launcher', a
   const { paths } = await import('../src/paths.js');
   const { spawnSync } = await import('node:child_process');
   const d = env();
-  install(paths({ CLAUDE_CONFIG_DIR: d }), { pluginRoot: "C:/dev/it$'s/$&/juice", inPluginCache: false });
+  install(paths({ CLAUDE_CONFIG_DIR: d }), { pluginRoot: "C:/dev/it$'s/$&/juice" });
   const f = join(d, 'juice-statusline.mjs');
   assert.equal(spawnSync(process.execPath, ['--check', f]).status, 0);
   assert.ok(readFileSync(f, 'utf8').includes(`"C:/dev/it$'s/$&/juice"`));
@@ -266,7 +266,7 @@ test('setup from the plugin cache writes its marketplace into the launcher', asy
   const { install } = await import('../src/setup.js');
   const { paths } = await import('../src/paths.js');
   const d = env();
-  install(paths({ CLAUDE_CONFIG_DIR: d }), { pluginRoot: `${d.replaceAll('\\', '/')}/plugins/cache/juice-mk/juice/0.2.0`, inPluginCache: true });
+  install(paths({ CLAUDE_CONFIG_DIR: d }), { pluginRoot: `${d.replaceAll('\\', '/')}/plugins/cache/juice-mk/juice/0.2.0` });
   const text = readFileSync(join(d, 'juice-statusline.mjs'), 'utf8');
   assert.ok(text.includes('const MARKET = "juice-mk";'));
   assert.ok(text.includes('const PINNED = null;'));

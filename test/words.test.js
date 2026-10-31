@@ -9,7 +9,10 @@ test('countdown: minutes, hours and minutes, or days and hours', () => {
   assert.equal(countdown(at(5460), NOW), '1h 31m');
   assert.equal(countdown(at(3600), NOW), '1h');
   assert.equal(countdown(at(104400), NOW), '1d 5h');
-  assert.equal(countdown(at(277200 + 59 * 60), NOW), '3d 5h');
+  assert.equal(countdown(at(277200 + 29 * 60), NOW), '3d 5h');
+  assert.equal(countdown(at(277200 + 59 * 60), NOW), '3d 6h', 'past a day the hours round, not cut');
+  assert.equal(countdown(at(86400 + 59 * 60), NOW), '1d 1h');
+  assert.equal(countdown(at(2 * 86400 - 20 * 60), NOW), '2d', 'rounding carries into the days');
   assert.equal(countdown(at(2 * 86400), NOW), '2d');
 });
 

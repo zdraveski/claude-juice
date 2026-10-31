@@ -1,7 +1,7 @@
 // fable: the frontier model's bar while it is fine, the same in every colour set.
 export const NEUTRAL = {
-  dark: { text: '#ecebe8', sub: '#a7a29c', mute: '#7c776f', groove: '#3a3835', casing: '#3b3936', nub: '#57534d', segOff: '#4a4743', bg: '#181818', fg: '#cccccc', fable: '#a78bfa' },
-  light: { text: '#1f1e1c', sub: '#5c574f', mute: '#857f76', groove: '#dcd8d1', casing: '#e2ded7', nub: '#c9c3ba', segOff: '#d2cdc5', bg: '#ffffff', fg: '#3b3b3b', fable: '#6d28d9' },
+  dark: { text: '#ecebe8', sub: '#a7a29c', mute: '#8a857d', groove: '#3a3835', casing: '#3b3936', nub: '#57534d', segOff: '#4a4743', bg: '#181818', fg: '#cccccc', fable: '#a78bfa' },
+  light: { text: '#1f1e1c', sub: '#5c574f', mute: '#78726a', groove: '#dcd8d1', casing: '#e2ded7', nub: '#c9c3ba', segOff: '#d2cdc5', bg: '#ffffff', fg: '#3b3b3b', fable: '#6d28d9' },
 };
 // [plenty left, going fast, almost empty, accent]
 export const PRESETS = {

@@ -34,8 +34,9 @@ Juice saves your old status line first, if you had one, so `/juice restore` can 
 |---|---|
 | Memory | How much of this chat's room is used. When it fills up, Claude summarises the chat to make space. |
 | Session | Your 5-hour limit. |
-| Fable weekly | The separate weekly limit for the Fable model. One-line layouts call it "Fable"; the panel says "Fable weekly". It resets together with Weekly, so it shows no countdown of its own while Weekly is shown. |
+| Fable weekly | The separate weekly limit for the Fable model. One-line layouts call it "Fable"; the panel says "Fable weekly". It resets together with Weekly, so it shows no countdown of its own while Weekly is shown. When it is red it still says when it runs out. |
 | Weekly | Your weekly limit. |
+| Budget | Only if your company gives you Claude Code through a gateway with a spending limit: how much of that budget is used. It turns red when almost all of it is gone. |
 
 Next to the batteries you also see the model's name and its effort level: a little staircase that climbs from 1 step (low) to 5 steps (max), with the word beside it.
 
@@ -139,7 +140,7 @@ Type `/juice` and then say what you want, in your own words. For example:
 
 ## Badges
 
-Badges are small optional extras that show the output of a command you choose. Juice only runs commands you added yourself with `/juice badges add`, after it shows you the command. `/juice badges list` shows them numbered, and `/juice badges remove 1` removes the first one. On Windows, badge commands run in the Windows command prompt (cmd), not Git Bash, so write them for cmd.
+Badges are small optional extras that show the output of a command you choose. Juice only runs commands you added yourself with `/juice badges add`, after it shows you the command. `/juice badges list` shows them numbered, and `/juice badges remove 1` removes the first one, after asking. Badges update about every 30 seconds while you work. On Windows, badge commands run in the Windows command prompt (cmd), not Git Bash, so write them for cmd.
 
 ## Privacy
 

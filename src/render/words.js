@@ -3,8 +3,11 @@
 // Time until t: "31m", "1h 31m" or "2d 5h". Rounded, because resets arrive a few ms either side of the minute.
 export function countdown(t, now) {
   const m = Math.max(1, Math.round((t.getTime() - now.getTime()) / 60000));
-  const d = Math.floor(m / 1440), h = Math.floor(m / 60) % 24, min = m % 60;
-  if (d) return h ? `${d}d ${h}h` : `${d}d`;
+  if (m >= 1440) { // past a day the minutes are dropped, so the hours are rounded, not cut
+    const hours = Math.round(m / 60), d = Math.floor(hours / 24), h = hours % 24;
+    return h ? `${d}d ${h}h` : `${d}d`;
+  }
+  const h = Math.floor(m / 60), min = m % 60;
   return h ? (min ? `${h}h ${min}m` : `${h}h`) : `${min}m`;
 }
 
@@ -20,10 +23,12 @@ export function clock(t, now) {
 const TONE = { ok: 'mute', warn: 'watch', crit: 'bad' };
 
 // The countdown is always shown and its colour does the warning; red also says when it runs out at this pace.
-export function limitNote(a, now, { squeezed = false } = {}) {
+// noReset: another battery on screen already counts down to the same reset, so only the run-out time is said.
+export function limitNote(a, now, { squeezed = false, noReset = false } = {}) {
   if (a.resetsAt) {
     const left = `resets ${squeezed ? '' : 'in '}${countdown(a.resetsAt, now)}`;
-    return { text: a.outAt && !squeezed ? `runs out ~${clock(a.outAt, now)} · ${left}` : left, tone: TONE[a.level] };
+    const out = a.outAt && !squeezed ? `runs out ~${clock(a.outAt, now)}` : '';
+    return { text: noReset ? out : out ? `${out} · ${left}` : left, tone: TONE[a.level] };
   }
   if (a.level === 'crit') return { text: squeezed ? 'low' : 'almost empty', tone: 'bad' };
   if (a.level === 'warn') return { text: squeezed ? 'fast' : 'a bit fast', tone: 'watch' };

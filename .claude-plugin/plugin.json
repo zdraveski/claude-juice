@@ -1,6 +1,6 @@
 {
   "name": "juice",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "A battery-style status line for Claude Code that shows how much of your usage you have used, and when it resets.",
   "homepage": "https://zdraveski.github.io/claude-juice/web/",
   "repository": "https://github.com/zdraveski/claude-juice",

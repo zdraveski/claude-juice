@@ -121,6 +121,8 @@ test('API-key and gateway users never get a Fable battery, even with a fresh Fab
   const fable = { used: 41, resetsAt: new Date(NOW.getTime() + 86400000).toISOString(), fetchedAt: NOW.getTime() - 60000 };
   for (const name of ['payg', 'gateway']) assert.equal(normalize(fixture(name), { fable }, NOW).limits.fable, undefined, name);
   assert.equal(normalize(fixture('busy'), { fable }, NOW).limits.fable.used, 41, 'subscribers still get it');
+  const ahead = { ...fable, fetchedAt: NOW.getTime() + 600000 };
+  assert.equal(normalize(fixture('busy'), { fable: ahead }, NOW).limits.fable, undefined, 'a reading stamped in the future is not trusted');
 });
 
 test('model name is stripped; fable detected by id then name', () => {

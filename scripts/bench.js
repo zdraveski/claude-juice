@@ -29,7 +29,7 @@ const median = (a) => { const s = [...a].sort((x, y) => x - y); return (s[(s.len
 // The real path Claude Code runs: the launcher, installed into a temp config dir only.
 const env = { ...process.env, CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-bench-')) };
 const p = paths(env);
-install(p, { pluginRoot: root, inPluginCache: false });
+install(p, { pluginRoot: root });
 
 const runs = { node: [['-e', '0'], env], juice: [[join(root, 'bin/juice-statusline.js')], env], launcher: [[p.launcherFile], env] };
 for (const [args, e] of Object.values(runs)) time(args, e); // warm-up

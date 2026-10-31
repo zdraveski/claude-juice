@@ -1,7 +1,7 @@
 import './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fg, strip, vis, cut, contrast, inkOn, to256, mix } from '../src/render/ansi.js';
+import { fg, strip, vis, cut, contrast, inkOn, to256 } from '../src/render/ansi.js';
 
 test('strip removes escapes', () => assert.equal(strip(fg('#ff0000', 'hi')), 'hi'));
 test('vis ignores escapes', () => assert.equal(vis(fg('#ff0000', 'abc')), 3));
@@ -25,7 +25,6 @@ test('to256 maps truecolor to xterm-256', () => {
   const g = Number(/48;5;(\d+)m/.exec(to256('\x1b[48;2;24;24;24mx'))[1]);
   assert.ok(g >= 232 && g <= 255);
 });
-test('mix', () => assert.equal(mix('#000000', '#ffffff', 0.5), '#808080'));
 test('strip removes every escape sequence and control char but keeps newlines', () => {
   assert.equal(strip('\x1b]0;x\x07hi'), 'hi');
   assert.equal(strip('\x1b]0;x\x1b\\hi'), 'hi');

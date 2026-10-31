@@ -1,7 +1,7 @@
 import './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULTS, LAYOUT_IDS, PRESET_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, decodeLink, CUSTOMIZER_URL } from '../src/schema.js';
+import { DEFAULTS, LAYOUT_IDS, PRESET_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink, CUSTOMIZER_URL } from '../src/schema.js';
 
 const A = { plentyLeft: '#11AA22', goingFast: '#223344', almostEmpty: '#abcdef', accent: '#000000' };
 const custom = { dark: A, light: { ...A, accent: '#ffffff' } };
@@ -123,7 +123,10 @@ test('applySet colours', () => {
 });
 
 test('toCommand', () => {
-  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget cost=auto colors=claude ends=auto terminal=auto refills=always fable=auto');
+  // terminal and fable stay out while auto: the customizer can't set them, so pasting must not undo the person's choice.
+  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget cost=auto colors=claude ends=auto refills=always');
+  const mine = applySet({ ...DEFAULTS, fable: 'on', terminal: 'light' }, toCommand(DEFAULTS).split(' ').slice(2)).settings;
+  assert.deepEqual([mine.fable, mine.terminal], ['on', 'light']);
 });
 
 test('toCommand round-trips through applySet, custom colours too', () => {
@@ -138,17 +141,17 @@ test('links', () => {
   const p = encodeLink(s);
   assert.match(p, /^[A-Za-z0-9_-]+$/);
   const want = { ...s, badges: [] };
-  assert.deepEqual(decodeLink(p), want);
-  assert.deepEqual(decodeLink('#c=' + p), want);
-  assert.deepEqual(decodeLink('###'), DEFAULTS);
-  assert.deepEqual(decodeLink(''), DEFAULTS);
-  assert.deepEqual(decodeLink(undefined), DEFAULTS);
-  assert.deepEqual(decodeLink(encodeLink({ ...DEFAULTS, show: ['model', 'ünï'] })).show, ['model']);
+  assert.deepEqual(parseLink(p), want);
+  assert.deepEqual(parseLink('#c=' + p), want);
+  for (const bad of ['###', '', undefined]) assert.throws(() => parseLink(bad), String(bad));
+  assert.deepEqual(parseLink(encodeLink({ ...DEFAULTS, show: ['model', 'ünï'] })).show, ['model']);
 });
 
-test('links never carry badges even if hand-built', () => {
+test('links never carry badges: not in what juice writes, and not taken from a hand-built one', () => {
+  const raw = JSON.parse(atob(encodeLink({ ...DEFAULTS, badges: [{ command: 'echo secret' }] }).replace(/-/g, '+').replace(/_/g, '/')));
+  assert.equal('badges' in raw, false, 'the shared URL itself holds no badge commands');
   const evil = btoa(JSON.stringify({ badges: [{ command: 'rm -rf /' }] })).replace(/=+$/, '');
-  assert.deepEqual(decodeLink(evil).badges, []);
+  assert.deepEqual(parseLink(evil).badges, []);
 });
 
 test('applySet ignores prototype names and bare words without throwing', () => {

@@ -7,9 +7,9 @@ const rgbOf = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 2
 export const fg = (h, s) => `${E}38;2;${rgbOf(h).join(';')}m${s}${E}39m`;
 export const bg = (h, s) => `${E}48;2;${rgbOf(h).join(';')}m${s}${E}49m`;
 export const bold = (s) => `${E}1m${s}${E}22m`;
-export const mix = (a, c, t) => '#' + rgbOf(a).map((v, i) => Math.round(v + (rgbOf(c)[i] - v) * t).toString(16).padStart(2, '0')).join('');
-// Removes every escape sequence (CSI, OSC ending in BEL or ESC \, other ESC x) and control characters except \n.
-const ESCAPES = /\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\|$)|\x1b[^[\]]?|[\x00-\x09\x0b-\x1f\x7f]/g;
+// Every escape sequence (CSI, OSC ending in BEL or ESC \, other ESC x) and control character except \n,
+// including C1 controls (\x80-\x9f), which some terminals treat as escapes and git allows in branch names.
+export const ESCAPES = /\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\|$)|\x1b[^[\]]?|[\x00-\x09\x0b-\x1f\x7f-\x9f]/g;
 export const strip = (s) => s.replace(ESCAPES, '');
 
 const width = (ch) => (ch === '️' ? 0 : WIDE.test(ch) ? 2 : 1);

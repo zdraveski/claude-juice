@@ -6,7 +6,7 @@ import { render } from '../src/render/index.js';
 import { LAYOUTS } from '../src/render/layouts.js';
 import { DEFAULTS, LAYOUT_IDS } from '../src/schema.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
-import { fg } from '../src/render/ansi.js';
+import { fg, contrast } from '../src/render/ansi.js';
 import { palette, NEUTRAL } from '../src/render/palette.js';
 
 const term = { columns: 200, theme: 'dark', ends: 'round', colorDepth: 'truecolor' };
@@ -104,9 +104,14 @@ test('model names', () => {
 test('LAYOUTS keys match LAYOUT_IDS', () => assert.deepEqual(Object.keys(LAYOUTS), [...LAYOUT_IDS]));
 test('256 colour output has no truecolor escapes', () => assert.ok(!/38;2;/.test(run(SAMPLES.busy, {}, { colorDepth: '256' }))));
 test('unknown layout falls back to bar', () => assert.equal(run(SAMPLES.busy, { layout: 'nope' }), run(SAMPLES.busy)));
+test('grey labels and countdowns are readable (WCAG AA, 4.5:1) on both default backgrounds', () => {
+  for (const t of ['dark', 'light']) assert.ok(contrast(NEUTRAL[t].mute, NEUTRAL[t].bg) >= 4.5, t);
+});
+
 test('gateway shows Budget', () => {
   const d = { ...SAMPLES.busy, account: 'gateway', limits: { budget: { used: 20, resetsAt: null, windowSec: null } } };
   assert.ok(text(d).includes('Budget'));
+  assert.ok(!text({ ...d, account: 'subscriber' }).includes('Budget'), 'Budget is for gateway accounts only');
 });
 test('fit flags hide things', async () => {
   const { makeCtx } = await import('../src/render/palette.js');

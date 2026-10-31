@@ -11,7 +11,7 @@ const money = (n) => `$${n.toFixed(2)}`;
 
 const badges = (data, ctx) => (ctx.fit.badges ? '' : data.badges.filter(Boolean).map((b) => fg(ctx.P.sub, b)).join(' '));
 
-export function head(data, ctx, word = true) {
+function head(data, ctx, word = true) {
   const { P, settings, fit } = ctx, show = settings.show;
   const model = show.includes('model') && !fit.noModel && data.model
     ? fg(P.accent, '◆') + ' ' + fg(P.text, data.model.name) : '';
@@ -20,14 +20,14 @@ export function head(data, ctx, word = true) {
   return join([model, effort], '  ');
 }
 
-export const costShown = (data, ctx) => !ctx.fit.noCost && data.costUsd !== null
+const costShown = (data, ctx) => !ctx.fit.noCost && data.costUsd !== null
   && (ctx.settings.cost === 'on' || (ctx.settings.cost === 'auto' && data.account === 'payg'));
 
 // On an API key the cost is real money; on Pro/Max it is only what the chat would have cost.
-export const cost = (data, ctx) => (!costShown(data, ctx) ? ''
+const cost = (data, ctx) => (!costShown(data, ctx) ? ''
   : data.account === 'payg' ? lbl(ctx, 'spent ') + fg(ctx.P.text, money(data.costUsd)) : lbl(ctx, `${money(data.costUsd)} value`));
 
-export function items(data, ctx) {
+function items(data, ctx) {
   const { settings, fit } = ctx, squeezed = !!fit.shortWords;
   const make = {
     memory: () => {
@@ -57,10 +57,12 @@ export function items(data, ctx) {
 
 // The limit for the model in use stands out.
 const name = (ctx, i, long) => (i.hot ? fg(ctx.P.accent, long ? i.long : i.short) : lbl(ctx, long ? i.long : i.short));
-const wants = (ctx, i) => !i.sameReset && (i.level !== 'ok' || ((ctx.fit.noRefills ? 'warnings' : ctx.settings.refills) === 'always' && !!i.assessed));
+// A battery that shares its reset with one on screen still says when it runs out, just not the repeated countdown.
+const wants = (ctx, i) => (!i.sameReset || !!i.assessed?.outAt)
+  && (i.level !== 'ok' || ((ctx.fit.noRefills ? 'warnings' : ctx.settings.refills) === 'always' && !!i.assessed));
 function say(ctx, i) {
   const n = i.assessed
-    ? limitNote(i.assessed, ctx.now, { squeezed: !!ctx.fit.shortWords }) : i.note;
+    ? limitNote(i.assessed, ctx.now, { squeezed: !!ctx.fit.shortWords, noReset: !!i.sameReset }) : i.note;
   return n && n.text ? fg(ctx.P[n.tone], n.text) : '';
 }
 const withSay = (ctx, i, sep) => (wants(ctx, i) && say(ctx, i) ? sep + say(ctx, i) : '');
@@ -83,7 +85,8 @@ export const LAYOUTS = {
   focus: (data, ctx) => {
     const rank = { crit: 2, warn: 1, ok: 0 }, it = items(data, ctx).sort((a, b) => rank[b.level] - rank[a.level] || b.used - a.used);
     if (!it.length) return join([badges(data, ctx), head(data, ctx), cost(data, ctx)]);
-    const [big, ...rest] = it, bigNote = say(ctx, big), t = ctx.fit.tight;
+    // Focus shows the others without countdowns, so the big one keeps its own even when it shares a reset.
+    const [shown, ...rest] = it, big = { ...shown, sameReset: false }, bigNote = wants(ctx, big) ? say(ctx, big) : '', t = ctx.fit.tight;
     return join([badges(data, ctx), head(data, ctx, false),
       name(ctx, big, true) + ' ' + battery(ctx, big.used, paint(big), ctx.fit.small ? 6 : 12, big.assessed?.elapsed) + ' ' + num(ctx, bold(`${big.used}% used`), big.level) + spaced(ctx, big) + (bigNote ? lbl(ctx, ' · ') + bigNote : ''),
       rest.map((i) => name(ctx, i) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i)).join(lbl(ctx, t ? ' · ' : '  ·  ')), cost(data, ctx)],

@@ -1,6 +1,6 @@
 // The customizer page. All drawing of the status line is done by ../src/render; this file only builds controls and converts its ANSI to HTML.
 import { render } from '../src/render/index.js';
-import { DEFAULTS, SHOW_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../src/schema.js';
+import { LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../src/schema.js';
 import { PRESETS, NEUTRAL } from '../src/render/palette.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 import { contrast } from '../src/render/ansi.js';
@@ -25,7 +25,8 @@ const SHOW = {
 };
 const NOT_ON = { session: { payg: 'API keys have no session limit' }, week: { payg: 'API keys have no weekly limit' }, fable: { payg: 'API keys have no Fable limit', pro: 'Only Max plans have this limit' } };
 const DETAILS = [
-  ['ends', 'Battery ends', 'Rounded needs a terminal that can draw them. Plain works everywhere', [['auto', 'Automatic'], ['round', 'Rounded'], ['plain', 'Plain']]],
+  // The preview shows Automatic as rounded, so say plainly where it really is rounded.
+  ['ends', 'Battery ends', 'Automatic is rounded in VS Code and plain in other terminals. Rounded needs a terminal that can draw them. Plain works everywhere', [['auto', 'Automatic'], ['round', 'Rounded'], ['plain', 'Plain']]],
   ['refills', 'Reset times', 'Always show them, or only when something needs attention', [['always', 'Always'], ['warnings', 'Only when needed']]],
 ];
 

@@ -139,11 +139,11 @@ test('refreshFable with no token and no old cache backs off, never throws', asyn
 
 test('fableCacheState', () => {
   const c = (ageMin, extra = {}) => ({ used: 1, resetsAt: 'x', fetchedAt: NOW - ageMin * 60000, ...extra });
-  assert.deepEqual(fableCacheState(c(4), NOW), { stale: false, usable: true });
-  assert.deepEqual(fableCacheState(c(6), NOW), { stale: true, usable: true });
-  assert.equal(fableCacheState(c(61), NOW).usable, false);
-  assert.deepEqual(fableCacheState(c(6, { backoffUntil: NOW + 1 }), NOW), { stale: false, usable: true });
-  assert.deepEqual(fableCacheState(null, NOW), { stale: true, usable: false });
+  assert.deepEqual(fableCacheState(c(4), NOW), { stale: false });
+  assert.deepEqual(fableCacheState(c(6), NOW), { stale: true });
+  assert.deepEqual(fableCacheState(c(6, { backoffUntil: NOW + 1 }), NOW), { stale: false });
+  assert.deepEqual(fableCacheState(c(6, { backoffUntil: NOW + 10 * 3600000 }), NOW), { stale: true }, 'a pause stamped hours ahead (clock was ahead) is ignored');
+  assert.deepEqual(fableCacheState(null, NOW), { stale: true });
 });
 
 test('refreshFable accepts a Date for now and writes numbers', async () => {
@@ -152,7 +152,7 @@ test('refreshFable accepts a Date for now and writes numbers', async () => {
   await refreshFable({ ...args, fetchImpl: okFetch() });
   const c = readJson(cacheFile(p));
   assert.equal(c.fetchedAt, NOW);
-  assert.deepEqual(fableCacheState(c, NOW_DATE), { stale: false, usable: true });
+  assert.deepEqual(fableCacheState(c, NOW_DATE), { stale: false });
   await refreshFable({ ...args, fetchImpl: async () => ({ ok: false }) });
   const b = readJson(cacheFile(p));
   assert.equal(b.backoffUntil, NOW + 900000);
