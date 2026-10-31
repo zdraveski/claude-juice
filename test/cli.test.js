@@ -94,6 +94,30 @@ test('restore removes statusLine when there was none; setup with no settings.jso
   assert.equal('statusLine' in json(join(d, 'settings.json')), false);
 });
 
+test('restore with no saved copy removes juice instead of leaving people stuck', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ theme: 'dark', statusLine: { type: 'command', command: 'node "/elsewhere/juice-statusline.mjs"' } }));
+  const r = await run(d, ['restore']);
+  assert.equal(r.code, 0);
+  assert.match(r.out, /No earlier status line was saved/);
+  assert.deepEqual(json(join(d, 'settings.json')), { theme: 'dark' });
+});
+
+test('setup knows its own line under another spelling of the folder, and never saves juice as the old line', async () => {
+  const d = env();
+  const juiceElsewhere = { type: 'command', command: `node "${d.replaceAll('\\', '/').toUpperCase()}/juice-statusline.mjs"`, refreshInterval: 60 };
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ statusLine: juiceElsewhere }));
+  const r = await run(d, ['setup']);
+  assert.equal(r.code, 0, 'no "your status line has changed" question');
+  assert.match(r.out, /already your status line/);
+  assert.equal(existsSync(join(d, 'juice-backup.json')), false);
+  // A backup an older juice wrote with its own line in it is never "restored".
+  writeFileSync(join(d, 'juice-backup.json'), JSON.stringify({ statusLine: juiceElsewhere }));
+  await run(d, ['restore']);
+  assert.equal('statusLine' in json(join(d, 'settings.json')), false);
+  assert.equal(existsSync(join(d, 'juice-backup.json')), false);
+});
+
 test('invalid settings.json aborts and stays byte-identical', async () => {
   const d = env();
   const f = join(d, 'settings.json');
@@ -133,8 +157,35 @@ test('badges add needs --yes, then add/list/remove', async () => {
   assert.equal(existsSync(join(d, 'juice.json')), false);
   assert.equal((await run(d, ['badges', 'add', 'rtk gain', '--yes'])).code, 0);
   assert.match((await run(d, ['badges', 'list'])).out, /1\. rtk gain/);
-  assert.equal((await run(d, ['badges', 'remove', '1'])).code, 0);
-  assert.equal((await run(d, ['badges', 'remove', '1'])).code, 1);
+  const ask = await run(d, ['badges', 'remove', '1']);
+  assert.equal(ask.code, 2);
+  assert.match(ask.out, /This would remove badge 1: rtk gain/);
+  assert.match((await run(d, ['badges', 'list'])).out, /1\. rtk gain/, 'asking removed nothing');
+  assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 0);
+  assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 1);
+});
+
+test('the /juice flow for removing one of two badges removes only that one', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'echo A', '--yes']);
+  await run(d, ['badges', 'add', 'echo B', '--yes']);
+  await run(d, ['badges', 'remove', '1']); // first run: shows what it would do
+  await run(d, ['badges', 'remove', '1', '--yes']); // re-run after the user agrees
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. echo B');
+});
+
+test('an unreadable juice.json is never overwritten with defaults', async () => {
+  const d = env();
+  const f = join(d, 'juice.json');
+  writeFileSync(f, '{ "layout": "panel", oops');
+  const r = await run(d, ['set', 'cost=on']);
+  assert.equal(r.code, 1);
+  assert.match(r.err, /can't be read, so juice changed nothing/);
+  assert.equal(readFileSync(f, 'utf8'), '{ "layout": "panel", oops');
+  assert.equal((await run(d, ['badges', 'add', 'x', '--yes'])).code, 1);
+  writeFileSync(f, '﻿' + JSON.stringify({ layout: 'panel', badges: [{ command: 'x' }] }));
+  assert.equal((await run(d, ['set', 'cost=on'])).code, 0, 'a BOM is fine');
+  assert.deepEqual([json(f).layout, json(f).badges.length, json(f).cost], ['panel', 1, 'on']);
 });
 
 test('customize prints and opens the link', async () => {

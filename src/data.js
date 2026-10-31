@@ -53,12 +53,10 @@ export function normalize(stdin, extras, now) {
     const week = newest(fresh.week || limit(obj(seen.sevenDay).used, obj(seen.sevenDay).resetsAt, 604800), fromApi(f.week, 604800));
     if (session) limits.session = session;
     if (week) limits.week = week;
+    const fableLimit = live ? limit(f.used, f.resetsAt, 604800) : undefined;
+    if (fableLimit) limits.fable = fableLimit;
   }
   if (budget) limits.budget = budget;
-  if (live) {
-    const l = limit(f.used, f.resetsAt, 604800);
-    if (l) limits.fable = l;
-  }
 
   let memoryUsed = pct(cw.used_percentage);
   const u = obj(cw.current_usage), size = num(cw.context_window_size);

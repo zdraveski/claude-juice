@@ -9,4 +9,10 @@ export function loadSettings(p) {
   return r;
 }
 
-export const saveSettings = (p, settings) => writeJsonAtomic(p.settingsFile, settings);
+// Saving over a file we couldn't read would replace the person's settings and badges with defaults.
+export function saveSettings(p, settings) {
+  if (existsSync(p.settingsFile) && readJson(p.settingsFile) === null) {
+    throw new Error(`Your juice settings file (${p.settingsFile}) can't be read, so juice changed nothing. Fix or delete that file and try again.`);
+  }
+  writeJsonAtomic(p.settingsFile, settings);
+}

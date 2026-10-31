@@ -71,5 +71,8 @@ test('launcher picks the highest version, or the pinned one', async () => {
   const other = mk('plugins', 'cache', 'someone-else', 'juice', '9.0.0');
   assert.equal(resolveTarget(dir, null), other); // without a marketplace, any juice can win
   assert.equal(resolveTarget(dir, null, 'm'), hi); // with one, only its own copy runs
+  const gone = mk('plugins', 'cache', 'm', 'juice', '2.0.0');
+  writeFileSync(join(gone, '..', '..', '.orphaned_at'), '1');
+  assert.equal(resolveTarget(dir, null, 'm'), hi, 'a version Claude Code marked as replaced or uninstalled never runs');
   assert.ok(pathToFileURL(hi).href);
 });

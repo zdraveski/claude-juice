@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { runStatusLine } from '../src/statusline.js';
 
 const juice = fileURLToPath(new URL('./juice.js', import.meta.url));
-const spawnDetached = (args) => spawn(process.execPath, [juice, ...args], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+const spawnDetached = (args) => spawn(process.execPath, [juice, ...args], { detached: true, stdio: 'ignore', windowsHide: true }).on('error', () => {}).unref();
 
 let out = '';
 try {

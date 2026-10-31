@@ -18,7 +18,8 @@ export function resolveTarget(configDir, pinned = PINNED, market = MARKET) {
   const found = [];
   for (const m of market ? [market] : dirs(cache)) for (const v of dirs(join(cache, m, 'juice'))) {
     const f = join(cache, m, 'juice', v, ...TARGET);
-    if (existsSync(f)) found.push({ v, f });
+    // Claude Code keeps replaced and uninstalled versions for a while and marks them, so they must not run.
+    if (existsSync(f) && !existsSync(join(cache, m, 'juice', v, '.orphaned_at'))) found.push({ v, f });
   }
   return found.sort((a, b) => newer(b.v, a.v))[0]?.f ?? null;
 }

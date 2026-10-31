@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readdirSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readdirSync, mkdirSync, statSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -17,6 +17,19 @@ test('paths follow CLAUDE_CONFIG_DIR', () => {
   assert.equal(p.settingsFile, join('/c', 'juice.json'));
   assert.equal(p.cacheDir, join('/c', 'juice-cache'));
   assert.equal(p.claudeSettings, join('/c', 'settings.json'));
+});
+
+test('a BOM at the start of a JSON file is fine', () => {
+  const f = join(tmp(), 'bom.json');
+  writeFileSync(f, '﻿{"a":1}');
+  assert.deepEqual(readJson(f), { a: 1 });
+});
+
+test('rewriting a file keeps its permissions (a private settings.json stays private)', { skip: process.platform === 'win32' && 'Windows has no owner-only file mode' }, () => {
+  const f = join(tmp(), 'settings.json');
+  writeFileSync(f, '{}', { mode: 0o600 });
+  writeJsonAtomic(f, { env: { KEY: 'secret' } });
+  assert.equal(statSync(f).mode & 0o777, 0o600);
 });
 
 test('round trip, and bad files read as null', () => {
@@ -74,6 +87,8 @@ test('loadSettings: missing -> fresh defaults, corrupt -> warning, save round tr
   const c = loadSettings(p);
   assert.deepEqual(c.settings, DEFAULTS);
   assert.equal(c.warnings.length, 1);
+  assert.throws(() => saveSettings(p, { ...DEFAULTS, layout: 'panel' }), /can't be read/, 'never saves defaults over a file it could not read');
+  unlinkSync(p.settingsFile);
   saveSettings(p, { ...DEFAULTS, layout: 'panel' });
   assert.equal(loadSettings(p).settings.layout, 'panel');
 });

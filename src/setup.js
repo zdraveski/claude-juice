@@ -12,6 +12,9 @@ const REFRESH_SECONDS = 60;
 // A symlinked settings.json must stay a symlink, so write to what it points at.
 const writeSettings = (p, v) => writeJsonAtomic(existsSync(p.claudeSettings) ? realpathSync(p.claudeSettings) : p.claudeSettings, v);
 
+// By file name, not the exact path: the same folder can be spelled C:\ or c:\, or reached through a link.
+const isJuice = (statusLine) => typeof statusLine?.command === 'string' && /juice-statusline\.mjs"?\s*$/.test(statusLine.command);
+
 export class NeedsConfirm extends Error {}
 
 // Missing file counts as {}; anything unparseable or not an object aborts before we write anything.
@@ -29,7 +32,7 @@ function readClaudeSettings(p) {
 export function install(p, { pluginRoot, inPluginCache, yes = false }) {
   const settings = readClaudeSettings(p);
   const command = `node "${fwd(p.launcherFile)}"`;
-  const ours = settings.statusLine?.command === command;
+  const ours = isJuice(settings.statusLine);
   const lines = [];
 
   const old = ours ? null : readJson(p.backupFile);
@@ -66,15 +69,19 @@ export function install(p, { pluginRoot, inPluginCache, yes = false }) {
   return lines;
 }
 
+// Always leaves a way out: with no saved copy, juice is simply removed.
 export function restore(p) {
-  const backup = readJson(p.backupFile);
-  if (!backup || !('statusLine' in backup)) return ['There is no saved status line, so there is nothing to restore. Nothing changed.'];
   const { statusLine, ...rest } = readClaudeSettings(p);
-  if (statusLine && statusLine.command !== `node "${fwd(p.launcherFile)}"`) return ["juice isn't your status line right now, so there is nothing to undo. Nothing changed."];
-  writeSettings(p, backup.statusLine === null ? rest : { ...rest, statusLine: backup.statusLine });
-  unlinkSync(p.backupFile);
-  return [backup.statusLine === null
-    ? 'Removed juice. You had no status line before, so none is set now.'
-    : 'Your old status line is back.',
+  if (statusLine && !isJuice(statusLine)) return ["juice isn't your status line right now, so there is nothing to undo. Nothing changed."];
+  const backup = readJson(p.backupFile);
+  const saved = !!backup && 'statusLine' in backup;
+  if (!saved && !statusLine) return ['There is no saved status line, so there is nothing to restore. Nothing changed.'];
+  // An older juice could save its own line as "the old one"; putting that back would undo nothing.
+  const old = saved && !isJuice(backup.statusLine) ? backup.statusLine ?? null : null;
+  writeSettings(p, old === null ? rest : { ...rest, statusLine: old });
+  if (saved) unlinkSync(p.backupFile);
+  return [old !== null ? 'Your old status line is back.'
+    : saved && backup.statusLine === null ? 'Removed juice. You had no status line before, so none is set now.'
+    : 'Removed juice. No earlier status line was saved, so none is set now.',
   'To use juice again, run /juice setup.'];
 }

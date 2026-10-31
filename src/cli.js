@@ -65,8 +65,12 @@ export async function main(argv, io) {
           return 0;
         }
         if (sub === 'remove') {
-          if (!removeBadge(p, Number(rest[0]))) { io.err('No badge with that number. Run badges list to see them.'); return 1; }
-          io.out('Removed.');
+          const n = Number(rest.find((a) => a !== '--yes'));
+          const command = listBadges(p)[n - 1];
+          if (!Number.isInteger(n) || command === undefined) { io.err('No badge with that number. Run badges list to see them.'); return 1; }
+          if (!rest.includes('--yes')) { io.out(`This would remove badge ${n}: ${command}`); io.out('Run again with --yes to remove it.'); return 2; }
+          removeBadge(p, n);
+          io.out(`Removed badge: ${command}`);
           return 0;
         }
         io.err(USAGE); return 1;

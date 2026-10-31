@@ -1,8 +1,9 @@
-import { readFileSync, writeFileSync, renameSync, mkdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, mkdirSync, unlinkSync, statSync, chmodSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+// Notepad and PowerShell 5.1 start files with a BOM, which JSON.parse rejects.
 export function readJson(file) {
-  try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
+  try { return JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, '')); } catch { return null; }
 }
 
 const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -13,6 +14,8 @@ export function writeJsonAtomic(file, value, { maxWaitMs = 2500 } = {}) {
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
   writeFileSync(tmp, JSON.stringify(value, null, 2));
+  // Keep the old file's permissions: settings.json can hold API keys and be readable by its owner only.
+  if (process.platform !== 'win32') { try { chmodSync(tmp, statSync(file).mode & 0o777); } catch {} }
   const start = Date.now();
   for (;;) {
     try { return renameSync(tmp, file); } catch (e) {

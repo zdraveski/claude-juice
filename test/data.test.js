@@ -117,6 +117,12 @@ test('live usage never makes an API-key user a subscriber, and readings over an 
   assert.equal(normalize(fixture('busy'), { fable: old }, NOW).limits.session.used, 47);
 });
 
+test('API-key and gateway users never get a Fable battery, even with a fresh Fable reading', () => {
+  const fable = { used: 41, resetsAt: new Date(NOW.getTime() + 86400000).toISOString(), fetchedAt: NOW.getTime() - 60000 };
+  for (const name of ['payg', 'gateway']) assert.equal(normalize(fixture(name), { fable }, NOW).limits.fable, undefined, name);
+  assert.equal(normalize(fixture('busy'), { fable }, NOW).limits.fable.used, 41, 'subscribers still get it');
+});
+
 test('model name is stripped; fable detected by id then name', () => {
   const s = fixture('busy');
   s.model.display_name = '\x1b[31mOpus\x1b[0m';
