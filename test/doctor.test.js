@@ -189,8 +189,8 @@ test('doctor: Fable off, failing, and checked', () => {
   // Behind a company proxy the advice depends on whether this Node can use it.
   const behindProxy = check(d, { env: { HTTPS_PROXY: 'http://proxy:8080' } });
   const [maj, min] = process.versions.node.split('.').map(Number);
-  const nodeCan = maj > 24 || (maj === 24 && min >= 5) || (maj === 22 && min >= 21);
-  assert.match(behindProxy, nodeCan ? /type \/login/ : /company proxy, which juice can only get through with Node 22\.21 or newer, or 24\.5 or newer/);
+  const nodeCan = maj >= 24 || (maj === 22 && min >= 21);
+  assert.match(behindProxy, nodeCan ? /type \/login/ : /company proxy, which juice can only get through with Node 24 or newer, or 22\.21 or newer on Node 22/);
   // Stamped by a clock that was ahead: juice ignores these, and so does the doctor.
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 30 * 86400000 }));
   assert.doesNotMatch(check(d), /last check failed/);

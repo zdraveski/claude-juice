@@ -2,13 +2,13 @@
 
 Newest first. To update, type `/plugin`, update juice, then restart Claude Code.
 
-## 1.0.2
+## 1.0.2 (2026-10-31)
 
 - In a narrow window a red battery never disappears: its "out ~2:44 PM" words go first. In the Everything look, red rows keep their numbers.
 - 99.5% to 99.9% shows as 99%, not as a used-up 100%.
 - `/juice set` and badges change only what you asked for: a setting from a newer juice, still open in another window, is kept.
 - A status line set up by juice before 0.2.1 is brought up to date on its own (the old one could run another plugin named juice).
-- Behind a company proxy, the Fable battery works with Node 22.21 or newer (24.5 or newer on Node 24), and `/juice doctor` says so.
+- Behind a company proxy, the Fable battery works with Node 24 or newer (22.21 or newer on Node 22), and `/juice doctor` says so.
 - `/juice doctor` names a project's settings file from where you are, so it never shows the folders above it.
 - Setup handles an empty settings file, a Claude folder given as a relative path, and says plainly what it changed.
 - The launcher never mistakes a folder Claude Code named by code version for a newer juice.

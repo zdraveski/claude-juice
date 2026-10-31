@@ -106,11 +106,11 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   } else {
     const f = readJson(p.fableFile);
     if (fableCacheState(f, t).backedOff) {
-      // Behind a company proxy (HTTPS_PROXY), Node's fetch reaches Anthropic only from 22.21 and 24.5 on.
+      // Behind a company proxy (HTTPS_PROXY), Node's fetch reaches Anthropic only from 22.21 and 24.0 on.
       const [maj, min] = node.split('.').map(Number);
-      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && !(maj > 24 || (maj === 24 && min >= 5) || (maj === 22 && min >= 21));
+      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && !(maj >= 24 || (maj === 22 && min >= 21));
       out.push(bad(`Fable battery: the last check failed; juice tries again in ${Math.ceil((f.backoffUntil - t) / 60000)} min. ${proxyBlocks
-        ? `You're behind a company proxy, which juice can only get through with Node 22.21 or newer, or 24.5 or newer (this is ${node}): install the newest from nodejs.org.`
+        ? `You're behind a company proxy, which juice can only get through with Node 24 or newer, or 22.21 or newer on Node 22 (this is ${node}): install the newest from nodejs.org.`
         : 'If it keeps failing, type /login to sign in to Claude Code again.'}`));
     } else out.push(info(fetchedCounts(f?.fetchedAt, now) ? `Fable battery: last checked ${ago(t - f.fetchedAt)}`
       : f?.fetchedAt ? 'Fable battery: not checked in the last hour; juice asks again soon.'

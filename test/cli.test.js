@@ -419,6 +419,10 @@ test('set and badges keep settings and values this version doesn\'t know', async
   await run(d, ['badges', 'add', 'echo hi', '--yes']);
   const saved = json(join(d, 'juice.json'));
   assert.deepEqual([saved.layout, saved.future, saved.cost, saved.badges.length], ['pills', [1, 2], 'off', 1]);
+  // Choosing the setting again replaces the value, and the warning about it goes with it.
+  const fixed = await run(d, ['set', 'layout=bar']);
+  assert.match(fixed.out, /Changed: layout/);
+  assert.doesNotMatch(fixed.out, /Warning: layout/);
 });
 
 test('set, get, and bad set', async () => {

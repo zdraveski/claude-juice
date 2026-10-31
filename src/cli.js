@@ -35,7 +35,8 @@ export async function main(argv, io) {
         const changed = write.filter((k) => !same(loaded.settings[k], settings[k]) || Object.hasOwn(file, k));
         if (write.length) saveSettings(p, Object.fromEntries(write.map((k) => [k, settings[k]])));
         io.out(changed.length ? `Changed: ${changed.join(', ')}` : 'Nothing changed.');
-        [...loaded.warnings, ...warnings].forEach((w) => io.out(`Warning: ${w}`));
+        // The file's warnings were read before this write: drop the ones about values just replaced.
+        [...loaded.warnings.filter((w) => !write.some((k) => w.startsWith(`${k}:`))), ...warnings].forEach((w) => io.out(`Warning: ${w}`));
         if (!settings.show.length) io.out(`Warning: ${NOTHING_SHOWN}`);
         return 0;
       }
