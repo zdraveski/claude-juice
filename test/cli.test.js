@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, statSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { main } from '../src/cli.js';
+import { isJuice } from '../src/setup.js';
 import { CUSTOMIZER_URL, LOOKS } from '../src/schema.js';
 
 function env(sub = '.claude') {
@@ -132,6 +133,16 @@ test('a wrapper that merely mentions juice-statusline.mjs is the person\'s own l
   assert.deepEqual(json(join(d, 'settings.json')).statusLine, mine);
 });
 
+test('only Node running juice-statusline.mjs and nothing else counts as juice\'s line', () => {
+  const launcher = '"/h/.claude/juice-statusline.mjs"';
+  for (const own of [`node ${launcher} | tee log`, `node ${launcher}; echo done`, `node ${launcher} && x`, `python ${launcher}`, `echo ${launcher}`]) {
+    assert.equal(isJuice({ command: own }), false, own);
+  }
+  for (const ours of [`node ${launcher}`, `PATH="/opt/bin:$PATH" node ${launcher}`, `"C:/Program Files/nodejs/node.exe" ${launcher}`, `/usr/bin/nodejs ${launcher}`]) {
+    assert.equal(isJuice({ command: ours }), true, ours);
+  }
+});
+
 test('a juice line pointing at another machine\'s folder is repaired, keeping its other fields', async () => {
   const d = env();
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'node "/Users/someoneelse/.claude/juice-statusline.mjs"', padding: 1, refreshInterval: 30 } }));
@@ -244,6 +255,33 @@ test('restore with a damaged saved copy says so, keeps the file, and removes the
   assert.equal('statusLine' in json(join(d, 'settings.json')), false);
 });
 
+test('a read-only settings file gets plain words, not a raw EPERM with the path in it', async (t) => {
+  const d = env(), f = join(d, 'settings.json');
+  writeFileSync(f, JSON.stringify(OLD));
+  // Windows refuses to replace a read-only file; elsewhere the file's own mode doesn't stop a rename, a locked folder does.
+  const lock = (on) => (process.platform === 'win32' ? chmodSync(f, on ? 0o444 : 0o644) : chmodSync(d, on ? 0o555 : 0o755));
+  lock(true);
+  try {
+    if (process.platform !== 'win32' && process.getuid?.() === 0) return t.skip('root can write anywhere');
+    const r = await run(d, ['setup']);
+    assert.equal(r.code, 1);
+    assert.match(r.err, /^juice couldn't save a file in your Claude folder because it is read-only\./);
+    assert.doesNotMatch(r.err, /EPERM|EACCES/);
+  } finally { lock(false); }
+  assert.deepEqual(json(f), OLD, 'left exactly as it was');
+});
+
+test('restore treats a saved copy that is valid JSON but not an object as damaged, never crashing', async () => {
+  for (const content of ['"x"', '5', 'true', 'null']) {
+    const d = env();
+    await run(d, ['setup']);
+    writeFileSync(join(d, 'juice-backup.json'), content);
+    const r = await run(d, ['restore']);
+    assert.equal(r.code, 0, `${content}: ${r.err}`);
+    assert.match(r.out, /Removed juice/, content);
+  }
+});
+
 test('a new backup is as private as settings.json', { skip: process.platform === 'win32' && 'Windows has no owner-only file mode' }, async () => {
   const d = env();
   writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD), { mode: 0o600 });
@@ -288,6 +326,11 @@ test('set, get, and bad set', async () => {
   assert.match(r.out, /Changed: layout/);
   assert.equal(json(join(d, 'juice.json')).layout, 'panel');
   assert.match((await run(d, ['get'])).out, /"layout": "panel"/);
+  // get runs before every /juice change, so it counts badges and never prints their commands (they can hold keys).
+  await run(d, ['badges', 'add', 'curl -H x-api-key:sk-ant-SECRET', '--yes']);
+  const got = (await run(d, ['get'])).out;
+  assert.match(got, /"badges": 1/);
+  assert.doesNotMatch(got, /sk-ant-SECRET|curl/);
   const bad = await run(d, ['set', 'badges=x']);
   assert.equal(bad.code, 1);
   assert.match(bad.err, /Badges can only be added with \/juice badges add/);
@@ -313,8 +356,8 @@ test('badges add needs --yes, then add/list/remove', async () => {
 test('set warns when nothing is left to show, instead of quietly leaving an empty line', async () => {
   const d = env();
   const r = await run(d, ['set', 'show=']);
-  assert.match(r.out, /status line will be empty/);
-  assert.doesNotMatch((await run(d, ['set', 'show=memory'])).out, /empty/);
+  assert.match(r.out, /Warning: Your juice settings choose nothing to show/);
+  assert.doesNotMatch((await run(d, ['set', 'show=memory'])).out, /nothing to show/);
 });
 
 test('a --yes inside the badge command belongs to the command; only a final --yes adds it', async () => {

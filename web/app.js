@@ -1,13 +1,12 @@
 // The customizer page. All drawing of the status line is done by ../src/render; this file only builds controls and converts its ANSI to HTML.
 import { render } from '../src/render/index.js';
 import { RESERVE } from '../src/render/fit.js';
-import { LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../src/schema.js';
+import { LOOKS, COLOR_KEYS as KEYS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../src/schema.js';
 import { PRESETS, NEUTRAL } from '../src/render/palette.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 import { contrast } from '../src/render/ansi.js';
 
 const BATTERIES = ['memory', 'session', 'fable', 'week'];
-const KEYS = ['plentyLeft', 'goingFast', 'almostEmpty', 'accent'];
 const COLOR_NAMES = ['Plenty left', 'Going fast', 'Almost empty', 'Accent'];
 const WIDTHS = { small: 80, medium: 120, wide: 400 };
 const LAYOUTS = {
@@ -115,16 +114,18 @@ function buildShow() {
     + `<div class="row"><span class="grip none"></span><div class="txt"><div class="t">Cost</div><div class="d">Auto shows it only on an API key, where you really pay it. On Pro and Max it's only what the chat would have cost.</div></div>${segHtml('cost', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], 'Cost')}</div>`;
 }
 $('looks').innerHTML = LOOKS.map((l) =>
-  `<button class="opt" type="button" data-look="${l.id}"><div class="thumb" data-lookthumb="${l.id}"></div><strong>${l.name}</strong><span>${l.note}</span></button>`).join('');
+  `<button class="opt" type="button" data-look="${l.id}"><div class="thumb" aria-hidden="true" data-lookthumb="${l.id}"></div><strong>${l.name}</strong><span>${l.note}</span></button>`).join('');
 $('layouts').innerHTML = Object.entries(LAYOUTS).map(([id, [name, note]]) =>
-  `<button class="opt" type="button" data-layout="${id}"><div class="thumb" data-thumb="${id}"></div><strong>${name}${id === 'bar' ? '<span class="badge">Default</span>' : ''}</strong><span>${note}</span></button>`).join('');
+  `<button class="opt" type="button" data-layout="${id}"><div class="thumb" aria-hidden="true" data-thumb="${id}"></div><strong>${name}${id === 'bar' ? '<span class="badge">Default</span>' : ''}</strong><span>${note}</span></button>`).join('');
 $('presets').innerHTML = Object.entries(PRESETS).map(([id, p]) =>
-  `<button class="opt preset" type="button" data-preset="${id}"><div class="chips" data-chips="${id}"></div><strong>${p.name}</strong><span>${p.note}</span></button>`).join('')
-  + `<button class="opt preset" type="button" data-preset="custom"><div class="chips" data-chips="custom"></div><strong>Your own</strong><span>Pick below</span></button>`;
+  `<button class="opt preset" type="button" data-preset="${id}"><div class="chips" aria-hidden="true" data-chips="${id}"></div><strong>${p.name}</strong><span>${p.note}</span></button>`).join('')
+  + `<button class="opt preset" type="button" data-preset="custom"><div class="chips" aria-hidden="true" data-chips="custom"></div><strong>Your own</strong><span>Pick below</span></button>`;
 $('custom').innerHTML = COLOR_NAMES.map((t, i) => `<label>${t}<input type="color" data-custom="${i}"><span class="ratio" data-ratio="${i}"></span></label>`).join('');
 $('details').innerHTML = DETAILS.map(([k, t, d, opts]) => `<div class="drow"><div><div class="t">${t}</div><div class="d">${d}</div></div>${segHtml(k, opts, t)}</div>`).join('');
 
 function update() {
+  // A chosen terminal colour wins, as in the real line (terminal.js): the preview's Dark/Light only stands in for Automatic.
+  if (s.terminal !== 'auto') view.term = s.terminal;
   const cols = WIDTHS[view.width], p = peek(view.hover);
   const { text, dropped } = drawn({ ...s, ...p?.set }, cols);
   $('out').innerHTML = ansiToHtml(text, NEUTRAL[view.term].fg);
@@ -163,9 +164,6 @@ function update() {
     el.textContent = r < 3 ? `Hard to read here (${r.toFixed(1)}:1)` : `Easy to read (${r.toFixed(1)}:1)`;
     el.classList.toggle('bad', r < 3);
   });
-  $('install1').textContent = '/plugin marketplace add zdraveski/claude-juice';
-  $('install2').textContent = '/plugin install juice@juice';
-  $('install3').textContent = '/juice setup';
   $('cmd').textContent = toCommand(s, { terminalChosen: !!view.terminalChosen });
   $('json').textContent = JSON.stringify(s, null, 2);
   history.replaceState(null, '', '#c=' + encodeLink(s));
@@ -229,6 +227,7 @@ $('show').addEventListener('dragstart', (e) => { const r = e.target.closest('[da
 $('show').addEventListener('dragover', (e) => { const r = e.target.closest('[data-bat]'); if (!r || !dragged) return; e.preventDefault(); document.querySelectorAll('.row.over').forEach((x) => x.classList.remove('over')); r.classList.add('over'); });
 $('show').addEventListener('drop', (e) => {
   const r = e.target.closest('[data-bat]'); if (!r || !dragged) return; e.preventDefault();
+  if (r.dataset.bat === dragged) return; // dropped where it was: nothing moves
   order = order.filter((k) => k !== dragged); order.splice(order.indexOf(r.dataset.bat), 0, dragged);
   dragged = null; reorder(); buildShow(); update();
 });

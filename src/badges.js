@@ -1,10 +1,10 @@
 // Badges: user-added shell commands whose first output line is shown before the batteries.
 import { spawn } from 'node:child_process';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { readdirSync, readFileSync, statSync, unlinkSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { cut, ESCAPES } from './render/ansi.js';
-import { readJson, writeJsonAtomic } from './cache.js';
+import { readJson, writeJsonAtomic, removeOld } from './cache.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { sanitize } from './schema.js';
 
@@ -113,16 +113,8 @@ export async function refreshBadges({ p, settings, key, stdinText, runImpl = run
 
 // Deletes only badge caches, badge locks and leftover temp files that nobody has touched for a week.
 function sweep(p) {
-  const old = (dir, ok) => {
-    try {
-      for (const f of readdirSync(dir)) {
-        if (!ok(f)) continue;
-        try { if (Date.now() - statSync(join(dir, f)).mtimeMs > KEEP_MS) unlinkSync(join(dir, f)); } catch {}
-      }
-    } catch {}
-  };
-  old(join(p.cacheDir, 'badges'), (f) => f.endsWith('.json'));
-  old(p.cacheDir, (f) => /^badges-.*\.lock$|\.tmp$/.test(f));
+  removeOld(join(p.cacheDir, 'badges'), (f) => f.endsWith('.json'), KEEP_MS);
+  removeOld(p.cacheDir, (f) => /^badges-.*\.lock$|\.tmp$/.test(f), KEEP_MS);
 }
 
 export function addBadge(p, command) {
@@ -141,7 +133,5 @@ export function unapprovedBadges(p) {
 
 export function removeBadge(p, n) {
   const { settings } = loadSettings(p);
-  if (!Number.isInteger(n) || n < 1 || n > settings.badges.length) return false;
   saveSettings(p, { ...settings, badges: settings.badges.filter((_, i) => i !== n - 1) });
-  return true;
 }

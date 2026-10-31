@@ -58,6 +58,13 @@ async function open(width = 1280) {
 const cmd = (page) => page.textContent('#cmd');
 const lines = (page) => page.locator('#out .ln').count();
 
+test('a screen reader hears each card by its name, not the whole preview drawn inside it', async () => {
+  const { page } = await open();
+  const name = await page.locator('[data-look=juice]').evaluate((b) => [...b.childNodes].filter((n) => !(n.getAttribute?.('aria-hidden') === 'true')).map((n) => n.textContent).join(' ').trim());
+  assert.match(name, /^Juice /);
+  assert.equal(await page.locator('.thumb:not([aria-hidden=true]), .chips:not([aria-hidden=true])').count(), 0);
+});
+
 test('loads with no errors: 12 looks, 4 layouts, 13 colour sets plus your own', async () => {
   const { page, errors } = await open();
   assert.equal(await page.locator('[data-look]').count(), 12);
@@ -118,6 +125,8 @@ test('dragging a battery row reorders it, and so do the arrow buttons', async ()
   const { page } = await open();
   const order = () => page.$$eval('[data-bat]', (rows) => rows.map((r) => r.dataset.bat));
   assert.deepEqual(await order(), ['memory', 'session', 'fable', 'week']);
+  await page.dragAndDrop('[data-bat=memory]', '[data-bat=memory]');
+  assert.deepEqual(await order(), ['memory', 'session', 'fable', 'week'], 'dropped onto itself: nothing moves');
   await page.dragAndDrop('[data-bat=week]', '[data-bat=memory]');
   assert.deepEqual(await order(), ['week', 'memory', 'session', 'fable']);
   assert.match(await cmd(page), /show=model,effort,week,memory,session,fable,budget /);
@@ -130,4 +139,9 @@ test('light terminal, and no sideways scrolling on a phone', async () => {
   await page.click('[data-view=term] [data-v=light]');
   assert.ok(await page.locator('#win.light').count());
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  // "My terminal is light" wins over the preview's Dark, as it does in the real line.
+  await page.click('[data-key=terminal][data-v=light]');
+  await page.click('[data-view=term] [data-v=dark]');
+  assert.ok(await page.locator('#win.light').count(), 'still light: the real line would be');
+  assert.equal(await page.getAttribute('[data-view=term] [data-v=light]', 'aria-pressed'), 'true');
 });

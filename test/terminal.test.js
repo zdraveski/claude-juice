@@ -132,6 +132,14 @@ test('a reading from a window that has already ended never replaces the current 
   assert.equal(recall(p).fiveHour.used, 5);
 });
 
+test('lastseen.json remembers only the 20 most recent chats, so it never grows without end', () => {
+  const p = tmpPaths();
+  for (let i = 1; i <= 25; i++) {
+    remember({ session_id: `s${i}`, rate_limits: { five_hour: { used_percentage: i, resets_at: R5 } } }, p, at(i));
+  }
+  assert.deepEqual(Object.keys(recall(p).sessions), Array.from({ length: 20 }, (_, i) => `s${i + 6}`));
+});
+
 test('remember returns what it saved, so the refresh that saw it already uses it', () => {
   const p = tmpPaths();
   assert.equal(remember(busy, p, NOW).fiveHour.used, 47);

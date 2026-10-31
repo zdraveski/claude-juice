@@ -7,7 +7,7 @@ its child, restore) on Windows, macOS and Linux with Node 18, 22 and 24 on every
 ## 1. Run here before every release
 
 - [ ] `node --test` passes, and GitHub's run for the release commit is green on all 9.
-- [ ] `node scripts/check-customizer.js` passes all eight browser checks (needs Playwright: `npm i -g playwright`).
+- [ ] `node scripts/check-customizer.js` passes every browser check (needs Playwright: `npm i -g playwright`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
 - [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json` (a test fails if they differ; Claude Code uses plugin.json's to find updates).
 - [ ] 0.3.0 only: delete `test/oracle/` and check 1 of `test/readings.property.test.js` (with its oracle imports): the readings rewrite is proven, and the frozen copy would otherwise ship in the plugin.

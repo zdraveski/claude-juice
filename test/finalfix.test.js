@@ -1,7 +1,7 @@
 import { fixture, strip, NOW, at } from './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, symlinkSync, lstatSync, utimesSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, symlinkSync, lstatSync, utimesSync, cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -42,6 +42,20 @@ test('installed launcher is a .mjs and runs end to end', () => {
   assert.equal(old.status, 0);
   assert.match(old.stdout, /Session/);
   assert.equal(old.stderr, '');
+});
+
+test('installed from the plugin store and turned off in /plugin, the launcher says so instead of drawing', () => {
+  const d = tmp();
+  const root = join(d, 'plugins', 'cache', 'mkt', 'juice', '1.2.3');
+  for (const f of ['bin', 'src', 'package.json']) cpSync(join(ROOT, f), join(root, f), { recursive: true });
+  const p = paths({ CLAUDE_CONFIG_DIR: d });
+  install(p, { pluginRoot: root.replaceAll('\\', '/') });
+  assert.match(node([p.launcherFile], d, busyText).stdout, /Session/, 'on: it draws');
+  const s = JSON.parse(readFileSync(join(d, 'settings.json'), 'utf8'));
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, enabledPlugins: { 'juice@mkt': false } }));
+  const off = node([p.launcherFile], d, busyText);
+  assert.match(off.stdout, /juice is turned off/);
+  assert.doesNotMatch(off.stdout, /Session/);
 });
 
 test('launcher works through a junction or symlink', (t) => {

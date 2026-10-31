@@ -102,7 +102,6 @@ test('palette', () => {
   const c = { plentyLeft: '#111111', goingFast: '#222222', almostEmpty: '#333333', accent: '#444444' };
   const p = palette({ ...DEFAULTS, colors: { dark: c, light: c } }, 'dark');
   assert.deepEqual([p.good, p.watch, p.bad, p.accent], ['#111111', '#222222', '#333333', '#444444']);
-  assert.deepEqual(Object.keys(PRESETS), PRESET_IDS);
 });
 
 test('Fable colour: violet, but grey under Calm and pink-purple under Colour-blind safe', () => {

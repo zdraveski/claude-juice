@@ -38,6 +38,11 @@ test('sanitize colours', () => {
   assert.equal(bad.settings.colors, 'claude');
   assert.equal(bad.warnings.length, 1);
   assert.equal(sanitize({ colors: 'nope' }, { allowBadges: true }).settings.colors, 'claude');
+  // The customizer draws colours into its page, so anything after the six hex digits must be refused: a share link
+  // with this colour would otherwise run code on the public page.
+  for (const evil of ['#000000"><img src=x onerror=alert(1)>', '#000000 ', ' #000000', '#00000g', 'red']) {
+    assert.equal(sanitize({ colors: { dark: { ...A, accent: evil }, light: A } }, { allowBadges: false }).settings.colors, 'claude', evil);
+  }
 });
 
 test('sanitize other enums fall back', () => {
@@ -170,6 +175,8 @@ test('links', () => {
   assert.deepEqual(parseLink(p), want);
   assert.deepEqual(parseLink('#c=' + p), want);
   for (const bad of ['###', '', undefined]) assert.throws(() => parseLink(bad), String(bad));
+  // Valid data that isn't a set of settings (1, "x", [], null) is a broken link too, so the page keeps what was saved.
+  for (const v of [1, 'x', [], null]) assert.throws(() => parseLink(btoa(JSON.stringify(v))), JSON.stringify(v));
   assert.deepEqual(parseLink(encodeLink({ ...DEFAULTS, show: ['model', 'ünï'] })).show, ['model']);
 });
 

@@ -1,7 +1,10 @@
 // The one definition of a valid setting. Files, /juice set and share links all pass through here.
+import { PRESETS } from './render/palette.js';
 export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel'];
-export const PRESET_IDS = ['claude', 'frost', 'calm', 'safe', 'bold', 'ocean', 'midnight', 'vampire', 'candy', 'forest', 'sunset', 'solar', 'rose'];
+export const PRESET_IDS = Object.keys(PRESETS);
 export const SHOW_IDS = Object.freeze(['model', 'effort', 'memory', 'session', 'fable', 'week', 'budget']);
+// Said by set, setup and the doctor alike, with the one fix the /juice skill knows.
+export const NOTHING_SHOWN = 'Your juice settings choose nothing to show, so the line stays empty. Type /juice show all the batteries to bring them back.';
 export const CUSTOMIZER_URL = 'https://zdraveski.github.io/claude-juice/web/';
 // Lives here, not in fable.js, so the status line can check it without loading child_process.
 export const fableEnabled = (setting, platform) => setting === 'on' || (setting === 'auto' && platform !== 'darwin');
@@ -29,7 +32,7 @@ export const LOOKS = Object.freeze([
   look('fablefirst', 'Fable first', 'The Fable battery leads and lights up while you use Fable', { show: ['model', 'effort', 'fable', 'memory', 'session', 'week', 'budget'], colors: 'candy' }),
 ]);
 
-const COLOR_KEYS = ['plentyLeft', 'goingFast', 'almostEmpty', 'accent'];
+export const COLOR_KEYS = ['plentyLeft', 'goingFast', 'almostEmpty', 'accent'];
 const HEX = /^#[0-9a-f]{6}$/i;
 const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
 const oneOf = (ids) => (v) => (ids.includes(v) ? v : undefined);
@@ -156,6 +159,9 @@ export function parseLink(hash) {
   const payload = String(hash).replace(/^#?c=/, '').replace(/^#/, '').replace(/-/g, '+').replace(/_/g, '/');
   const bin = atob(payload);
   const json = new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
-  const { fable, ...rest } = JSON.parse(json) ?? {};
+  const parsed = JSON.parse(json);
+  // A link whose data is a number, text or list is broken, not "all defaults": throwing keeps the saved settings.
+  if (!isObj(parsed)) throw new Error('not a settings link');
+  const { fable, ...rest } = parsed;
   return sanitize(rest, { allowBadges: false }).settings;
 }

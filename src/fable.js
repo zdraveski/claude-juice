@@ -2,9 +2,8 @@ import { execFileSync as realExec } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readJson, writeJsonAtomic } from './cache.js';
-
-const BACKOFF_MS = 900000;
+import { readJson, writeJsonAtomic, removeOld } from './cache.js';
+import { BACKOFF_MS, fableCacheState } from './readings.js';
 
 // Claude Code's own name for the Keychain entry: with CLAUDE_CONFIG_DIR (or its storage override) set, each
 // config folder has its own login, named after a hash of the folder. The plain name would be another account's.
@@ -67,15 +66,12 @@ export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fe
     const { used, resetsAt, session, week, fetchedAt } = readJson(file) ?? {};
     const keep = fetchedAt === undefined ? {} : { used, resetsAt, session, week, fetchedAt };
     writeJsonAtomic(file, { ...keep, backoffUntil: t + BACKOFF_MS });
-  } catch {}
+  } catch {} finally {
+    // Runs about every 5 minutes, so stray temp files go even for people without badges (whose refresher sweeps too).
+    // An hour old at least: another window may be writing one right now.
+    removeOld(p.cacheDir, (f) => f.endsWith('.tmp'), 3600000);
+  }
   return false;
 }
 
-export function fableCacheState(cache, now) {
-  // A timestamp in the future (clock skew) is never trusted.
-  const age = Number.isFinite(cache?.fetchedAt) && cache.fetchedAt <= now ? now - cache.fetchedAt : Infinity;
-  // A wait longer than BACKOFF_MS can only come from a clock that was ahead, so it is ignored.
-  const backedOff = cache?.backoffUntil > now && cache.backoffUntil - now <= BACKOFF_MS;
-  // Whether a reading is still usable (under an hour old) is decided where it is used, in readings.js.
-  return { stale: (!cache || age > 300000) && !backedOff, backedOff };
-}
+export { fableCacheState }; // lives in readings.js, so a refresh can check it without loading this file

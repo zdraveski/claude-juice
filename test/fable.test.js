@@ -1,7 +1,7 @@
 import { NOW as NOW_DATE } from './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paths } from '../src/paths.js';
@@ -169,4 +169,17 @@ test('refreshFable accepts a Date for now and writes numbers', async () => {
   const b = readJson(cacheFile(p));
   assert.equal(b.backoffUntil, NOW + 900000);
   assert.equal(typeof b.fetchedAt, 'number');
+});
+
+test('refreshFable sweeps temp files a cancelled refresh left behind, but not one being written now', async () => {
+  const p = setup();
+  const old = join(p.cacheDir, 'lastseen.json.123.abc.tmp'), fresh = join(p.cacheDir, 'lastseen.json.456.def.tmp');
+  mkdirSync(p.cacheDir, { recursive: true });
+  writeFileSync(old, '{}');
+  writeFileSync(fresh, '{}');
+  const twoHoursAgo = new Date(Date.now() - 2 * 3600000);
+  utimesSync(old, twoHoursAgo, twoHoursAgo);
+  await refreshFable({ p, platform: 'win32', execFileSync: noExec, now: NOW_DATE, version: 'v', fetchImpl: okFetch() });
+  assert.equal(existsSync(old), false, 'left behind two hours ago: swept');
+  assert.equal(existsSync(fresh), true, 'another window may be writing it right now');
 });

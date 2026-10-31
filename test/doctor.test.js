@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { main } from '../src/cli.js';
 import { doctor, ago } from '../src/doctor.js';
 import { install } from '../src/setup.js';
-import { paths } from '../src/paths.js';
+import { paths, hideHome } from '../src/paths.js';
 import { runStatusLine } from '../src/statusline.js';
 import { NOW } from './helpers.js';
 
@@ -137,6 +137,12 @@ test('doctor: the real refresh time, and a Node that setup pinned but is gone', 
   assert.match(check(d), /^✓ juice is your status line, refreshing every 600 seconds$/m);
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 'abc' } }));
   assert.match(check(d), /doesn't refresh on its own/);
+  // The doctor says run setup, so setup must fix it: a hand-typed "60" or -5 is replaced, never "nothing changed".
+  for (const odd of ['60', -5]) {
+    writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: odd } }));
+    assert.match((await run(d, ['setup'])).text, /refreshes once a minute/, String(odd));
+    assert.match(check(d), /^✓ juice is your status line, refreshing once a minute$/m, String(odd));
+  }
   const launcher = s.statusLine.command.replace(/^.*\s(?="[^"]*"\s*$)/, '').trim();
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, command: `PATH="/gone/nvm/v20/bin:$PATH" node ${launcher}` } }));
   assert.match(check(d), /The Node juice was set up with is gone/);
@@ -150,6 +156,10 @@ test('doctor: a bad juice setting says how to fix it, and changing any setting d
   assert.doesNotMatch(check(d), /juice settings:/);
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ show: [] }));
   assert.match(check(d), /Type \/juice show all the batteries to bring them back/);
+  // An unreadable file is never overwritten by set, so the advice is to fix or delete it.
+  writeFileSync(join(d, 'juice.json'), '{bad');
+  assert.match(check(d), /^! juice settings: juice\.json is unreadable, using defaults\. Fix or delete juice\.json/m);
+  assert.notEqual((await run(d, ['set', 'layout=panel'])).code, 0, 'set refuses, as the advice says');
 });
 
 test('doctor: badges are counted, unapproved ones flagged, commands never printed', () => {
@@ -177,6 +187,14 @@ test('doctor: Fable off, failing, and checked', () => {
   assert.match(check(d), /^· Fable battery: not checked in the last hour/m);
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ used: 5, fetchedAt: NOW.getTime() - 3 * 60000 }));
   assert.match(check(d), /^· Fable battery: last checked 3 min ago$/m);
+});
+
+test('hideHome: the home folder becomes ~ with either slash, and on Windows in any letter case', () => {
+  const env = { HOME: 'C:\\Users\\KIRE', USERPROFILE: 'C:\\Users\\KIRE' };
+  assert.equal(hideHome('c:/users/kire/proj/.claude/settings.json', env, 'win32'), '~/proj/.claude/settings.json');
+  assert.equal(hideHome('C:\\Users\\KIRE\\x and C:/Users/KIRE/y', env, 'win32'), '~\\x and ~/y');
+  assert.equal(hideHome('/home/Kire/x', { HOME: '/home/kire' }, 'linux'), '/home/Kire/x', 'Linux paths do care about case');
+  assert.equal(hideHome('/home/a.b/x', { HOME: '/home/a.b' }, 'linux'), '~/x', 'a dot in the name is a dot, not "any letter"');
 });
 
 test('ago: plain words for how long ago', () => {

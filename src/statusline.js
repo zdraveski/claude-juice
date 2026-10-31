@@ -8,6 +8,7 @@ import { fableEnabled } from './schema.js';
 import { detectTerminal, readClaudeTheme } from './terminal.js';
 import { remember } from './lastseen.js';
 import { normalize } from './data.js';
+import { fableCacheState } from './readings.js';
 import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 
@@ -23,9 +24,8 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     // Saved first, so this refresh already counts what it just saw against what other sessions saw.
     const extras = { lastSeen: remember(stdin, p, now) };
 
-    // Loaded on demand: these pull in child_process and crypto, which most refreshes never need.
+    // fable.js (child_process, crypto) only runs in the background refresher; here the cache is enough.
     const fableOn = fableEnabled(settings.fable, platform);
-    const fable = fableOn ? await import('./fable.js') : null;
     const fableCache = fableOn ? readJson(join(p.cacheDir, 'fable.json')) : null;
     if (fableOn) extras.fable = fableCache;
 
@@ -40,7 +40,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     const { text } = render(data, settings, terminal);
 
     // Only subscribers have these limits, so nobody else's login is sent to Anthropic for nothing.
-    if (fable && data.account === 'subscriber' && fable.fableCacheState(fableCache, now).stale && takeLock(p, 'fable', now)) {
+    if (fableOn && data.account === 'subscriber' && fableCacheState(fableCache, now).stale && takeLock(p, 'fable', now)) {
       quiet(() => spawnDetached(['refresh-fable']));
     }
     if (badges?.stale && takeLock(p, `badges-${key}`, now, 2500)) {
@@ -56,7 +56,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     // (they hold the person's name), so the doctor's report can be pasted into a bug report.
     if (p) quiet(() => writeJsonAtomic(join(p.cacheDir, 'last-error.json'), {
       at: Date.now(),
-      message: hideHome(String(e?.message ?? e), env).replace(/(?:file:\/*)?(?:[A-Za-z]:|~)?[\\/](?:[^\\/\s'"`]+[\\/])+/g, '').slice(0, 300),
+      message: hideHome(String(e?.message ?? e), env, platform).replace(/(?:file:\/*)?(?:[A-Za-z]:|~)?[\\/](?:[^\\/\s'"`]+[\\/])+/g, '').slice(0, 300),
       where: /([\w.-]+\.js):(\d+)/.exec(String(e?.stack).split('\n').slice(1).join('\n'))?.slice(1).join(':') ?? null,
     }, HOT_WRITE));
     const name = stdin?.model?.display_name;

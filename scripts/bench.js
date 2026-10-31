@@ -32,6 +32,14 @@ const p = paths(env);
 install(p, { pluginRoot: root });
 
 const runs = { node: [['-e', '0'], env], juice: [[join(root, 'bin/juice-statusline.js')], env], launcher: [[p.launcherFile], env] };
+// A broken juice can be fast too, so it must really draw the batteries before its time counts.
+for (const k of ['juice', 'launcher']) {
+  const r = spawnSync(process.execPath, runs[k][0], { input, env, encoding: 'utf8' });
+  if (r.status !== 0 || !/Session/.test(r.stdout)) {
+    console.log(`FAIL: ${k} did not draw the status line (exit ${r.status}): ${(r.stdout + r.stderr).slice(0, 300)}`);
+    process.exit(1);
+  }
+}
 for (const [args, e] of Object.values(runs)) time(args, e); // warm-up
 const times = Object.fromEntries(Object.keys(runs).map((k) => [k, []]));
 for (let i = 0; i < ROUNDS; i++) for (const [k, [args, e]] of Object.entries(runs)) times[k].push(time(args, e));

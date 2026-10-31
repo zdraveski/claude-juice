@@ -6,15 +6,14 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { readJson } from './cache.js';
 import { loadSettings } from './settings.js';
-import { fableEnabled } from './schema.js';
+import { fableEnabled, NOTHING_SHOWN } from './schema.js';
 import { detectTerminal, readClaudeTheme } from './terminal.js';
 import { render } from './render/index.js';
 import { LABELS } from './render/words.js';
 import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
-import { fableCacheState } from './fable.js';
-import { fetchedCounts } from './readings.js';
-import { isJuice, runsLauncher, overrides, readClaudeSettings } from './setup.js';
+import { fableCacheState, fetchedCounts } from './readings.js';
+import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes } from './setup.js';
 import { hideHome } from './paths.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
 
@@ -58,7 +57,7 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   else if (line && !here) out.push(bad("juice is your status line but points at a folder that isn't this one (settings copied from another computer?). Run /juice setup."));
   else if (line) {
     const every = line.refreshInterval;
-    out.push(Number.isFinite(every) && every > 0 ? ok(`juice is your status line, refreshing ${every === 60 ? 'once a minute' : `every ${every} seconds`}`)
+    out.push(refreshes(line) ? ok(`juice is your status line, refreshing ${every === 60 ? 'once a minute' : `every ${every} seconds`}`)
       : bad("juice is your status line but doesn't refresh on its own, so its numbers and reset times go stale while Claude Code is idle. Run /juice setup."));
   }
 
@@ -67,7 +66,7 @@ export function doctor(p, { env, platform, now, cwd, version }) {
     // started from an app may find no Node at all.
     const pin = /^\s*PATH="([^"]*?):\$PATH"\s/.exec(line.command)?.[1];
     if (pin && !existsSync(join(pin, 'node'))) out.push(bad('The Node juice was set up with is gone (uninstalled or moved), so the line may stay empty. Run /juice setup.'));
-    const launcher = existsSync(p.launcherFile) ? read(p.launcherFile) : null;
+    const launcher = read(p.launcherFile);
     const pinned = launcher && constant(launcher, 'PINNED'), market = launcher && constant(launcher, 'MARKET');
     if (launcher === null) out.push(bad("juice's launcher file is missing, so the status line draws nothing. Run /juice setup."));
     else if (!pinned && !market) out.push(bad("juice's launcher file is damaged, so the status line may draw nothing. Run /juice setup."));
@@ -84,8 +83,10 @@ export function doctor(p, { env, platform, now, cwd, version }) {
 
   // 2. juice's own settings, and whether drawing works with them.
   const { settings: mine, warnings } = loadSettings(p);
-  warnings.forEach((w) => out.push(bad(`juice settings: ${w}. Changing any setting with /juice saves a clean copy.`)));
-  if (!mine.show.length) out.push(bad('Your juice settings choose nothing to show, so the line stays empty. Type /juice show all the batteries to bring them back.'));
+  // An unreadable juice.json is never overwritten (it may hold badges), so only a bad value is fixed by changing a setting.
+  warnings.forEach((w) => out.push(bad(`juice settings: ${w}. ${/unreadable/.test(w)
+    ? 'Fix or delete juice.json in your Claude folder (Claude can do it for you).' : 'Changing any setting with /juice saves a clean copy.'}`)));
+  if (!mine.show.length) out.push(bad(NOTHING_SHOWN));
   const term = detectTerminal({ env, settings: mine, claudeTheme: readClaudeTheme(p.claudeSettings) });
   try {
     render(SAMPLES.busy, mine, term);
@@ -121,5 +122,5 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   if (off) out.push(bad(`${off} badge${off === 1 ? " isn't" : "s aren't"} approved on this computer, so ${off === 1 ? 'it never runs' : 'they never run'}. See /juice badges list.`));
 
   out.push(out.some((l) => l.startsWith('!')) ? 'Lines starting with ! need attention; each says what to do.' : 'Everything looks fine.');
-  return out.map((l) => hideHome(l, env));
+  return out.map((l) => hideHome(l, env, platform));
 }

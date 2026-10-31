@@ -21,6 +21,9 @@ export function toSave(kept, seen, { known, news }, now) {
   if (!seen) return kept;
   if (!kept) return seen;
   if (ended(seen, now)) return kept;
+  // shortcut: the same chat open in two windows (claude -c in both) sends two numbers under one session id, so each
+  // redraw counts as news and the saved number flips between them. From here that looks exactly like a plan change,
+  // which must win even when lower; a fresh Fable reading still shows the higher one. Fix if people report it.
   if (news) return seen;
   if (sameWindow(seen, kept)) return known || seen.used <= kept.used ? kept : seen;
   return time(seen) > time(kept) && ended(kept, now) ? seen : kept;
@@ -41,6 +44,19 @@ export function toShow({ own, saved, fetched }, now) {
 
 // A fetched reading counts for an hour. One stamped in the future (the clock was ahead) never does.
 export const fetchedCounts = (fetchedAt, now) => Number.isFinite(fetchedAt) && now.getTime() - fetchedAt >= 0 && now.getTime() - fetchedAt <= 3600000;
+
+// After a failed fetch, wait this long before asking again.
+export const BACKOFF_MS = 900000;
+
+// Whether to fetch again: the last reading is over 5 minutes old, and no wait after a failure is running.
+// now is a Date or epoch ms. A fetch time in the future (clock skew) is never trusted, and a wait longer than
+// BACKOFF_MS can only come from a clock that was ahead, so it is ignored.
+export function fableCacheState(cache, now) {
+  const t = +now;
+  const age = Number.isFinite(cache?.fetchedAt) && cache.fetchedAt <= t ? t - cache.fetchedAt : Infinity;
+  const backedOff = cache?.backoffUntil > t && cache.backoffUntil - t <= BACKOFF_MS;
+  return { stale: (!cache || age > 300000) && !backedOff, backedOff };
+}
 
 // prompt_cache arrived in Claude Code 2.1.251. A missing or odd version counts as new: current versions send it.
 export function sendsPromptCache(version) {

@@ -47,7 +47,7 @@ function items(data, ctx) {
   let out = settings.show.map((id) => make[id]?.()).filter(Boolean);
   // A limit that is used up blocks the person, so it shows even in a look that leaves it out
   // (Fable's only while Fable is in use: otherwise it blocks nothing).
-  for (const id of ['session', 'week', 'fable']) {
+  for (const id of ['session', 'week', 'fable', 'budget']) {
     if (settings.show.includes(id) || (id === 'fable' && !data.model?.isFable)) continue;
     const i = make[id]();
     if (i && i.used >= 100) out.push(i);

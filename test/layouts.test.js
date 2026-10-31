@@ -126,6 +126,9 @@ test('a used-up limit shows even in a look that leaves it out', () => {
   const fable = locked({ session: lim(10, 4 * 3600, 18000), week: lim(30, 3 * 86400, 604800), fable: lim(100, 3 * 86400, 604800) }, { name: 'Fable 5.1', isFable: true });
   assert.match(text(fable, applySet(DEFAULTS, ['look=quiet']).settings), /Fable .*100%/, 'while Fable is in use');
   assert.doesNotMatch(text({ ...fable, model: SAMPLES.busy.model }, applySet(DEFAULTS, ['look=quiet']).settings), /Fable/, 'not while another model is in use');
+  // A company's spending cap at 100% blocks too.
+  const spent = { ...SAMPLES.busy, account: 'gateway', limits: { budget: lim(100, 5 * 86400, null) } };
+  assert.match(text(spent, { show: ['model', 'memory', 'session', 'week'] }), /Budget .*100%/);
 });
 
 test('a used-up limit gets the spotlight before one that merely runs out later', () => {

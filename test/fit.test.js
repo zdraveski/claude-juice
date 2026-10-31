@@ -45,6 +45,15 @@ test('the last-resort cut keeps a battery\'s name, number and mark, never half a
   }
 });
 
+// The spotlight layout separates items with " │ " and " · ", not two spaces; a cut there once showed "Week 9…".
+test('every layout, at every width, cuts only between items while each item fits on its own', () => {
+  for (const layout of Object.keys(LAYOUTS)) for (const sample of ['busy', 'trouble']) for (let w = 24; w <= 140; w++) {
+    for (const ln of strip(go(SAMPLES[sample], layout, w).text).split('\n')) {
+      if (ln.endsWith('…')) assert.match(ln, / …$/, `${layout} ${sample} @${w}: cut mid-item: ${ln}`);
+    }
+  }
+});
+
 test('every battery as words comes before hiding any', () => {
   const t = strip(go(SAMPLES.busy, 'bar', 60).text);
   for (const name of ['Memory 64%', 'Session 47%', 'Fable 41%', 'Week 50%!']) assert.ok(t.includes(name), `${name} missing: ${t}`);

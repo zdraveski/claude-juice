@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paths } from './paths.js';
 import { loadSettings, saveSettings } from './settings.js';
-import { applySet, encodeLink, fableEnabled, CUSTOMIZER_URL, LOOKS } from './schema.js';
+import { applySet, encodeLink, fableEnabled, CUSTOMIZER_URL, LOOKS, NOTHING_SHOWN } from './schema.js';
 import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
@@ -25,16 +25,18 @@ export async function main(argv, io) {
       case 'set': {
         const loaded = loadSettings(p);
         const { settings, warnings, changed } = applySet(loaded.settings, args);
-        // A juice.json with a bad value (or unreadable) is saved clean too, so the doctor's "change any setting" fixes it.
+        // A juice.json with a bad value is saved clean too, so the doctor's "change any setting" fixes it. (An unreadable
+        // one is never overwritten: saveSettings refuses, since it may hold badges the person wants to fix by hand.)
         if (changed.length || loaded.warnings.length) saveSettings(p, settings);
         io.out(changed.length ? `Changed: ${changed.join(', ')}` : 'Nothing changed.');
         warnings.forEach((w) => io.out(`Warning: ${w}`));
-        if (!settings.show.length) io.out('Warning: nothing is chosen to show, so the status line will be empty. To bring everything back: show=model,effort,memory,session,fable,week,budget');
+        if (!settings.show.length) io.out(`Warning: ${NOTHING_SHOWN}`);
         return 0;
       }
       case 'get': {
-        const { settings, warnings } = loadSettings(p);
-        io.out(JSON.stringify(settings, null, 2));
+        const { settings: { badges, ...rest }, warnings } = loadSettings(p);
+        // The /juice skill runs get before every change, so badge commands (which can hold keys) never go in here.
+        io.out(JSON.stringify({ ...rest, badges: badges.length }, null, 2));
         warnings.forEach((w) => io.out(`Warning: ${w}`)); // an unreadable juice.json must not pass for the defaults
         return 0;
       }
@@ -112,7 +114,10 @@ export async function main(argv, io) {
     }
   } catch (e) {
     if (e instanceof NeedsConfirm) { io.out(e.message); return 2; }
-    io.err(e?.message || 'Something went wrong.');
+    // A read-only file or folder: plain words, not an EPERM with the full path (and the person's name) in it.
+    const locked = e?.code === 'EPERM' || e?.code === 'EACCES';
+    io.err(locked ? "juice couldn't save a file in your Claude folder because it is read-only. Make it writable (Claude can do it for you), then try again."
+      : e?.message || 'Something went wrong.');
     return 1;
   }
 }

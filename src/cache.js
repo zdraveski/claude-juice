@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, renameSync, mkdirSync, unlinkSync, statSync, chmodSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, mkdirSync, unlinkSync, statSync, chmodSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 // Notepad and PowerShell 5.1 start files with a BOM, which JSON.parse rejects.
@@ -9,6 +9,17 @@ export function readJson(file) {
 const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 export const HOT_WRITE = { maxWaitMs: 30 };
+
+// Deletes the files in dir that `ok` picks and nobody has touched for keepMs. Claude Code can stop a status line
+// run between writing a temp copy and renaming it into place, so stray .tmp files are swept from time to time.
+export function removeOld(dir, ok, keepMs) {
+  try {
+    for (const f of readdirSync(dir)) {
+      if (!ok(f)) continue;
+      try { if (Date.now() - statSync(join(dir, f)).mtimeMs > keepMs) unlinkSync(join(dir, f)); } catch {}
+    }
+  } catch {}
+}
 
 // modeFrom: for a new file, the file whose permissions it should take (the old file's win when there is one).
 export function writeJsonAtomic(file, value, { maxWaitMs = 2500, modeFrom } = {}) {

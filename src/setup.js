@@ -3,12 +3,15 @@ import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { readJson, writeJsonAtomic } from './cache.js';
+import { NOTHING_SHOWN } from './schema.js';
 
 export const fwd = (s) => s.replaceAll(String.fromCharCode(92), '/');
 const LAUNCHER_TEMPLATE = fileURLToPath(new URL('../bin/launcher.js', import.meta.url));
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 // Claude Code only redraws on events, so without a timer the countdowns freeze while it is idle.
 const REFRESH_SECONDS = 60;
+// A refresh time Claude Code can use: a positive number of seconds (a hand-typed "60" or -5 is not).
+export const refreshes = (statusLine) => Number.isFinite(statusLine?.refreshInterval) && statusLine.refreshInterval > 0;
 
 // A symlinked settings.json must stay a symlink, so write to what it points at.
 const writeSettings = (p, v) => writeJsonAtomic(existsSync(p.claudeSettings) ? realpathSync(p.claudeSettings) : p.claudeSettings, v);
@@ -117,7 +120,7 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
     lines.push(settings.statusLine ? 'Saved your current status line so you can get it back.' : 'You had no status line, so there is nothing to save.');
   }
   const current = ours && samePath(settings.statusLine.command, command, platform);
-  if (current && settings.statusLine.refreshInterval) lines.push('juice is already your status line. Nothing changed.');
+  if (current && refreshes(settings.statusLine)) lines.push('juice is already your status line. Nothing changed.');
   else if (current) {
     writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, refreshInterval: REFRESH_SECONDS } });
     lines.push('juice now refreshes once a minute, so its numbers and reset times stay current.');
@@ -125,7 +128,7 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
     // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing;
     // one with the right launcher but an older way of finding Node just gets the current one.
     const sameLauncher = runsLauncher(p, settings.statusLine.command, platform);
-    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: settings.statusLine.refreshInterval || REFRESH_SECONDS } });
+    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: refreshes(settings.statusLine) ? settings.statusLine.refreshInterval : REFRESH_SECONDS } });
     lines.push(sameLauncher ? 'juice is your status line, now set up to find Node even when Claude Code starts from an app.'
       : 'juice was your status line but pointed somewhere else, so it now points at this copy of juice.');
   } else {
@@ -134,7 +137,7 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   }
   // Setup is where people go when the line looks empty, so it says why when juice was told to show nothing.
   const show = readJson(p.settingsFile)?.show;
-  if (Array.isArray(show) && show.length === 0) lines.push('Your juice settings choose nothing to show, so the line stays empty. Type /juice show everything to bring it back.');
+  if (Array.isArray(show) && show.length === 0) lines.push(NOTHING_SHOWN);
   lines.push(...overrides(p, settings, cwd, platform));
   lines.push('To go back to your old status line, run /juice restore.');
   return lines;
@@ -145,7 +148,7 @@ export function restore(p) {
   const { statusLine, ...rest } = readClaudeSettings(p);
   if (statusLine && !isJuice(statusLine)) return ["juice isn't your status line right now, so there is nothing to undo. Nothing changed."];
   const backup = readJson(p.backupFile);
-  const saved = !!backup && 'statusLine' in backup;
+  const saved = !!backup && typeof backup === 'object' && 'statusLine' in backup; // valid JSON may still be "x" or 5
   const damaged = !saved && existsSync(p.backupFile); // kept, never deleted: it may still be read by hand
   if (!saved && !statusLine) {
     return [damaged ? "juice's saved copy of your old status line is damaged, so it can't be put back, and juice isn't your status line. Nothing changed."
