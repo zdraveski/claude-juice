@@ -34,13 +34,13 @@ Juice saves your old status line first, if you had one, so `/juice restore` can 
 |---|---|
 | Memory | How much of this chat's room is used. When it fills up, Claude summarises the chat to make space. |
 | Session | Your 5-hour limit. |
-| Fable weekly | The separate weekly limit for the Fable model. One-line layouts call it "Fable"; the panel says "Fable weekly". It resets together with Weekly, so it shows no countdown of its own while Weekly is shown. When it is red it still says when it runs out. |
+| Fable weekly | The separate weekly limit for the Fable model. One-line layouts call it "Fable"; the panel says "Fable weekly". It resets together with Weekly, so it shows no reset time of its own while Weekly is shown. When it is red it still says when it runs out. |
 | Weekly | Your weekly limit. |
 | Budget | Only if your company gives you Claude Code through a gateway with a spending limit: how much of that budget is used. It has no pace: it turns amber past 85% used and red past 90%. |
 
 Next to the batteries you also see the model's name and its effort level: a little staircase that climbs from 1 step (low) to 5 steps (max), with the word beside it.
 
-Session and Weekly also count down to their reset, for example "resets in 1h 31m" or "resets in 2d 5h".
+Session and Weekly also say when they reset: how long, when it is less than a day away ("resets in 1h 31m"), and otherwise which day and at what time ("resets Sat 7:20 PM"). In a narrow window it is the short countdown ("resets 2d 5h").
 
 The colours for Session, Weekly and Fable weekly depend on your pace as well as on how much is used:
 

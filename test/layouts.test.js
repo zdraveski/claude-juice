@@ -19,26 +19,26 @@ const inOrder = (s, parts) => parts.reduce((from, p) => {
 }, 0);
 
 test('bar busy max reads in order', () => {
-  inOrder(text(SAMPLES.busy), ['Opus 5.5', 'high', 'Memory', '64%', 'Session', '47%', 'resets in 2h 10m', 'Fable', '41%', 'Weekly', '50%', 'resets in 3d 5h']);
-  assert.equal(text(SAMPLES.busy).match(/resets in/g).length, 2, 'Fable resets with Weekly, so it has no countdown of its own');
+  inOrder(text(SAMPLES.busy), ['Opus 5.5', 'high', 'Memory', '64%', 'Session', '47%', 'resets in 2h 10m', 'Fable', '41%', 'Weekly', '50%', 'resets Sat 7:20 PM']);
+  assert.equal(text(SAMPLES.busy).match(/resets /g).length, 2, 'Fable resets with Weekly, so it has no countdown of its own');
 });
 test('bar trouble shows the warnings', () => {
   const s = text(SAMPLES.trouble);
-  for (const w of ['summary soon', 'resets in 2h 5m', 'resets in 1d 2h']) assert.ok(s.includes(w), w);
+  for (const w of ['summary soon', 'resets in 2h 5m', 'resets Thu 4:20 PM']) assert.ok(s.includes(w), w);
 });
 test('refills warnings shows the countdown only where it matters', () => {
   const s = text(SAMPLES.busy, { refills: 'warnings' });
-  assert.ok(!s.includes('resets in 2h 10m') && s.includes('resets in 3d 5h'), s);
+  assert.ok(!s.includes('resets in 2h 10m') && s.includes('resets Sat 7:20 PM'), s);
 });
 test('Fable keeps its own countdown when Weekly is hidden or resets at another time', () => {
-  assert.ok(text(SAMPLES.busy, { show: ['memory', 'session', 'fable'] }).includes('resets in 3d 5h'));
+  assert.ok(text(SAMPLES.busy, { show: ['memory', 'session', 'fable'] }).includes('resets Sat 7:20 PM'));
   const apart = { ...SAMPLES.busy, limits: { ...SAMPLES.busy.limits, fable: { ...SAMPLES.busy.limits.fable, resetsAt: at(104400) } } };
-  assert.ok(text(apart).includes('resets in 1d 5h'));
+  assert.ok(text(apart).includes('resets Thu 7:20 PM'));
 });
 test('warnings do not rely on colour alone: ! going fast, !! nearly out', () => {
   const busy = text(SAMPLES.busy);
   assert.equal((busy.match(/!/g) || []).length, 1, busy);
-  assert.match(busy, /Weekly \S+ ! resets in 3d 5h/);
+  assert.match(busy, /Weekly \S+ ! resets Sat 7:20 PM/);
   const trouble = text(SAMPLES.trouble);
   for (const name of ['Memory', 'Session', 'Weekly']) assert.match(trouble, new RegExp(`${name} \\S+ !!`), name);
   for (const layout of LAYOUT_IDS) assert.ok(text(SAMPLES.trouble, { layout }).includes('!!'), layout);
@@ -58,7 +58,7 @@ test('Fable has its own colour while fine, and warns like the others when not', 
 });
 test('focus busy', () => {
   const s = text(SAMPLES.busy, { layout: 'focus' });
-  inOrder(s, ['Weekly', '50% used ! · resets in 3d 5h', 'Memory 64%', 'Session 47%', 'Fable 41%']);
+  inOrder(s, ['Weekly', '50% used ! · resets Sat 7:20 PM', 'Memory 64%', 'Session 47%', 'Fable 41%']);
 });
 test('panel busy', () => {
   const lines = text(SAMPLES.busy, { layout: 'panel' }).split('\n');
@@ -136,7 +136,7 @@ test('a used-up limit gets the spotlight before one that merely runs out later',
 test('Fable keeps its countdown when Weekly is not actually showing one', () => {
   const d = locked({ session: lim(10, 4 * 3600, 18000), week: lim(20, 3 * 86400, 604800), fable: lim(100, 3 * 86400, 604800) });
   const t = text(d, { refills: 'warnings' });
-  assert.match(t.split('Weekly')[0], /Fable .*!! resets in 3d/, t);
+  assert.match(t.split('Weekly')[0], /Fable .*!! resets Sat 2:20 PM/, t);
 });
 
 test('spotlight goes to the red battery that runs out first, not just the fullest', () => {
@@ -159,5 +159,5 @@ test('fit flags hide things', async () => {
   ctx.fit = { noRefills: true, noEffortWord: true, noModel: true, badges: true };
   const s = strip(LAYOUTS.bar({ ...SAMPLES.busy, badges: ['[B]'] }, ctx));
   assert.ok(!s.includes('resets in 2h 10m') && !s.includes('high') && !s.includes('Opus') && !s.includes('[B]'), s);
-  assert.ok(s.includes('resets in 3d 5h'), 'a battery going fast keeps its countdown');
+  assert.ok(s.includes('resets Sat 7:20 PM'), 'a battery going fast keeps its countdown');
 });

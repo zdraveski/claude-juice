@@ -53,7 +53,7 @@ test('every battery as words comes before hiding any', () => {
 test('once a fine battery is hidden, the room it frees goes back to the batteries, never to lesser things', () => {
   const r = go(SAMPLES.busy, 'bar', 40), t = strip(r.text);
   assert.equal(r.dropped.at(-1), 'batteries that are fine');
-  assert.match(t, /Weekly \S+ ! resets in 3d 5h/, 'full size and full words again');
+  assert.match(t, /Weekly \S+ ! resets Sat 7:20 PM/, 'full size and full words again');
   assert.ok(!t.includes('Opus') && !t.includes('▂'), 'hidden things stay hidden: the model and effort are less important than a battery');
 });
 

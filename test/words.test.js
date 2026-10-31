@@ -1,7 +1,7 @@
 import { NOW, at } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { countdown, clock, limitNote, memoryNote, LABELS, EFFORT } from '../src/render/words.js';
+import { countdown, clock, resetWhen, limitNote, memoryNote, LABELS, EFFORT } from '../src/render/words.js';
 import { assess } from '../src/render/limits.js';
 
 test('countdown: minutes, hours and minutes, or days and hours', () => {
@@ -23,12 +23,25 @@ test('countdown rounds to the nearest minute and never says 0m', () => {
   assert.equal(countdown(at(20), NOW), '1m');
 });
 
+// NOW is Wednesday Oct 28, 2:20 PM.
+test('resetWhen: how long under a day, the day and time after, the countdown when squeezed', () => {
+  assert.equal(resetWhen(at(7800), NOW), 'in 2h 10m');
+  assert.equal(resetWhen(at(86400 - 60), NOW), 'in 23h 59m', 'just under a day is still a countdown');
+  assert.equal(resetWhen(at(86400), NOW), 'Thu 2:20 PM');
+  assert.equal(resetWhen(at(277200 + 29 * 60 - 25), NOW), 'Sat 7:49 PM', 'the time is rounded to the minute, like the countdown');
+  assert.equal(resetWhen(at(10 * 3600), NOW), 'in 10h', 'after midnight but under a day: still how long');
+  assert.equal(resetWhen(at(7 * 86400 - 60), NOW), 'next Wed 2:19 PM', 'a week away is not today');
+  assert.equal(resetWhen(at(6 * 86400), NOW), 'Tue 2:20 PM');
+  assert.equal(resetWhen(at(7800), NOW, true), '2h 10m');
+  assert.equal(resetWhen(at(277200), NOW, true), '3d 5h', 'squeezed, the shorter countdown');
+});
+
 const win = 18000;
-test('limitNote: always the countdown, coloured by how it is going', () => {
+test('limitNote: always when it resets, coloured by how it is going', () => {
   const fine = assess({ used: 20, resetsAt: at(7800), windowSec: win }, NOW);
   assert.deepEqual(limitNote(fine, NOW), { text: 'resets in 2h 10m', tone: 'mute' });
   const far = assess({ used: 20, resetsAt: at(104400), windowSec: 604800 }, NOW);
-  assert.equal(limitNote(far, NOW).text, 'resets in 1d 5h');
+  assert.equal(limitNote(far, NOW).text, 'resets Thu 7:20 PM');
   assert.deepEqual(limitNote(assess({ used: 0, resetsAt: at(-5) }, NOW), NOW), { text: '', tone: 'mute' });
   assert.deepEqual(limitNote({ level: 'warn', resetsAt: at(7800) }, NOW), { text: 'resets in 2h 10m', tone: 'watch' });
   const out = assess({ used: 88, resetsAt: at(7500), windowSec: win }, NOW);
