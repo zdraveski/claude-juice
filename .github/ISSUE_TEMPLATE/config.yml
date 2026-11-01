@@ -8,7 +8,7 @@ contact_links:
     about: Not sure how something works? Ask in Discussions.
   - name: Share an idea
     url: https://github.com/zdraveski/claude-juice/discussions/categories/ideas
-    about: Have an idea for juice? Share it in Discussions.
+    about: Ideas for juice go in Discussions.
   - name: Try the live customizer
     url: https://zdraveski.github.io/claude-juice/web/
     about: See every look, layout and colour before you change anything.

@@ -1,6 +1,6 @@
 # Release checklist
 
-Everything here is what GitHub's tests can't do: a real Claude Code, a real Mac, real terminals. GitHub already
+These checks need what GitHub's tests don't have: a real Claude Code, a real Mac and real terminals. GitHub already
 runs every test and the end-to-end check (install, the real command through bash and sh, a hung badge killed with
 its child, restore) on Windows, macOS and Linux with Node 18, 22 and 24 on every push.
 
@@ -29,7 +29,6 @@ once and under whatever version number `main` says. So:
 ## 2. Inside Claude Code, on each system you have
 
 Use a normal session, not auto mode: auto mode approves on its own, so permission prompts can't be checked there.
-Each step says what passes.
 
 1. **Install.** `/plugin marketplace add zdraveski/claude-juice`, `/plugin install juice@juice`, `/reload-plugins`, `/juice setup` (restart Claude Code only if `/juice` is still unknown).
    Pass: the batteries appear within a minute, and `~/.claude/juice-backup.json` holds your previous status line (its `statusLine` is `null` if you had none).

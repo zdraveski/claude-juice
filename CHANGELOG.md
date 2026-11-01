@@ -1,6 +1,6 @@
 # What's new in juice
 
-Newest first. To update, type `/plugin`, update juice, then restart Claude Code.
+To update, type `/plugin`, update juice, then restart Claude Code.
 
 ## 1.0.2 (2026-10-31)
 
@@ -12,7 +12,7 @@ Newest first. To update, type `/plugin`, update juice, then restart Claude Code.
 - A status line set up by juice before 0.2.1 is brought up to date on its own (the old one could run another plugin named juice).
 - Behind a company proxy, the Fable battery works with Node 24 or newer (22.21 or newer on Node 22), and `/juice doctor` says so.
 - `/juice doctor` names a project's settings file from where you are, so it never shows the folders above it.
-- Setup handles an empty settings file, a Claude folder given as a relative path, and says plainly what it changed.
+- Setup handles an empty settings file and a Claude folder given as a relative path, and says plainly what it changed.
 - The launcher never mistakes a folder Claude Code named by code version for a newer juice.
 
 ## 1.0.1 (2026-10-31)
@@ -25,8 +25,8 @@ Newest first. To update, type `/plugin`, update juice, then restart Claude Code.
 ## 1.0.0 (2026-10-31)
 
 New:
-- **`/juice doctor`**: a check in plain words of what juice sees. Each line is fine (✓), needs you (!) with what to do, or just for your information (·). It never shows your user name, so you can paste it into a bug report.
-- **Reset times say the day and time** when a limit resets more than a day from now: "resets Sat 7:20 PM", "resets next Wed 2:19 PM" a week out, a date further away. Under a day it still counts down ("resets in 2h 10m"). Days are counted on the calendar, so daylight saving never shifts them.
+- `/juice doctor` checks what juice sees and tells you in plain words. Each line is fine (✓), needs you (!) with what to do, or just for your information (·). It never shows your user name, so you can paste it into a bug report.
+- Reset times say the day and time when a limit resets more than a day from now: "resets Sat 7:20 PM", "resets next Wed 2:19 PM" a week out, a date further away. Under a day it still counts down ("resets in 2h 10m"). Days are counted on the calendar, so daylight saving never shifts them.
 - Times on a computer set to UTC (a server or container) say "UTC".
 - A red battery that runs out on another day says which day the same way: "runs out ~Thu 9:15 AM".
 
@@ -49,7 +49,7 @@ Fixed:
 
 ## 0.2.5 (2026-10-31)
 
-- **Badges only run if you approved them on this computer.** A copied or hand-edited settings file can't make juice run anything.
+- Badges only run if you approved them on this computer. A copied or hand-edited settings file can't make juice run anything.
 - Batteries judge early use by pace: 84% used 24 minutes into a window is red.
 - Spotlight picks the red battery that runs out first.
 - A very small window never gets a line wider than itself.
@@ -90,7 +90,7 @@ Fixed:
 
 ## 0.2.0 (2026-10-31)
 
-- **Red batteries say when they run out** at this pace: "runs out ~4:04 PM · resets in 2h 10m".
+- Red batteries say when they run out at this pace: "runs out ~4:04 PM · resets in 2h 10m".
 - A thin mark on Session, Weekly and Fable shows where an even pace would be, so going too fast is visible without colour.
 - A battery turns amber on pace alone; red needs 90% used, or half used and on track to run out.
 - Windows Terminal gets full colour.
@@ -98,4 +98,4 @@ Fixed:
 
 ## 0.1.0 (2026-10-29)
 
-First release. A battery-style status line for Claude Code: how much of your usage you have used, and when it resets. Twelve ready-made looks, thirteen colour sets, the plain-words `/juice` command and a web customizer with a live preview.
+First release: a battery-style status line for Claude Code that shows how much of your usage you have used and when it resets. It comes with twelve ready-made looks, thirteen colour sets, the plain-words `/juice` command and a web customizer with a live preview.
