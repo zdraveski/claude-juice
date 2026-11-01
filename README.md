@@ -48,12 +48,12 @@ The very first time, the batteries fill in after Claude's first reply; until the
 
 The only thing juice itself sends anywhere is a usage request to `api.anthropic.com`, while the Fable battery is on (on a Mac it starts off). It fills the Fable battery and keeps Session and Weekly up to date. [More in Privacy](#privacy).
 
-Works on Windows, macOS and Linux (tested by hand on Windows, automatically on all three). On a Mac or Linux, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) if something looks off.
+juice works on Windows, macOS and Linux (tested by hand on Windows, automatically on all three). On a Mac or Linux, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) if something looks off.
 
 <p align="center">
   <a href="https://zdraveski.github.io/claude-juice/web/"><img src="docs/images/open-customizer.png" alt="Open the live customizer" width="340"></a>
   <br>
-  <sub>Try every look, layout and colour with a live preview. Nothing to install.</sub>
+  <sub>Try every look, layout and colour with a live preview, without installing anything.</sub>
 </p>
 
 ## What you get
@@ -139,7 +139,7 @@ There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe,
 
 ## Change how it looks
 
-**[Open the live customizer](https://zdraveski.github.io/claude-juice/web/)** to try every look, layout and colour with a live preview, then copy one line into Claude Code. It runs in your browser, so there is nothing to install.
+[Open the live customizer](https://zdraveski.github.io/claude-juice/web/) to try every look, layout and colour with a live preview, then copy one line into Claude Code. It runs in your browser, so there is nothing to install.
 
 [![The juice customizer web page: a live preview of the status line, options for plan, model, window size, dark or light terminal and situation, and the ready-made looks to start from.](docs/images/customizer.gif)](https://zdraveski.github.io/claude-juice/web/)
 
@@ -191,9 +191,9 @@ Type `/juice doctor` first. It checks, in plain words, your Node version, whethe
 
 ## Update, undo and uninstall
 
-- **Update:** open `/plugin`, pick juice, and update it, then restart Claude Code. Your settings and badges stay. [What's new](CHANGELOG.md) lists what each version changed.
-- **Undo:** `/juice restore` puts your old status line back.
-- **Uninstall:** run `/juice restore` first, then remove juice in `/plugin`. If you uninstall first, the status line tells you how to get back.
+- To update, open `/plugin`, pick juice, and update it, then restart Claude Code. Your settings and badges stay. [What's new](CHANGELOG.md) lists what each version changed.
+- To undo, type `/juice restore`. It puts your old status line back.
+- To uninstall, run `/juice restore` first, then remove juice in `/plugin`. If you uninstall first, the status line tells you how to get back.
 
 <details>
 <summary>Remove every juice file</summary>

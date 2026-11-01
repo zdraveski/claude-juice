@@ -1,11 +1,11 @@
 # Contributing
 
-Thanks for helping. A few things to know first.
+Thanks for helping.
 
 ## The basics
 
 - juice is plain Node.js (18 or newer) with no dependencies. There is nothing to install.
-- `main` is what everyone installs: the plugin store serves it straight away. Work on a branch and open a pull request: changes reach `main` only through a pull request whose checks pass.
+- `main` is what everyone installs: the plugin store serves it straight away. Work on a branch and open a pull request. Changes reach `main` only through a pull request whose checks pass.
 - Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 - Tests: `node --test`. GitHub runs them on Windows, macOS and Linux with Node 18, 22 and 24 for every branch.
 - Before a release, also run `node scripts/e2e.mjs` (end to end), `node scripts/bench.js` (speed: juice may add at most 75 ms) and `node scripts/check-customizer.js` (the web customizer, needs Playwright). The full list is in [docs/release/checklist.md](docs/release/checklist.md).
@@ -35,4 +35,4 @@ The tests already do this. (The `now+…` reset times in `test/fixtures/` are fi
 
 ## Writing for juice
 
-juice is for people who don't code. Anything they read (status line, `/juice` replies, README) uses plain words, no jargon, and says what to do next. Record what changed for them in [CHANGELOG.md](CHANGELOG.md).
+juice is for people who don't code. Anything they read (status line, `/juice` replies, README) uses plain words without jargon and says what to do next. Record what changed for them in [CHANGELOG.md](CHANGELOG.md).
