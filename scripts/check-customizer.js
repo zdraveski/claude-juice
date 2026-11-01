@@ -112,7 +112,7 @@ test('Copy buttons put exactly the shown text on the clipboard', async () => {
   const { page } = await open();
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
   const clip = () => page.evaluate(() => navigator.clipboard.readText());
-  for (const id of ['install1', 'install2', 'install3', 'cmd']) {
+  for (const id of ['install1', 'install2', 'install3', 'install4', 'cmd']) {
     await page.click(`[data-copy=${id}]`);
     assert.equal(await clip(), await page.textContent(`#${id}`), id);
   }

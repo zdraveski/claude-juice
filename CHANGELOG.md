@@ -4,6 +4,8 @@ Newest first. To update, type `/plugin`, update juice, then restart Claude Code.
 
 ## 1.0.2 (2026-10-31)
 
+[Changes since 1.0.1](https://github.com/zdraveski/claude-juice/compare/v1.0.1...v1.0.2)
+
 - In a narrow window a red battery's "out ~2:44 PM" words now go before the battery itself. In the Everything look, red rows keep their numbers.
 - 99.5% to 99.9% shows as 99%, not as a used-up 100%.
 - `/juice set` and badges change only what you asked for: a setting from a newer juice, still open in another window, is kept.
@@ -14,6 +16,8 @@ Newest first. To update, type `/plugin`, update juice, then restart Claude Code.
 - The launcher never mistakes a folder Claude Code named by code version for a newer juice.
 
 ## 1.0.1 (2026-10-31)
+
+[Changes since 1.0.0](https://github.com/zdraveski/claude-juice/compare/v1.0.0...v1.0.1)
 
 - `/juice setup` tells you when it switches your status line to a different copy of juice. Before, it said "Nothing changed" even when it had.
 - `/juice setup` clears the problem `/juice doctor` reported, so the warning only comes back if the problem does.

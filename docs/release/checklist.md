@@ -9,10 +9,11 @@ its child, restore) on Windows, macOS and Linux with Node 18, 22 and 24 on every
 The plugin store serves whatever is newest on `main` (the marketplace entry is `"source": "./"`), to new installs at
 once and under whatever version number `main` says. So:
 
-- Work on a branch, never on `main`. GitHub runs the tests on every branch.
-- `main` moves only at a release: merge the branch with the version raised and its CHANGELOG entry in one go
+- `main` is protected: a change reaches it only through a pull request whose 9 GitHub checks pass, docs included.
+  Work on a branch; GitHub runs the tests on every branch.
+- Code reaches `main` only at a release: merge the pull request with the version raised and its CHANGELOG entry in one go
   (then tag it, step 1 below).
-- Docs-only changes (README, CHANGELOG) can go to `main` between releases; code can't.
+- Docs-only pull requests (README, CHANGELOG) can be merged between releases; code can't.
 - Never run a checkout's `bin/juice-statusline.js` without `CLAUDE_CONFIG_DIR` set to a throwaway folder: a refresh
   points your real status line at the juice it ran from, and it goes blank once that folder is deleted.
 
@@ -22,15 +23,15 @@ once and under whatever version number `main` says. So:
 - [ ] `node scripts/check-customizer.js` passes every browser check (needs Playwright: `npm i -g playwright`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
 - [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json`, and CHANGELOG.md has its `## X.Y.Z` section (tests fail if the versions differ or the section is missing; Claude Code uses plugin.json's version to find updates).
-- [ ] `CHANGELOG.md` has a section for the new version, in plain words for users.
-- [ ] After pushing: tag `v<version>` and publish a GitHub release with that section as its notes (`gh release create v<version> --verify-tag --notes-file -`).
+- [ ] `CHANGELOG.md` has a section for the new version, in plain words for users, with `[Changes since <previous>](https://github.com/zdraveski/claude-juice/compare/v<previous>...v<version>)` under its heading.
+- [ ] After merging: tag `v<version>` and publish a GitHub release with that section as its notes (`gh release create v<version> --verify-tag --notes-file -`).
 
 ## 2. Inside Claude Code, on each system you have
 
 Use a normal session, not auto mode: auto mode approves on its own, so permission prompts can't be checked there.
 Each step says what passes.
 
-1. **Install.** `/plugin marketplace add zdraveski/claude-juice`, `/plugin install juice@juice`, restart Claude Code, `/juice setup`.
+1. **Install.** `/plugin marketplace add zdraveski/claude-juice`, `/plugin install juice@juice`, `/reload-plugins`, `/juice setup` (restart Claude Code only if `/juice` is still unknown).
    Pass: the batteries appear within a minute, and `~/.claude/juice-backup.json` holds your previous status line (its `statusLine` is `null` if you had none).
 2. **Permissions.** `/juice get` and `/juice doctor` run without a permission prompt. `/juice badges add 'echo hi'` shows the
    command and waits; after you say yes, Claude Code asks permission. Fail on any other order.
@@ -97,9 +98,10 @@ Run `node scripts/terminal-check.js` in the terminal and answer its five questio
 
 ## Name check
 
+The repo is named `claude-juice` because other projects already use the name juice.
+
 - Searched the web on 2026-10-29 with two queries: no existing Claude Code plugin or marketplace entry named `juice`.
 - Similar status line plugins exist under other names: claude-statusline, claudeline, claude-code-plugin-hud, ccstatusline.
-- [x] Searched GitHub again on 2026-10-29: two small usage-limit projects are called `juice` (michaelofengenden/juice, namzug16/juice), so the repo is named `claude-juice`; the command stays `/juice`.
 - [ ] Check Anthropic's plugin directory for `juice` before submitting there.
 
 ## Hosting (public since 2026-10-29)
