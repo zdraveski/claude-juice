@@ -2,7 +2,7 @@
 // Each line starts with ✓ (fine), ! (needs attention, with what to do) or · (for information).
 // Never prints a command (another status line's, or a badge's): they can hold keys. The home folder shows as ~,
 // so the report can be pasted into a bug report.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { readJson } from './cache.js';
 import { loadSettings } from './settings.js';
@@ -14,7 +14,7 @@ import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
 import { fableCacheState, fetchedCounts } from './readings.js';
 import { recall } from './lastseen.js';
-import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes, constant } from './setup.js';
+import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes, constant, readText } from './setup.js';
 import { hideHome } from './paths.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
 
@@ -32,7 +32,6 @@ export function ago(ms) {
   return `${Math.round(m / 1440)} days ago`;
 }
 
-const read =(f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
 
 export function doctor(p, { env, platform, now, cwd, version }) {
   const out = [];
@@ -62,7 +61,7 @@ export function doctor(p, { env, platform, now, cwd, version }) {
     // started from an app may find no Node at all.
     const pin = /^\s*PATH="([^"]*?):\$PATH"\s/.exec(line.command)?.[1];
     if (pin && !existsSync(join(pin, 'node'))) out.push(bad('The Node juice was set up with is gone (uninstalled or moved), so the line may stay empty. Run /juice setup.'));
-    const launcher = read(p.launcherFile);
+    const launcher = readText(p.launcherFile);
     const pinned = launcher && constant(launcher, 'PINNED'), market = launcher && constant(launcher, 'MARKET');
     if (launcher === null) out.push(bad("juice's launcher file is missing, so the status line draws nothing. Run /juice setup."));
     else if (!pinned && !market) out.push(bad("juice's launcher file is damaged or from an older juice, so the status line may draw nothing. Run /juice setup."));

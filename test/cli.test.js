@@ -143,6 +143,12 @@ test('a refresh brings an old or outdated launcher up to date, and leaves a remo
   await refresh();
   assert.equal(readFileSync(launcher, 'utf8'), current, 'the same launcher is left as it is, just marked checked');
   assert.ok(statSync(launcher).mtimeMs > old.getTime());
+  // One that setup pointed at another juice (the installed one, while a checkout is being tested) stays as it is.
+  const installed = current.replace(/const PINNED = .*;/, 'const PINNED = null;').replace(/const MARKET = null;/, 'const MARKET = "juice";');
+  writeFileSync(launcher, installed);
+  utimesSync(launcher, old, old);
+  await refresh();
+  assert.equal(readFileSync(launcher, 'utf8'), installed, 'a launcher for another juice is left alone');
   rmSync(launcher);
   await refresh();
   assert.ok(!existsSync(launcher), 'after restore there is nothing to keep up to date');
