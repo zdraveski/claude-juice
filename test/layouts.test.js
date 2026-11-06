@@ -210,3 +210,10 @@ test('an empty badge leaves no gap at the start of the line', () => {
     assert.doesNotMatch(s, /^\s/, layout);
   }
 });
+
+test('before the first reply the line says the batteries are coming, and stops once memory arrives', () => {
+  const fresh = { ...SAMPLES.busy, memoryUsed: null, limits: {} };
+  assert.match(text(fresh), /Opus 5\.5.*high {4}batteries appear after Claude's first reply$/);
+  assert.ok(!text({ ...fresh, memoryUsed: 3 }).includes('first reply'), 'an API key after its first reply');
+  assert.ok(!text(fresh, {}, { columns: 40 }).includes('first reply'), 'only when it fits');
+});
