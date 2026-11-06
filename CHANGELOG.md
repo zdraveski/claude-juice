@@ -2,6 +2,17 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## Not released yet
+
+New:
+- **Two new layouts.** Capsules: each battery a rounded capsule that fills with colour when it needs you. Fuel tank: shows what is left instead of what is used.
+- **Two new looks** that use them: Capsule (Candy colours) and Road trip (Forest colours). `/juice look 13` and `/juice look 14`.
+- **A new chat says what's coming.** Until Claude's first reply, the line reads "batteries appear after Claude's first reply" instead of looking broken.
+- **Battery order.** The batteries keep your order, as before. If you like, they can move instead: the one that needs you first, or the fullest first. The customizer page has the same choice.
+
+Fixed:
+- In a window narrower than one battery's words, the cut keeps its name, number and warning ("Week 50% left!") instead of cutting through them.
+
 ## 1.0.2 (2026-10-31)
 
 [Changes since 1.0.1](https://github.com/zdraveski/claude-juice/compare/v1.0.1...v1.0.2)

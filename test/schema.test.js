@@ -7,7 +7,7 @@ const A = { plentyLeft: '#11AA22', goingFast: '#223344', almostEmpty: '#abcdef',
 const custom = { dark: A, light: { ...A, accent: '#ffffff' } };
 
 test('ids and url', () => {
-  assert.deepEqual(LAYOUT_IDS, ['bar', 'segments', 'focus', 'panel']);
+  assert.deepEqual(LAYOUT_IDS, ['bar', 'segments', 'focus', 'panel', 'pills', 'tank']);
   assert.deepEqual(PRESET_IDS, ['claude', 'frost', 'calm', 'safe', 'bold', 'ocean', 'midnight', 'vampire', 'candy', 'forest', 'sunset', 'solar', 'rose']);
   assert.match(CUSTOMIZER_URL, /^https:\/\//);
 });
@@ -72,10 +72,10 @@ test('applySet', () => {
   assert.throws(() => applySet(DEFAULTS, ['badges=x']), { message: 'Badges can only be added with /juice badges add' });
 });
 
-const LOOK_KEYS = ['layout', 'show', 'colors', 'cost', 'refills', 'ends'];
+const LOOK_KEYS = ['layout', 'show', 'order', 'colors', 'cost', 'refills', 'ends'];
 
-test('looks: twelve, each sets exactly the six look keys to valid values', () => {
-  assert.deepEqual(LOOKS.map((l) => l.id), ['juice', 'basics', 'spotlight', 'everything', 'retro', 'quiet', 'nightowl', 'easy', 'colorblind', 'anywhere', 'costwatch', 'fablefirst']);
+test('looks: fourteen, each sets exactly the seven look keys to valid values', () => {
+  assert.deepEqual(LOOKS.map((l) => l.id), ['juice', 'basics', 'spotlight', 'everything', 'retro', 'quiet', 'nightowl', 'easy', 'colorblind', 'anywhere', 'costwatch', 'fablefirst', 'capsule', 'roadtrip']);
   for (const l of LOOKS) {
     assert.ok(l.name && l.note, l.id);
     assert.deepEqual(Object.keys(l.set).sort(), [...LOOK_KEYS].sort(), l.id);
@@ -129,7 +129,7 @@ test('applySet colours', () => {
 
 test('toCommand', () => {
   // The public page starts at Automatic: pasting a look from it keeps the person's own terminal colour.
-  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget cost=auto colors=claude ends=auto refills=always');
+  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget order=yours cost=auto colors=claude ends=auto refills=always');
   const mine = applySet({ ...DEFAULTS, fable: 'on', terminal: 'light' }, toCommand(DEFAULTS).split(' ').slice(2)).settings;
   assert.deepEqual([mine.fable, mine.terminal], ['on', 'light'], 'neither their fable nor their terminal choice is undone');
   // Choosing Automatic on the page does say so, and undoes Light.
@@ -146,10 +146,10 @@ test('an all-wrong show= list says which names are right, in plain words', () =>
 });
 
 test('toCommand round-trips through applySet, custom colours too (everything but fable)', () => {
-  const s = { ...DEFAULTS, layout: 'focus', show: ['week', 'model'], cost: 'on', colors: { dark: A, light: custom.light }, ends: 'round', terminal: 'light', refills: 'warnings', fable: 'off' };
+  const s = { ...DEFAULTS, layout: 'focus', show: ['week', 'model'], order: 'fullest', cost: 'on', colors: { dark: A, light: custom.light }, ends: 'round', terminal: 'light', refills: 'warnings', fable: 'off' };
   const lower = applySet(DEFAULTS, toCommand(s).split(' ').slice(2)).settings;
   assert.deepEqual(lower, { ...sanitize(s, { allowBadges: true }).settings, fable: DEFAULTS.fable });
-  assert.equal(toCommand(s).split(' ').length, 9);
+  assert.equal(toCommand(s).split(' ').length, 10);
 });
 
 test('a share link never switches on Fable, which reads the login', () => {

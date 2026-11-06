@@ -65,10 +65,10 @@ test('a screen reader hears each card by its name, not the whole preview drawn i
   assert.equal(await page.locator('.thumb:not([aria-hidden=true]), .chips:not([aria-hidden=true])').count(), 0);
 });
 
-test('loads with no errors: 12 looks, 4 layouts, 13 colour sets plus your own', async () => {
+test('loads with no errors: 14 looks, 6 layouts, 13 colour sets plus your own', async () => {
   const { page, errors } = await open();
-  assert.equal(await page.locator('[data-look]').count(), 12);
-  assert.equal(await page.locator('[data-layout]').count(), 4);
+  assert.equal(await page.locator('[data-look]').count(), 14);
+  assert.equal(await page.locator('[data-layout]').count(), 6);
   assert.equal(await page.locator('[data-preset]').count(), 14);
   assert.deepEqual(errors, []);
 });

@@ -103,7 +103,7 @@ A look sets the layout, the colours, what shows, the cost, the reset times and t
 ![The 12 ready-made looks, each drawn as it really looks: Juice, Just the basics, Spotlight, Everything, Retro phone, Quiet, Night owl, Easy to see, Colour-blind friendly, Works everywhere, Cost watcher and Fable first.](docs/images/looks.png)
 
 <details>
-<summary>The 12 looks in words</summary>
+<summary>The 14 looks in words</summary>
 
 | Look | What it is |
 |:---|:---|
@@ -119,10 +119,14 @@ A look sets the layout, the colours, what shows, the cost, the reset times and t
 | Works everywhere | For older terminals that show boxes instead of rounded ends. |
 | Cost watcher | Shows what this chat would have cost. |
 | Fable first | The Fable battery leads, and lights up while you use Fable. |
+| Capsule | Rounded capsules in Candy colours that fill with colour when they need you. |
+| Road trip | A fuel gauge in Forest colours: shows what is left, not what is used. |
+
+The picture shows the first 12. Capsule and Road trip use the Capsules and Fuel tank layouts (see [Six layouts](#six-layouts)).
 
 </details>
 
-### Four layouts
+### Six layouts
 
 | Layout | What it does | See it in the look |
 |:---|:---|:---|
@@ -130,6 +134,10 @@ A look sets the layout, the colours, what shows, the cost, the reset times and t
 | Classic segments | Each battery is five bars, like the signal on an old phone. | Retro phone |
 | Tightest first | The battery closest to running out gets big; the rest shrink to numbers. | Spotlight |
 | Panel | Each battery gets its own row, with the most detail. | Everything |
+| Capsules | Each battery is a rounded capsule. A fine one stays dark; one that needs you fills with its colour, and only that one says its times. | Capsule |
+| Fuel tank | Shows what is left instead of what is used, like a fuel gauge: the bar empties as you work. | Road trip |
+
+The batteries keep the order you chose. To let them move instead, type `/juice put the one that needs me first` (red, then amber, then fine) or `/juice put the fullest first`. `/juice keep my order` puts them back.
 
 ### Colour sets
 
@@ -145,7 +153,7 @@ There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe,
 
 Or type `/juice` and then say what you want, in your own words. For example:
 
-- `/juice looks` (shows all 12 looks, numbered; then `/juice look 7` switches to number 7)
+- `/juice looks` (shows all 14 looks, numbered; then `/juice look 7` switches to number 7)
 - `/juice use the quiet look`
 - `/juice hide the cost`
 - `/juice use the calm colours`

@@ -1,4 +1,4 @@
-import { fg, bold } from './ansi.js';
+import { fg, bg, bold, inkOn } from './ansi.js';
 import { assess, memLevel } from './limits.js';
 import { limitNote, memoryNote, LABELS, EFFORT } from './words.js';
 import { tone } from './palette.js';
@@ -27,6 +27,13 @@ const costShown = (data, ctx) => !ctx.fit.noCost && data.costUsd > 0
 const cost = (data, ctx) => (!costShown(data, ctx) ? ''
   : data.account === 'payg' ? lbl(ctx, 'spent ') + fg(ctx.P.text, money(data.costUsd)) : lbl(ctx, `${money(data.costUsd)} value`));
 
+// The one that needs you most first: red before amber before fine, then whichever blocks you first: a limit
+// already used up, then the earliest run-out time (or the reset, for one that lasts until then), then the fullest.
+// Memory never blocks you, it only gets summarised.
+const RANK = { crit: 2, warn: 1, ok: 0 };
+const blocksAt = (i) => (!i.assessed ? Infinity : i.used >= 100 ? -Infinity : (i.assessed.outAt ?? i.assessed.resetsAt)?.getTime() ?? Infinity);
+const byNeed = (a, b) => RANK[b.level] - RANK[a.level] || (a.level === 'crit' ? blocksAt(a) - blocksAt(b) : 0) || b.used - a.used;
+
 function items(data, ctx) {
   const { settings, fit } = ctx, squeezed = !!fit.shortWords;
   const make = {
@@ -52,6 +59,8 @@ function items(data, ctx) {
     const i = make[id]();
     if (i && i.used >= 100) out.push(i);
   }
+  if (settings.order === 'urgent') out.sort(byNeed);
+  else if (settings.order === 'fullest') out.sort((a, b) => b.used - a.used);
   if (fit.onlyTrouble && out.length) {
     const bad = out.filter((i) => i.level !== 'ok');
     out = bad.length ? bad : [out.slice().sort((a, b) => b.used - a.used)[0]];
@@ -100,12 +109,7 @@ export const LAYOUTS = {
     cost(data, ctx)], ctx.fit.tight ? '  ' : '   '),
 
   focus: (data, ctx) => {
-    // The one that needs you most: red before amber before fine, then whichever blocks you first: a limit
-    // already used up, then the earliest run-out time (or the reset, for one that lasts until then), then the fullest.
-    // Memory never blocks you, it only gets summarised.
-    const rank = { crit: 2, warn: 1, ok: 0 };
-    const out = (i) => (!i.assessed ? Infinity : i.used >= 100 ? -Infinity : (i.assessed.outAt ?? i.assessed.resetsAt)?.getTime() ?? Infinity);
-    const it = items(data, ctx).sort((a, b) => rank[b.level] - rank[a.level] || (a.level === 'crit' ? out(a) - out(b) : 0) || b.used - a.used);
+    const it = items(data, ctx).sort(byNeed);
     if (!it.length) return join([badges(data, ctx), head(data, ctx), cost(data, ctx)]);
     // Focus shows the others without countdowns, so the big one keeps its own even when it shares a reset.
     const [shown, ...rest] = it, big = { ...shown, sameReset: false }, bigNote = wants(ctx, big) ? say(ctx, big) : '', t = ctx.fit.tight;
@@ -121,5 +125,34 @@ export const LAYOUTS = {
     const row = (i) => name(ctx, i, true) + ' '.repeat(Math.max(1, 13 - i.long.length)) + picture(i) + num(ctx, `${i.used}%`.padStart(4), i.level) + lbl(ctx, ' used ') + mark(ctx, i) + ' '.repeat(3 - MARK[i.level].length)
       + (wants(ctx, i) ? say(ctx, i) : i.id === 'memory' && !ctx.fit.noNotes ? lbl(ctx, 'in this chat') : '');
     return [join([badges(data, ctx), head(data, ctx), cost(data, ctx)], lbl(ctx, '     ·     ')), ...items(data, ctx).map(row)].filter(Boolean).join('\n');
+  },
+
+  // Each battery a capsule: a fine one stays dark, a warning fills with its colour. Only one time is said,
+  // for the battery that needs you most, so the capsules stay short.
+  pills: (data, ctx) => {
+    const it = items(data, ctx), P = ctx.P;
+    const pill = (i) => {
+      if (ctx.fit.bare) return name(ctx, i) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i);
+      const c = tone(ctx, paint(i)), fill = i.level === 'ok' ? P.casing : c, pad = ctx.fit.tight ? '' : ' ';
+      const body = bg(fill, fg(i.level === 'ok' ? c : inkOn(c), bold(`${pad}${i.short} ${i.used}%${MARK[i.level] ? pad + MARK[i.level] : ''}${pad}`)));
+      return ctx.round ? fg(fill, '') + body + fg(fill, '') : body;
+    };
+    // The time sits right after its own capsule, so it needs no name.
+    const told = it.slice().sort(byNeed).find((i) => wants(ctx, { ...i, sameReset: false }) && say(ctx, { ...i, sameReset: false }));
+    return join([badges(data, ctx), head(data, ctx),
+      ...it.map((i) => pill(i) + (i === told ? ' ' + say(ctx, { ...i, sameReset: false }) : '')), cost(data, ctx)], '  ');
+  },
+
+  // A fuel gauge: what is left, not what is used, so the bar empties as you work. ▰ and ▱ differ by shape too.
+  // " left" makes each battery longer, so once the words are squeezed only the one that needs you first says its time.
+  tank: (data, ctx) => {
+    const it = items(data, ctx), told = ctx.fit.shortWords && it.slice().sort(byNeed).find((i) => withSay(ctx, i, ' '));
+    return join([badges(data, ctx), head(data, ctx),
+      ...it.map((i) => {
+        const w = ctx.fit.small ? 3 : 4, left = 100 - i.used, n = left > 0 ? Math.max(1, Math.round((left / 100) * w)) : 0;
+        const gauge = ctx.fit.bare ? '' : fg(tone(ctx, paint(i)), '▰'.repeat(n)) + fg(ctx.P.segOff, '▱'.repeat(w - n)) + ' ';
+        return name(ctx, i) + ' ' + gauge + num(ctx, `${left}% left`, i.level) + mark(ctx, i) + (!ctx.fit.shortWords || i === told ? withSay(ctx, i, ' ') : '');
+      }),
+      cost(data, ctx)], ctx.fit.tight ? '  ' : '   ');
   },
 };

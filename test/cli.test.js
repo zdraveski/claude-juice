@@ -157,7 +157,7 @@ test('setup clears the status line problem the doctor reports', async () => {
   assert.equal(existsSync(join(d, 'juice-cache', 'last-error.json')), false);
 });
 
-test('looks lists all twelve, numbered with their ids, each with a plain-text preview', async () => {
+test('looks lists all fourteen, numbered with their ids, each with a plain-text preview', async () => {
   const d = env();
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ fable: 'off', terminal: 'light' }));
   const r = await run(d, ['looks']);
