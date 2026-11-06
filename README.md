@@ -220,3 +220,5 @@ After uninstalling, juice's own files are still in your Claude folder (`~/.claud
 - Want to change the code? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 juice is free and open source under the [MIT license](LICENSE). It is not made by Anthropic.
+
+From the same author: [project-memory](https://github.com/zdraveski/project-memory) helps Claude Code remember your work between conversations, picking up where you left off.
