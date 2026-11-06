@@ -63,6 +63,29 @@ test('focus busy', () => {
   const s = text(SAMPLES.busy, { layout: 'focus' });
   inOrder(s, ['Weekly', '50% used ! · resets Sat 7:20 PM', 'Memory 64%', 'Session 47%', 'Fable 41%']);
 });
+test('pills: a capsule per battery, filled with colour when it needs you; only the most urgent says its times', () => {
+  const s = text(SAMPLES.trouble, { layout: 'pills' });
+  inOrder(s, ['Opus 5.5', 'Memory 91% !!', 'Session 88% !!', 'runs out ~2:44 PM · resets in 2h 5m', 'Fable 62%', 'Weekly 95% !!']);
+  assert.equal(s.match(/runs out|resets/g).length, 2, s);
+  const raw = run(SAMPLES.trouble, { layout: 'pills' }), P = palette(DEFAULTS, 'dark');
+  const bgOf = (h) => `48;2;${[1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(';')}m`;
+  assert.ok(raw.includes(bgOf(P.bad)) && raw.includes(bgOf(P.casing)), 'red capsules filled, the fine one dark');
+  assert.ok(raw.includes('') && !run(SAMPLES.trouble, { layout: 'pills' }, { ends: 'plain' }).includes(''), 'rounded ends only where they can be drawn');
+});
+test('tank: shows what is left, and the gauge empties as the battery is used', () => {
+  inOrder(text(SAMPLES.busy, { layout: 'tank' }), ['Memory ▰▱▱▱ 36% left', 'Session ▰▰▱▱ 53% left', 'Fable ▰▰▱▱ 59% left', 'Weekly ▰▰▱▱ 50% left! resets Sat 7:20 PM']);
+  assert.match(text(SAMPLES.trouble, { layout: 'tank' }), /Weekly ▰▱▱▱ 5% left!!/, 'a little left keeps one cell lit');
+  const empty = { ...SAMPLES.busy, limits: { ...SAMPLES.busy.limits, session: { ...SAMPLES.busy.limits.session, used: 100 } } };
+  assert.match(text(empty, { layout: 'tank' }), /Session ▱▱▱▱ 0% left!!/);
+});
+test('order: yours keeps show, urgent puts what needs you first, fullest the most used', () => {
+  const lim = (used, secs, windowSec) => ({ used, resetsAt: at(secs), windowSec });
+  const mixed = { ...SAMPLES.busy, memoryUsed: 74, limits: { session: lim(72, 7200, 18000), week: lim(48, 259200, 604800), fable: lim(83, 259200, 604800) } };
+  const names = (order) => text(mixed, { layout: 'segments', order }).match(/Memory|Session|Fable|Weekly/g);
+  assert.deepEqual(names('yours'), ['Memory', 'Session', 'Fable', 'Weekly']);
+  assert.deepEqual(names('urgent'), ['Session', 'Fable', 'Memory', 'Weekly'], 'red first, the one that runs out soonest leading');
+  assert.deepEqual(names('fullest'), ['Fable', 'Memory', 'Session', 'Weekly']);
+});
 test('panel busy', () => {
   const lines = text(SAMPLES.busy, { layout: 'panel' }).split('\n');
   assert.equal(lines.length, 5);
@@ -173,7 +196,7 @@ test('64.1 used renders as 64% used in every layout; token memory is whole', () 
   assert.equal(d.memoryUsed, 64);
   for (const layout of LAYOUT_IDS) {
     const s = strip(render(d, { ...DEFAULTS, layout }, TERM).text);
-    assert.match(s, /64%/, layout);
+    assert.match(s, layout === 'tank' ? /36% left/ : /64%/, layout); // the tank shows what is left
     assert.doesNotMatch(s, /\d\.\d{3,}/, layout);
   }
   const t = normalize({ context_window: { context_window_size: 3, current_usage: { input_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } }, {}, NOW);

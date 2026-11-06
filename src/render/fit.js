@@ -23,16 +23,17 @@ const widest = (t) => Math.max(...t.split('\n').map(vis));
 
 // The last resort cuts between items, never through a number or a time. Items are two or more spaces apart, or
 // " │ " and " · " in the spotlight layout. The last item keeps as much as is whole: its name, number and mark
-// ("Week 95%!!") if they fit, else it goes. Only a single item too long for the window is cut mid-way.
+// ("Week 95%!!", "Week 5% left!!") if they fit, else it goes; a first item too long for the window keeps the same.
+// Only an item without even that much room is cut mid-way.
 const GAP = / {2,}| [│·] /g;
 function wholeItems(ln, columns) {
   const plain = strip(ln);
   const gap = Math.max(0, ...[...plain.matchAll(GAP)].map((m) => m.index).filter((i) => i > 0 && i <= columns - 2));
-  if (!gap) return columns - 1;
   // The name may sit before the gap (the panel pads between "Session" and "88% used !!"), so it is optional.
-  const head = /^(?: [│·] | +)(?:\S+ )?\d+%(?: used)?(?: ?!!| ?!)?/.exec(plain.slice(gap))?.[0];
+  // " left" stays with its number (the tank layout): "12%" alone would read as used.
+  const head = /^(?: [│·] | *)(?:\S+ )?\d+%(?: used| left)?(?: ?!!| ?!)?/.exec(plain.slice(gap))?.[0];
   const end = head && vis(plain.slice(0, gap + head.length)) <= columns - 2 ? gap + head.length : gap;
-  return vis(plain.slice(0, end)) + 1; // keeps the space after it, before the '…'
+  return end ? vis(plain.slice(0, end)) + 1 : columns - 1; // keeps the space after it, before the '…'
 }
 
 const without = (flags, flag) => { const rest = { ...flags }; delete rest[flag]; return rest; };

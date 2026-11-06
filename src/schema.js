@@ -1,6 +1,8 @@
 // The one definition of a valid setting. Files, /juice set and share links all pass through here.
 import { PRESETS } from './render/palette.js';
-export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel'];
+export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank'];
+// yours: the order of show; urgent: the one that needs you most first; fullest: the most used first.
+export const ORDER_IDS = ['yours', 'urgent', 'fullest'];
 export const PRESET_IDS = Object.keys(PRESETS);
 export const SHOW_IDS = Object.freeze(['model', 'effort', 'memory', 'session', 'fable', 'week', 'budget']);
 // Said by set, setup and the doctor alike, with the one fix the /juice skill knows.
@@ -10,12 +12,12 @@ export const CUSTOMIZER_URL = 'https://zdraveski.github.io/claude-juice/web/';
 export const fableEnabled = (setting, platform) => setting === 'on' || (setting === 'auto' && platform !== 'darwin');
 
 export const DEFAULTS = Object.freeze({
-  layout: 'bar', show: SHOW_IDS, cost: 'auto', colors: 'claude',
+  layout: 'bar', show: SHOW_IDS, order: 'yours', cost: 'auto', colors: 'claude',
   ends: 'auto', terminal: 'auto', refills: 'always', fable: 'auto', badges: [],
 });
 
-// A look sets these six in one go; terminal, fable and badges stay the person's own.
-const LOOK_BASE = { layout: 'bar', show: SHOW_IDS, colors: 'claude', cost: 'auto', refills: 'always', ends: 'auto' };
+// A look sets these seven in one go; terminal, fable and badges stay the person's own.
+const LOOK_BASE = { layout: 'bar', show: SHOW_IDS, order: 'yours', colors: 'claude', cost: 'auto', refills: 'always', ends: 'auto' };
 const look = (id, name, note, o = {}) => Object.freeze({ id, name, note, set: Object.freeze({ ...LOOK_BASE, ...o }) });
 export const LOOKS = Object.freeze([
   look('juice', 'Juice', 'The standard look, what you get out of the box'),
@@ -30,6 +32,8 @@ export const LOOKS = Object.freeze([
   look('anywhere', 'Works everywhere', 'For older terminals that show boxes instead of rounded ends', { layout: 'segments', ends: 'plain' }),
   look('costwatch', 'Cost watcher', 'Shows what this chat would have cost', { show: ['model', 'memory', 'session', 'week', 'budget'], colors: 'ocean', cost: 'on' }),
   look('fablefirst', 'Fable first', 'The Fable battery leads and lights up while you use Fable', { show: ['model', 'effort', 'fable', 'memory', 'session', 'week', 'budget'], colors: 'candy' }),
+  look('capsule', 'Capsule', 'Each battery a rounded capsule that fills with colour when it needs you', { layout: 'pills', colors: 'candy' }),
+  look('roadtrip', 'Road trip', 'A fuel gauge: shows what is left, not what is used', { layout: 'tank', colors: 'forest' }),
 ]);
 
 export const COLOR_KEYS = ['plentyLeft', 'goingFast', 'almostEmpty', 'accent'];
@@ -43,6 +47,7 @@ const palette = (p) => (isObj(p) && COLOR_KEYS.every((k) => typeof p[k] === 'str
 // Each checker returns the clean value, or undefined when the input is not acceptable.
 const CHECK = {
   layout: oneOf(LAYOUT_IDS),
+  order: oneOf(ORDER_IDS),
   cost: oneOf(['auto', 'on', 'off']),
   ends: oneOf(['auto', 'round', 'plain']),
   terminal: oneOf(['auto', 'dark', 'light']),
@@ -140,7 +145,7 @@ const colorWord = (c) => (typeof c === 'string' ? c
 
 // Everything the customizer has a control for. Not fable: switching it on reads the person's login (from the
 // Keychain on a Mac), which only they should decide, with /juice set, never a pasted command or a shared link.
-const COMMAND_KEYS = ['layout', 'show', 'cost', 'colors', 'ends', 'terminal', 'refills'];
+const COMMAND_KEYS = ['layout', 'show', 'order', 'cost', 'colors', 'ends', 'terminal', 'refills'];
 
 // terminal=auto goes in only when the person chose Automatic on the page: the public page starts at auto,
 // and pasting a look from it must not undo the "/juice set terminal=light" they chose earlier.

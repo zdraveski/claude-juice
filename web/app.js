@@ -14,6 +14,8 @@ const LAYOUTS = {
   segments: ['Classic segments', 'Five bars, like an old phone'],
   focus: ['Tightest first', 'The one to watch gets the spotlight'],
   panel: ['Panel', 'One row each, everything spelled out'],
+  pills: ['Capsules', 'Rounded capsules that fill with colour when they need you'],
+  tank: ['Fuel tank', 'Shows what is left, like a fuel gauge'],
 };
 const SHOW = {
   model: ['Model', 'Which Claude you are using'],
@@ -25,6 +27,7 @@ const SHOW = {
 };
 const NOT_ON = { session: { payg: 'API keys have no session limit' }, week: { payg: 'API keys have no weekly limit' }, fable: { payg: 'API keys have no Fable limit', pro: 'Only Max plans have this limit' } };
 const DETAILS = [
+  ['order', 'Battery order', 'Keep the order above, or let the batteries move as things change', [['yours', 'As above'], ['urgent', 'Needs you first'], ['fullest', 'Fullest first']]],
   // The preview shows Automatic as rounded, so say plainly where it really is rounded.
   ['ends', 'Battery ends', 'Automatic is rounded in VS Code and plain in other terminals. Rounded needs a terminal that can draw them. Plain works everywhere', [['auto', 'Automatic'], ['round', 'Rounded'], ['plain', 'Plain']]],
   ['refills', 'Reset times', 'Always show them, or only when something needs attention', [['always', 'Always'], ['warnings', 'Only when needed']]],
