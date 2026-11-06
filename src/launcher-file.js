@@ -39,8 +39,10 @@ export function launcherFor(pluginRoot) {
 export function upgradeLauncher(p, pluginRoot) {
   try {
     if (statSync(p.launcherFile).mtimeMs >= statSync(TEMPLATE).mtimeMs) return false;
-    const want = launcherFor(pluginRoot);
-    if (readFileSync(p.launcherFile, 'utf8') !== want) { writeAtomic(p.launcherFile, want, { maxWaitMs: 30 }); return true; }
+    const want = launcherFor(pluginRoot), have = readFileSync(p.launcherFile, 'utf8'), target = launcherTarget(have);
+    // A launcher setup pointed at another copy of juice stays pointed there: running a checkout to test it must
+    // not take the place of the installed juice.
+    if (have !== want && (!target || target === launcherTarget(want))) { writeAtomic(p.launcherFile, want, { maxWaitMs: 30 }); return true; }
     const now = new Date();
     utimesSync(p.launcherFile, now, now);
   } catch {}

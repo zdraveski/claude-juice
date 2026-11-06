@@ -9,7 +9,7 @@ export { fwd, constant };
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 // A saved copy of the old status line is usable when it is an object with a statusLine (valid JSON may still be "x" or 5).
 const usableBackup = (b) => !!b && typeof b === 'object' && 'statusLine' in b;
-const readText = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
+export const readText = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
 // Claude Code only redraws on events, so without a timer the countdowns freeze while it is idle.
 const REFRESH_SECONDS = 60;
 // A refresh time Claude Code uses: at least one second (a hand-typed "60", -5 or 0.5 is ignored by it).
