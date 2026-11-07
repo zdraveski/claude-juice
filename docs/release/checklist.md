@@ -2,14 +2,14 @@
 
 These checks need what GitHub's tests don't have: a real Claude Code, a real Mac and real terminals. GitHub already
 runs every test and the end-to-end check (install, the real command through bash and sh, a hung badge killed with
-its child, restore) on Windows, macOS and Linux with Node 18, 22 and 24 on every push.
+its child, restore) on Windows, macOS and Linux with Node 24 and 26 on every push.
 
 ## 0. main is what people install
 
 The plugin store serves whatever is newest on `main` (the marketplace entry is `"source": "./"`), to new installs at
 once and under whatever version number `main` says. So:
 
-- `main` is protected: a change reaches it only through a pull request whose 9 GitHub checks pass, docs included.
+- `main` is protected: a change reaches it only through a pull request whose 7 GitHub checks pass (3 systems × Node 24 and 26, plus `customizer`, the browser checks), docs included.
   Work on a branch; GitHub runs the tests on every branch.
 - Code reaches `main` only at a release: merge the pull request with the version raised and its CHANGELOG entry in one go
   (then tag it, step 1 below).
@@ -19,8 +19,8 @@ once and under whatever version number `main` says. So:
 
 ## 1. Run here before every release
 
-- [ ] `node --test` passes, and GitHub's run for the release commit is green on all 9.
-- [ ] `node scripts/check-customizer.js` passes every browser check (needs Playwright: `npm i -g playwright`).
+- [ ] `node --test` passes, and GitHub's run for the release commit is green on all 7.
+- [ ] `node scripts/check-customizer.js` passes every browser check (needs Playwright: `npm i -g playwright`; GitHub runs it too, as `customizer`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
 - [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json`, and CHANGELOG.md has its `## X.Y.Z` section (tests fail if the versions differ or the section is missing; Claude Code uses plugin.json's version to find updates).
 - [ ] `CHANGELOG.md` has a section for the new version, in plain words for users, with `[Changes since <previous>](https://github.com/zdraveski/claude-juice/compare/v<previous>...v<version>)` under its heading.

@@ -77,6 +77,8 @@ const CHECK = {
 const show = (v) => (typeof v === 'string' ? `'${v}'` : JSON.stringify(v));
 // A misspelt battery name is dropped, but never silently: "sesion" would otherwise just make Session vanish.
 const unknownShow = (v) => (Array.isArray(v) ? v.filter((id) => !SHOW_IDS.includes(id)) : []);
+// A value from a newer juice looks invalid to an older one.
+const NEWER = ". If it's new, update juice: type /plugin, update juice, restart Claude Code.";
 const showWarning = (bad, then = 'so it was left out') => `show: ${bad.map(show).join(', ')} isn't a battery name (they are ${SHOW_IDS.join(', ')}; Weekly is "week"), ${then}`;
 
 export function sanitize(x, { allowBadges }) {
@@ -137,7 +139,7 @@ export function applySet(settings, pairs) {
     const v = CHECK[key](parsed);
     if (v === undefined) {
       // Plain words, not JSON: "sesion,weekly" gets the list of right names (Weekly is "week").
-      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${text}' isn't valid, keeping ${show(next[key])}`);
+      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${text}' isn't valid, keeping ${show(next[key])}${key === 'colors' && text.includes(':') ? '' : NEWER}`);
       continue;
     }
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));
@@ -150,7 +152,7 @@ export function applySet(settings, pairs) {
   // Changed, not chosen: the customizer's command always carries battery=, picked or not.
   const draws = (s) => STYLE_LAYOUTS.includes(s.layout);
   if (next.battery !== DEFAULTS.battery && !draws(next) && (changed.includes('battery') || draws(settings))) {
-    const where = `the ${LAYOUT_NAMES[next.layout]} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`;
+    const where = `the ${LAYOUT_NAMES[next.layout] ?? 'current'} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`;
     warnings.push(changed.includes('battery') ? `battery: saved, but ${where}` : `battery: your '${next.battery}' style won't show, as ${where}`);
   }
   return { settings: next, warnings, changed, chosen };

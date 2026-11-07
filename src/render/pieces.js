@@ -19,7 +19,8 @@ export function ramp(ctx, effort) {
 export function chip(ctx, text) {
   const { P } = ctx, tint = mix(P.bg, P.accent, ctx.dark ? 0.22 : 0.14);
   const body = fg(P.accent, '◆ ') + fg(P.text, bold(text));
-  return ctx.round ? fg(tint, CAP_L) + bg(tint, body) + fg(tint, CAP_R) : bg(tint, ' ' + body + ' ');
+  // Without colour the tint is gone, so the padding spaces would only be stray gaps.
+  return ctx.round ? fg(tint, CAP_L) + bg(tint, body) + fg(tint, CAP_R) : ctx.mono ? body : bg(tint, ' ' + body + ' ');
 }
 
 // The even-pace tick: the cell where the fill would be now if the limit were used evenly (elapsed is 0..1).
@@ -111,8 +112,9 @@ export function batteryLow(ctx, pct, level, w = 14, elapsed) {
 // [0] is an empty cell: one dot halfway up (blank braille would hide the gauge). Any use shows at least
 // two grains (⣀), so without colour 1% is a line on the floor, not one dot moved down from 0%.
 const SAND = '⠂⡀⣀⣄⣤⣦⣶⣷⣿';
-// x of w steps, rounded, but only 0 looks empty and only 1 looks full (99% must not pass for blocked).
-const at = (x, w) => (x > 0 && x < 1 ? Math.min(w - 1, Math.max(1, Math.round(x * w))) : Math.round(x * w));
+// x of w steps, rounded (an exact half down: a cell lights only when more than half used), but only 0 looks empty and only 1 looks full (99% must not pass for blocked).
+const round = (v) => Math.ceil(v - 0.5 - 1e-9);
+const at = (x, w) => (x > 0 && x < 1 ? Math.min(w - 1, Math.max(1, round(x * w))) : Math.round(x * w));
 const run = (ctx, c, n, w, on, off) => fg(c, on.repeat(n)) + fg(ctx.P.mute, off.repeat(w - n));
 // The even-pace mark goes on the same scale as the fill (at), so on pace it lands right where the fill ends.
 // gap: used minus even use, in whole points. Within a point you are on pace: the mark goes where yours is (k).
@@ -151,5 +153,5 @@ const FORMS = {
 export const isForm = (ctx) => Object.hasOwn(FORMS, ctx.style);
 export function form(ctx, pct, level, small, elapsed) {
   const [widths, draw] = FORMS[ctx.style];
-  return draw(ctx, tone(ctx, level), Math.max(0, Math.min(100, pct)) / 100, widths[small ? 1 : 0], elapsed);
+  return draw(ctx, tone(ctx, level), Math.max(0, Math.min(100, pct || 0)) / 100, widths[small ? 1 : 0], elapsed);
 }

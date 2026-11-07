@@ -15,14 +15,14 @@ export const ESCAPES = /\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\
 export const strip = (s) => s.replace(ESCAPES, '');
 
 // ♥, ♡ and ▪ are pictographic (♡ only in older Node) but draw one column (text presentation by default); lives and outline use them bare.
-// shortcut: a badge's "♥" + VS16 counts 1 but draws 2, upgrade to presentation-aware widths if one shows up.
-const width = (ch) => (ch === '️' ? 0 : !'♥♡▪'.includes(ch) && WIDE.test(ch) ? 2 : 1);
-export const vis = (s) => { let n = 0; for (const ch of strip(s)) n += width(ch); return n; };
+// A character plus VS16 (U+FE0F) draws as a 2-column emoji; a lone VS16 draws nothing.
+const width = (ch) => (ch === '\ufe0f' ? 0 : ch.endsWith('\ufe0f') ? 2 : !'♥♡▪'.includes(ch) && WIDE.test(ch) ? 2 : 1);
+export const vis = (s) => { let n = 0; for (const m of strip(s).matchAll(/[\s\S]\ufe0f?/gu)) n += width(m[0]); return n; };
 
 // Cut a coloured line to n visible columns without breaking its escape codes.
 export function cut(s, n) {
   let out = '', seen = 0;
-  for (const m of s.matchAll(/\x1b\[[0-9;]*m|[\s\S]/gu)) {
+  for (const m of s.matchAll(/\x1b\[[0-9;]*m|[\s\S]\ufe0f?/gu)) {
     if (m[0].startsWith('\x1b')) { out += m[0]; continue; }
     const w = width(m[0]);
     if (seen + w > n) break;

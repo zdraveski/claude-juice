@@ -37,8 +37,9 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   const out = [];
   const t = now.getTime();
   const node = process.versions.node;
-  out.push(Number(node.split('.')[0]) >= 18 ? ok(`juice ${version}, Node ${node}, ${OS[platform] ?? platform}`)
-    : bad(`Node ${node} is too old: juice needs Node 18 or newer. Install it from nodejs.org.`));
+  // Older Node still draws the line; juice just isn't tested there, so say so instead of refusing.
+  out.push(Number(node.split('.')[0]) >= 24 ? ok(`juice ${version}, Node ${node}, ${OS[platform] ?? platform}`)
+    : bad(`Node ${node} isn't supported: juice needs Node 24 or newer. Update it from nodejs.org.`));
 
   // 1. Is juice the status line, and can that line find Node and juice?
   let settings = null;

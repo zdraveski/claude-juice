@@ -19,7 +19,7 @@ Ground rules:
 
 Steps:
 
-1. Run `node --version`. If node is missing or older than 18, explain in plain words how to install Node from nodejs.org, then stop.
+1. Run `node --version`. If node is missing, explain in plain words how to install Node from nodejs.org, then stop. If it is older than 24, say in one sentence that juice needs Node 24 or newer and they should update it from nodejs.org, then carry on.
 
 2. If the request is `setup`, `restore`, `customize` or `get`, run `JUICE <that word>` and explain the result in plain words.
    - If `setup` answers with exit code 2, the person's status line changed since juice saved a copy. Explain that in plain words and ask whether juice may replace it. Run `JUICE setup --yes` only after they agree.

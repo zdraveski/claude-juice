@@ -25,14 +25,14 @@ export async function main(argv, io) {
     switch (cmd) {
       case 'set': {
         const loaded = loadSettings(p);
-        const { settings, warnings, chosen } = applySet(loaded.settings, args);
+        const { settings, warnings, chosen, changed: moved } = applySet(loaded.settings, args);
         // Only what was asked for is written, and only where the file says otherwise (a value juice couldn't use reads
         // as its default, so choosing that default still has to be written). Everything else stays as it was.
         const file = readJson(p.settingsFile) ?? {};
         const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
         const write = chosen.filter((k) => !same(file[k], settings[k]));
-        // Said changed when what juice uses changed, or a value it couldn't use was replaced.
-        const changed = write.filter((k) => !same(loaded.settings[k], settings[k]) || Object.hasOwn(file, k));
+        // Said changed when what juice uses changed (applySet's list), or a value it couldn't use was replaced.
+        const changed = write.filter((k) => moved.includes(k) || Object.hasOwn(file, k));
         if (write.length) saveSettings(p, Object.fromEntries(write.map((k) => [k, settings[k]])));
         io.out(changed.length ? `Changed: ${changed.join(', ')}` : 'Nothing changed.');
         // The file's warnings were read before this write: drop the ones about values just replaced.
