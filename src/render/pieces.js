@@ -108,14 +108,16 @@ export function batteryLow(ctx, pct, level, w = 14, elapsed) {
 // The forms: a shape instead of a battery, each at [normal, squeezed] width. u is used 0..1, e the even-pace
 // point 0..1 (or undefined). Used and left differ by shape, so a form reads without colour too.
 // The unused part is in the label grey: a thin · or ♡ in the groove colour all but vanishes.
-const SAND = '⠒⡀⣀⣄⣤⣦⣶⣷⣿'; // [0] is an empty cell: a faint line, as blank braille would hide the gauge
+const SAND = '⠂⡀⣀⣄⣤⣦⣶⣷⣿'; // [0] is an empty cell: one dot halfway up, where no grain sits alone (blank braille would hide the gauge)
 // x of w steps, rounded, but only 0 looks empty and only 1 looks full (99% must not pass for blocked).
 const at = (x, w) => (x > 0 && x < 1 ? Math.min(w - 1, Math.max(1, Math.round(x * w))) : Math.round(x * w));
 const run = (ctx, c, n, w, on, off) => fg(c, on.repeat(n)) + fg(ctx.P.mute, off.repeat(w - n));
 // The even-pace mark on the same scale as the fill, so on pace it lands right where the fill ends.
 const paceAt = (e, w) => (e > 0 && e < 1 ? at(e, w) : -1);
-// Mark t and you k in the same cell but more than a point apart: step the mark one cell so ahead or behind shows.
-const nudge = (t, k, u, e) => (t === k && Math.abs(u - e) > 0.01 ? t + (u > e ? -1 : 1) : t);
+// gap: used minus even use, in whole points. Within a point you are on pace: the mark goes where yours is (k).
+// Further apart but in the same cell: step the mark one cell so ahead or behind shows.
+const gapOf = (u, e) => Math.round(u * 100) - Math.round(e * 100);
+const nudge = (t, k, gap) => (Math.abs(gap) <= 1 ? k : t === k ? t + (gap > 0 ? -1 : 1) : t);
 const FORMS = {
   pie: [[1, 1], (ctx, c, u) => fg(c, '○◔◑◕●'[at(u, 4)])],
   sand: [[5, 3], (ctx, c, u, w) => {
@@ -125,7 +127,7 @@ const FORMS = {
   slider: [[8, 5], (ctx, c, u, w) => { const k = at(u, w - 1); return fg(c, '━'.repeat(k) + '●') + fg(ctx.P.mute, '─'.repeat(w - 1 - k)); }],
   // You (●) racing the even pace (│): ahead of the line is going fast. On the line, you cover it.
   race: [[9, 6], (ctx, c, u, w, e) => {
-    const k = at(u, w - 1), t = e > 0 && e < 1 ? nudge(paceAt(e, w - 1), k, u, e) : -1;
+    const k = at(u, w - 1), t = e > 0 && e < 1 ? nudge(paceAt(e, w - 1), k, gapOf(u, e)) : -1;
     return [...Array(w).keys()].map((i) => (i === k ? fg(c, '●') : i === t ? fg(ctx.P.text, '│') : fg(ctx.P.mute, '·'))).join('');
   }],
   // Counts what is left, like the tank: any left at all keeps a heart, any used loses one.
@@ -135,7 +137,7 @@ const FORMS = {
   ruler: [[8, 5], (ctx, c, u, w, e) => {
     // The tick marks the last cell even use would fill: on the fill's end when on pace, inside it when ahead,
     // past it when behind. It is ╋ on a lit cell and ┿ on an unlit one, so the fill always shows in full.
-    const k = at(u, w), t = e > 0 && e < 1 ? Math.max(0, nudge(paceAt(e, w) - 1, k - 1, u, e)) : -1;
+    const k = at(u, w), t = e > 0 && e < 1 ? Math.max(0, nudge(paceAt(e, w) - 1, k - 1, gapOf(u, e))) : -1;
     let s = '';
     for (let i = 0; i < w; i++) s += i === t ? fg(ctx.P.text, i < k ? '╋' : '┿') : i < k ? fg(c, '━') : fg(ctx.P.mute, '─');
     return fg(ctx.P.sub, '┣') + s + fg(ctx.P.sub, '┫');

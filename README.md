@@ -176,7 +176,7 @@ The batteries in the Status bar and Tightest first layouts can be drawn six ways
 The shapes put the number after them, and read without colour too:
 
 - **Pie** `◑ 47%`: one little pie that fills by quarters.
-- **Sand** `⣿⣿⣄⠒⠒ 47%`: fine grains that pile up, eight to a cell.
+- **Sand** `⣿⣿⣄⠂⠂ 47%`: fine grains that pile up, eight to a cell.
 - **Slider** `━━━●──── 47%`: a knob on a track.
 - **Pace race** `···│●···· 47%`: you (●) racing even use (│). Here you're ahead of the line, so going fast. On the line, you cover it.
 - **Lives** `♥♥♥♡♡ 47%`: what is left, as hearts.

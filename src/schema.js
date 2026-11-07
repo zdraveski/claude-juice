@@ -113,10 +113,8 @@ const PARSE = { show: (t) => t.split(',').filter(Boolean), colors: parseColors }
 export function applySet(settings, pairs) {
   const next = { ...settings };
   const warnings = [];
-  const changed = [];
   const chosen = []; // every setting given a valid value, changed or not (a file may hold another value for it)
   const put = (key, v) => {
-    if (JSON.stringify(v) !== JSON.stringify(next[key]) && !changed.includes(key)) changed.push(key);
     if (!chosen.includes(key)) chosen.push(key);
     next[key] = Array.isArray(v) ? [...v] : v;
   };
@@ -143,11 +141,15 @@ export function applySet(settings, pairs) {
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));
     put(key, v);
   }
+  // Compared at the end, so a key set twice back to where it was has not changed.
+  const changed = chosen.filter((k) => JSON.stringify(settings[k]) !== JSON.stringify(next[k]));
   // Only Status bar and Tightest first draw the battery style; in the others a style picked shows nothing.
+  // Warn only when this command hides a style that showed or is new: not for the default, not for one already hidden.
   // Changed, not chosen: the customizer's command always carries battery=, picked or not.
-  // Warn when a style is set, or a look moves a chosen style to a layout that ignores it.
-  if ((changed.includes('battery') || (changed.includes('layout') && next.battery !== DEFAULTS.battery)) && !['bar', 'focus'].includes(next.layout)) {
-    warnings.push(`battery: saved, but the ${LAYOUT_NAMES[next.layout]} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`);
+  const draws = (s) => ['bar', 'focus'].includes(s.layout);
+  if (next.battery !== DEFAULTS.battery && !draws(next) && (changed.includes('battery') || draws(settings))) {
+    const where = `the ${LAYOUT_NAMES[next.layout]} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`;
+    warnings.push(changed.includes('battery') ? `battery: saved, but ${where}` : `battery: your '${next.battery}' style won't show, as ${where}`);
   }
   return { settings: next, warnings, changed, chosen };
 }

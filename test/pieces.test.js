@@ -288,7 +288,7 @@ test('forms: a fixed width at every level, normal and squeezed', () => {
 
 test('forms: the shapes', () => {
   assert.deepEqual([0, 13, 50, 70, 100].map((p) => fm('pie', p)), ['○', '◔', '◑', '◕', '●']);
-  assert.equal(fm('sand', 50), '⣿⣿⣤⠒⠒');
+  assert.equal(fm('sand', 50), '⣿⣿⣤⠂⠂');
   assert.equal(fm('sand', 100), '⣿⣿⣿⣿⣿');
   assert.equal(fm('slider', 0), '●───────');
   assert.equal(fm('slider', 50), '━━━━●───');
@@ -326,8 +326,11 @@ test('forms: only 100% looks full and only 0% looks empty', () => {
   }
   assert.equal(fm('pie', 88), '◕');
   assert.equal(fm('pie', 1), '◔');
-  assert.equal(fm('sand', 1), '⡀⠒⠒⠒⠒');
-  assert.equal(fm('sand', 0), '⠒⠒⠒⠒⠒', 'an empty gauge still shows');
+  assert.equal(fm('sand', 1), '⡀⠂⠂⠂⠂');
+  assert.equal(fm('sand', 0), '⠂⠂⠂⠂⠂', 'an empty gauge still shows');
+  // Without colour an empty cell must not look fuller than one grain: one dot each, in different places.
+  const dots = (ch) => (ch.codePointAt(0) - 0x2800).toString(2).replace(/0/g, '').length;
+  assert.ok(dots('⠂') <= dots('⡀') && fm('sand', 0, false, undefined, { colorDepth: 'none' }) !== fm('sand', 1, false, undefined, { colorDepth: 'none' }));
 });
 
 test('ruler and race: on pace, a little ahead and a little behind always look different', () => {
@@ -341,6 +344,20 @@ test('ruler and race: on pace, a little ahead and a little behind always look di
     assert.ok(q(p + 2).indexOf('│') < q(p + 2).indexOf('●'), `race ahead ${p}%: ${q(p + 2)}`);
     assert.ok(q(p - 2).indexOf('│') > q(p - 2).indexOf('●'), `race behind ${p}%: ${q(p - 2)}`);
   }
+});
+
+test('ruler and race: within a point of even use is on pace, more is ahead or behind, every time', () => {
+  for (const small of [false, true]) for (let p = 2; p <= 98; p++) for (const d of [-1.5, -1, -0.5, 0, 0.5, 1, 1.5]) {
+    const e = (p + d) / 100, r = fm('ruler', p, small, e).slice(1, -1), q = fm('race', p, small, e), at = `${p}% e=${e} small=${small}`;
+    const t = r.search(/[╋┿]/), lit = r.split('━').length - 1 + (r[t] === '╋'), on = Math.abs(p - Math.round(e * 100)) <= 1;
+    if (on) {
+      assert.equal(t, lit - 1 < 0 ? 0 : lit - 1, `ruler on pace ${at}: ${r}`);
+      assert.ok(!q.includes('│'), `race on pace ${at}: ${q}`);
+    }
+  }
+  // 11 with 12 gone and 12 with 13 gone are both a point behind: same look, no flicker.
+  assert.equal(fm('ruler', 11, false, 0.12), fm('ruler', 11, false, 0.11));
+  assert.equal(fm('ruler', 12, false, 0.13), fm('ruler', 12, false, 0.12));
 });
 
 test('forms: an empty or full run sends no empty colour codes', () => {
