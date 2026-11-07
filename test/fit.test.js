@@ -162,3 +162,14 @@ test('256 colour output has no truecolor escapes', () => {
   const t = go(SAMPLES.busy, 'bar', 120, { colorDepth: '256' }).text;
   assert.ok(!t.includes('38;2;') && t.includes('38;5;'));
 });
+
+test('the divided bar fits 30-160 columns, never splits a number, and gives way in FIT_STEPS order', () => {
+  const labels = FIT_STEPS.map(([, l]) => l);
+  for (let w = 30; w <= 160; w++) {
+    const r = go(SAMPLES.trouble, 'bar', w), t = strip(r.text);
+    assert.ok(widest(r.text) <= w, `${w}: ${t}`);
+    assert.doesNotMatch(t, /\d…$| \d+$/, `${w}: split number: ${t}`);
+    const idx = r.dropped.filter((x) => x !== 'the end of the line').map((x) => labels.indexOf(x));
+    assert.ok(idx.every((x, i) => x >= 0 && (i === 0 || x > idx[i - 1])), `${w}: ${r.dropped}`);
+  }
+});

@@ -33,7 +33,9 @@ export function palette(settings, theme) {
 }
 
 export const makeCtx = (data, settings, terminal) => ({
-  P: palette(settings, terminal.theme), round: terminal.ends === 'round', mono: terminal.colorDepth === 'none', settings, now: data.now, fit: {},
+  P: palette(settings, terminal.theme), round: terminal.ends === 'round', mono: terminal.colorDepth === 'none', settings,
+  // No colour: lit and unlit must differ by shape, which only the classic cells do.
+  style: terminal.colorDepth === 'none' ? 'classic' : settings.battery || 'glossy', dark: terminal.theme === 'dark', now: data.now, fit: {},
 });
 
 const TONE = { ok: 'good', warn: 'watch', crit: 'bad', fable: 'fable' };

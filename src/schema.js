@@ -4,6 +4,8 @@ export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank']
 // yours: the order of show; urgent: the one that needs you most first; fullest: the most used first.
 export const ORDER_IDS = ['yours', 'urgent', 'fullest'];
 export const PRESET_IDS = Object.keys(PRESETS);
+// How the bar and focus batteries are drawn; classic is the flat look juice started with.
+export const BATTERY_IDS = ['glossy', 'classic', 'outline', 'hot', 'liquid', 'pace'];
 export const SHOW_IDS = Object.freeze(['model', 'effort', 'memory', 'session', 'fable', 'week', 'budget']);
 // Said by set, setup and the doctor alike, with the one fix the /juice skill knows.
 export const NOTHING_SHOWN = 'Your juice settings choose nothing to show, so the line stays empty. Type /juice show all the batteries to bring them back.';
@@ -13,10 +15,10 @@ export const fableEnabled = (setting, platform) => setting === 'on' || (setting 
 
 export const DEFAULTS = Object.freeze({
   layout: 'bar', show: SHOW_IDS, order: 'yours', cost: 'auto', colors: 'claude',
-  ends: 'auto', terminal: 'auto', refills: 'always', fable: 'auto', badges: [],
+  ends: 'auto', battery: 'glossy', terminal: 'auto', refills: 'always', fable: 'auto', badges: [],
 });
 
-// A look sets these seven in one go; terminal, fable and badges stay the person's own.
+// A look sets these seven in one go; battery, terminal, fable and badges stay the person's own.
 const LOOK_BASE = { layout: 'bar', show: SHOW_IDS, order: 'yours', colors: 'claude', cost: 'auto', refills: 'always', ends: 'auto' };
 const look = (id, name, note, o = {}) => Object.freeze({ id, name, note, set: Object.freeze({ ...LOOK_BASE, ...o }) });
 export const LOOKS = Object.freeze([
@@ -50,6 +52,7 @@ const CHECK = {
   order: oneOf(ORDER_IDS),
   cost: oneOf(['auto', 'on', 'off']),
   ends: oneOf(['auto', 'round', 'plain']),
+  battery: oneOf(BATTERY_IDS),
   terminal: oneOf(['auto', 'dark', 'light']),
   refills: oneOf(['always', 'warnings']),
   fable: oneOf(['auto', 'on', 'off']),
@@ -145,7 +148,7 @@ const colorWord = (c) => (typeof c === 'string' ? c
 
 // Everything the customizer has a control for. Not fable: switching it on reads the person's login (from the
 // Keychain on a Mac), which only they should decide, with /juice set, never a pasted command or a shared link.
-const COMMAND_KEYS = ['layout', 'show', 'order', 'cost', 'colors', 'ends', 'terminal', 'refills'];
+const COMMAND_KEYS = ['layout', 'show', 'order', 'cost', 'colors', 'ends', 'battery', 'terminal', 'refills'];
 
 // terminal=auto goes in only when the person chose Automatic on the page: the public page starts at auto,
 // and pasting a look from it must not undo the "/juice set terminal=light" they chose earlier.

@@ -10,7 +10,7 @@ import { LAYOUTS } from '../src/render/layouts.js';
 import { DEFAULTS, LAYOUT_IDS, applySet } from '../src/schema.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 import { fg, contrast } from '../src/render/ansi.js';
-import { palette, NEUTRAL } from '../src/render/palette.js';
+import { palette, NEUTRAL, makeCtx } from '../src/render/palette.js';
 
 const term = { columns: 200, theme: 'dark', ends: 'round', colorDepth: 'truecolor' };
 const run = (data, over = {}, t = {}) => render(data, { ...DEFAULTS, ...over }, { ...term, ...t }).text;
@@ -216,4 +216,29 @@ test('before the first reply the line says the batteries are coming, and stops o
   assert.match(text(fresh), /Opus 5\.5.*high {4}batteries appear after Claude's first reply$/);
   assert.ok(!text({ ...fresh, memoryUsed: 3 }).includes('first reply'), 'an API key after its first reply');
   assert.ok(!text(fresh, {}, { columns: 40 }).includes('first reply'), 'only when it fits');
+});
+
+test('the model sits on a chip, and hiding the model hides the chip', () => {
+  assert.ok(text(SAMPLES.busy).startsWith('\ue0b6◆ Opus 5.5\ue0b4'), text(SAMPLES.busy));
+  assert.ok(!text(SAMPLES.busy, { show: ['effort', 'memory', 'session'] }).includes('◆'));
+  for (const columns of [30, 40, 50]) {
+    const r = render(SAMPLES.trouble, DEFAULTS, { ...term, columns });
+    if (!strip(r.text).includes('Opus')) assert.ok(!strip(r.text).includes('◆'), `${columns}: ${strip(r.text)}`);
+  }
+});
+
+test('bar: items divided by a dim │, plain gaps once spacing is squeezed', () => {
+  const r = render(SAMPLES.busy, DEFAULTS, term), ctx = makeCtx(SAMPLES.busy, DEFAULTS, term);
+  assert.ok(strip(r.text).includes('  │  Session'), strip(r.text));
+  assert.ok(r.text.includes(fg(ctx.P.groove, '  │  ')), 'the divider is groove-coloured');
+  const tight = render(withAccount(SAMPLES.trouble, 'pro'), DEFAULTS, { ...term, columns: 80 });
+  assert.ok(tight.dropped.includes('spacing'), tight.dropped.join());
+  assert.ok(!strip(tight.text).includes(' │ '), strip(tight.text));
+});
+
+// Review: without colour the divider was the same │ as the pace tick.
+test('bar without colour has no divider, so a │ is always the pace tick', () => {
+  const t = text(SAMPLES.busy, {}, { colorDepth: 'none' });
+  assert.ok(!t.includes('  │  '), t);
+  assert.ok(t.includes('│47%'), 'the tick is still there');
 });

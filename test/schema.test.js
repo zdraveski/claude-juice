@@ -1,7 +1,7 @@
 import './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULTS, LAYOUT_IDS, PRESET_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink, CUSTOMIZER_URL } from '../src/schema.js';
+import { DEFAULTS, LAYOUT_IDS, PRESET_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink, CUSTOMIZER_URL, BATTERY_IDS } from '../src/schema.js';
 
 const A = { plentyLeft: '#11AA22', goingFast: '#223344', almostEmpty: '#abcdef', accent: '#000000' };
 const custom = { dark: A, light: { ...A, accent: '#ffffff' } };
@@ -129,7 +129,7 @@ test('applySet colours', () => {
 
 test('toCommand', () => {
   // The public page starts at Automatic: pasting a look from it keeps the person's own terminal colour.
-  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget order=yours cost=auto colors=claude ends=auto refills=always');
+  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget order=yours cost=auto colors=claude ends=auto battery=glossy refills=always');
   const mine = applySet({ ...DEFAULTS, fable: 'on', terminal: 'light' }, toCommand(DEFAULTS).split(' ').slice(2)).settings;
   assert.deepEqual([mine.fable, mine.terminal], ['on', 'light'], 'neither their fable nor their terminal choice is undone');
   // Choosing Automatic on the page does say so, and undoes Light.
@@ -146,10 +146,10 @@ test('an all-wrong show= list says which names are right, in plain words', () =>
 });
 
 test('toCommand round-trips through applySet, custom colours too (everything but fable)', () => {
-  const s = { ...DEFAULTS, layout: 'focus', show: ['week', 'model'], order: 'fullest', cost: 'on', colors: { dark: A, light: custom.light }, ends: 'round', terminal: 'light', refills: 'warnings', fable: 'off' };
+  const s = { ...DEFAULTS, layout: 'focus', show: ['week', 'model'], order: 'fullest', cost: 'on', colors: { dark: A, light: custom.light }, ends: 'round', battery: 'pace', terminal: 'light', refills: 'warnings', fable: 'off' };
   const lower = applySet(DEFAULTS, toCommand(s).split(' ').slice(2)).settings;
   assert.deepEqual(lower, { ...sanitize(s, { allowBadges: true }).settings, fable: DEFAULTS.fable });
-  assert.equal(toCommand(s).split(' ').length, 10);
+  assert.equal(toCommand(s).split(' ').length, 11);
 });
 
 test('a share link never switches on Fable, which reads the login', () => {
@@ -204,4 +204,17 @@ test('the /juice skill numbers the looks and names the colour sets exactly as th
   const numbered = /numbered list: ([^(]+?) \(/.exec(skill)[1].split(', ').map((x) => x.split(' ')[1]);
   assert.deepEqual(numbered, LOOKS.map((l) => l.id));
   for (const id of PRESET_IDS) assert.ok(skill.includes(`${id} (${PRESETS[id].name}`), `colour set ${id} (${PRESETS[id].name}) is not named in the skill`);
+});
+
+test('battery setting: default glossy, all six ids accepted, junk falls back with a warning', () => {
+  assert.deepEqual(BATTERY_IDS, ['glossy', 'classic', 'outline', 'hot', 'liquid', 'pace']);
+  assert.equal(sanitize({}, {}).settings.battery, 'glossy');
+  for (const id of BATTERY_IDS) assert.equal(sanitize({ battery: id }, {}).settings.battery, id);
+  const bad = sanitize({ battery: 'shiny' }, {});
+  assert.equal(bad.settings.battery, 'glossy');
+  assert.equal(bad.warnings.length, 1);
+  assert.match(bad.warnings[0], /battery/);
+  assert.equal(applySet(DEFAULTS, ['battery=outline']).settings.battery, 'outline');
+  assert.match(toCommand(DEFAULTS), / battery=glossy/);
+  assert.equal(applySet({ ...DEFAULTS, battery: 'pace' }, ['look=retro']).settings.battery, 'pace');
 });
