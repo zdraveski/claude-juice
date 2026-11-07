@@ -206,8 +206,8 @@ test('the /juice skill numbers the looks and names the colour sets exactly as th
   for (const id of PRESET_IDS) assert.ok(skill.includes(`${id} (${PRESETS[id].name}`), `colour set ${id} (${PRESETS[id].name}) is not named in the skill`);
 });
 
-test('battery setting: default glossy, all six ids accepted, junk falls back with a warning', () => {
-  assert.deepEqual(BATTERY_IDS, ['glossy', 'classic', 'outline', 'hot', 'liquid', 'pace']);
+test('battery setting: default glossy, all fourteen ids accepted, junk falls back with a warning', () => {
+  assert.deepEqual(BATTERY_IDS, ['glossy', 'classic', 'outline', 'hot', 'liquid', 'pace', 'pie', 'sand', 'slider', 'race', 'lives', 'dots', 'chevrons', 'ruler']);
   assert.equal(sanitize({}, {}).settings.battery, 'glossy');
   for (const id of BATTERY_IDS) assert.equal(sanitize({ battery: id }, {}).settings.battery, id);
   const bad = sanitize({ battery: 'shiny' }, {});
@@ -233,4 +233,15 @@ test('battery set in a layout that keeps its own shapes says so; bar and focus s
   // The customizer's command always carries battery=; pasting a Retro look must not warn about a style nobody picked.
   const retro = { ...DEFAULTS, ...LOOKS.find((l) => l.id === 'retro').set };
   assert.deepEqual(applySet(DEFAULTS, toCommand(retro).split(' ').slice(2)).warnings, []);
+  // A look that moves a chosen style to a layout that ignores it says so too; the default style stays quiet.
+  assert.match(applySet({ ...DEFAULTS, battery: 'pie' }, ['look=retro']).warnings.join(), /^battery: your 'pie' style won't show.*layout=bar/);
+  assert.deepEqual(applySet(DEFAULTS, ['look=retro']).warnings, []);
+  // Quiet: going back to the default, a style already hidden moving between hidden layouts, a key set and set back.
+  const quiet = (s, a) => assert.deepEqual(applySet({ ...DEFAULTS, ...s }, a).warnings, [], a.join(' '));
+  quiet({ battery: 'hot', layout: 'panel' }, ['battery=glossy']);
+  quiet({ battery: 'hot' }, ['layout=panel', 'battery=glossy']);
+  quiet({ battery: 'classic', layout: 'segments' }, ['layout=panel']);
+  quiet({ battery: 'hot', layout: 'panel' }, ['layout=bar', 'layout=panel']);
+  quiet({}, ['battery=hot', 'battery=glossy', 'layout=panel']);
+  assert.deepEqual(applySet({ ...DEFAULTS, layout: 'panel' }, ['layout=bar', 'layout=panel']).changed, []);
 });

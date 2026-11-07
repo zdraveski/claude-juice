@@ -1,7 +1,7 @@
 // The customizer page. All drawing of the status line is done by ../src/render; this file only builds controls and converts its ANSI to HTML.
 import { render } from '../src/render/index.js';
 import { RESERVE } from '../src/render/fit.js';
-import { LOOKS, COLOR_KEYS as KEYS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../src/schema.js';
+import { DEFAULTS, STYLE_LAYOUTS, LOOKS, COLOR_KEYS as KEYS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../src/schema.js';
 import { PRESETS, NEUTRAL } from '../src/render/palette.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 import { contrast } from '../src/render/ansi.js';
@@ -10,7 +10,7 @@ const BATTERIES = ['memory', 'session', 'fable', 'week'];
 const COLOR_NAMES = ['Plenty left', 'Going fast', 'Almost empty', 'Accent'];
 const WIDTHS = { small: 80, medium: 120, wide: 400 };
 const LAYOUTS = {
-  bar: ['Status bar', 'Compact, number inside each battery'],
+  bar: ['Status bar', 'Compact, the number with each battery'],
   segments: ['Classic segments', 'Five bars, like an old phone'],
   focus: ['Tightest first', 'The one to watch gets the spotlight'],
   panel: ['Panel', 'One row each, everything spelled out'],
@@ -30,7 +30,8 @@ const DETAILS = [
   ['order', 'Battery order', 'Keep the order above, or let the batteries move as things change', [['yours', 'As above'], ['urgent', 'Needs you first'], ['fullest', 'Fullest first']]],
   // The preview shows Automatic as rounded, so say plainly where it really is rounded.
   ['ends', 'Battery ends', 'Automatic is rounded in VS Code and plain in other terminals. Rounded needs a terminal that can draw them. Plain works everywhere', [['auto', 'Automatic'], ['round', 'Rounded'], ['plain', 'Plain']]],
-  ['battery', 'Battery style', 'How the batteries are drawn. Classic is the old flat look', [['glossy', 'Glossy'], ['classic', 'Classic'], ['outline', 'Outline'], ['hot', 'Hot tip'], ['liquid', 'Liquid edge'], ['pace', 'Pace glow']]],
+  ['battery', 'Battery style', 'How the batteries are drawn, or a shape instead. Classic is the old flat look', [['glossy', 'Glossy'], ['classic', 'Classic'], ['outline', 'Outline'], ['hot', 'Hot tip'], ['liquid', 'Liquid edge'], ['pace', 'Pace glow'],
+    ['pie', 'Pie'], ['sand', 'Sand'], ['slider', 'Slider'], ['race', 'Pace race'], ['lives', 'Lives'], ['dots', 'Dots'], ['chevrons', 'Chevrons'], ['ruler', 'Ruler']]],
   ['refills', 'Reset times', 'Always show them, or only when something needs attention', [['always', 'Always'], ['warnings', 'Only when needed']]],
   // Without this the copied command can't fix dark colours on a light terminal: the Dark/Light switch above only changes the preview.
   ['terminal', 'Terminal colour', 'Automatic follows Claude Code’s theme. Pick Light if the text is hard to read on a light background', [['auto', 'Automatic'], ['dark', 'Dark'], ['light', 'Light']]],
@@ -157,9 +158,9 @@ function update() {
   document.querySelectorAll('[data-preset]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.preset === (typeof s.colors === 'string' ? s.colors : 'custom')));
   document.querySelectorAll('[data-chips]').forEach((el) => { const set = el.dataset.chips === 'custom' ? customs[view.term] : PRESETS[el.dataset.chips][view.term]; el.innerHTML = set.map((c) => `<i style="background:${c}"></i>`).join(''); });
   document.querySelectorAll('[data-key]').forEach((b) => b.setAttribute('aria-pressed', s[b.dataset.key] === b.dataset.v));
-  // Only Status bar and Tightest first draw the style; say so in the others, or picking one seems to do nothing.
+  // Only Status bar and Tightest first draw the style; say so in the others once one is picked, as /juice set does.
   $('details').querySelector('[data-hint=battery]').textContent = DETAILS.find(([k]) => k === 'battery')[2]
-    + (['bar', 'focus'].includes(s.layout) ? '' : `. ${LAYOUTS[s.layout][0]} keeps its own shapes: styles show in Status bar and Tightest first`);
+    + (STYLE_LAYOUTS.includes(s.layout) || s.battery === DEFAULTS.battery ? '' : `. ${LAYOUTS[s.layout][0]} keeps its own shapes: styles show in Status bar and Tightest first`);
   document.querySelectorAll('[data-view]').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', view[seg.dataset.view] === b.dataset.v)));
   $('model').value = view.model;
   // Custom colours: one set per terminal colour, each checked against that terminal's background.

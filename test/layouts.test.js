@@ -242,3 +242,12 @@ test('bar without colour has no divider, so a │ is always the pace tick', () =
   assert.ok(!t.includes('  │  '), t);
   assert.ok(t.includes('│47%'), 'the tick is still there');
 });
+
+test('a form draws in Status bar and Tightest first, the number after it, the warning mark kept', () => {
+  inOrder(text(SAMPLES.busy, { battery: 'slider' }), ['Session ', '●', ' 47%', 'Weekly ', '●', ' 50%']);
+  assert.ok(!text(SAMPLES.busy, { battery: 'slider' }).includes('■'), 'no battery nub');
+  assert.match(text(SAMPLES.trouble, { battery: 'dots' }), /Session [•·]+ \d+% !!/);
+  const focus = text(SAMPLES.busy, { layout: 'focus', battery: 'pie' });
+  assert.match(focus, /[○◔◑◕●] \d+% used/);
+  assert.ok(!focus.includes('■'));
+});

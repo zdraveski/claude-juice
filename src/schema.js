@@ -1,12 +1,16 @@
 // The one definition of a valid setting. Files, /juice set and share links all pass through here.
 import { PRESETS } from './render/palette.js';
 export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank'];
+// The layouts that draw the battery style; the others keep their own shapes.
+export const STYLE_LAYOUTS = ['bar', 'focus'];
 const LAYOUT_NAMES = { segments: 'Classic segments', panel: 'Panel', pills: 'Capsules', tank: 'Fuel tank' };
 // yours: the order of show; urgent: the one that needs you most first; fullest: the most used first.
 export const ORDER_IDS = ['yours', 'urgent', 'fullest'];
 export const PRESET_IDS = Object.keys(PRESETS);
 // How the bar and focus batteries are drawn; classic is the flat look juice started with.
-export const BATTERY_IDS = ['glossy', 'classic', 'outline', 'hot', 'liquid', 'pace'];
+// The forms draw a shape instead of a battery (see FORMS in render/pieces.js).
+export const FORM_IDS = ['pie', 'sand', 'slider', 'race', 'lives', 'dots', 'chevrons', 'ruler'];
+export const BATTERY_IDS = ['glossy', 'classic', 'outline', 'hot', 'liquid', 'pace', ...FORM_IDS];
 export const SHOW_IDS = Object.freeze(['model', 'effort', 'memory', 'session', 'fable', 'week', 'budget']);
 // Said by set, setup and the doctor alike, with the one fix the /juice skill knows.
 export const NOTHING_SHOWN = 'Your juice settings choose nothing to show, so the line stays empty. Type /juice show all the batteries to bring them back.';
@@ -111,10 +115,8 @@ const PARSE = { show: (t) => t.split(',').filter(Boolean), colors: parseColors }
 export function applySet(settings, pairs) {
   const next = { ...settings };
   const warnings = [];
-  const changed = [];
   const chosen = []; // every setting given a valid value, changed or not (a file may hold another value for it)
   const put = (key, v) => {
-    if (JSON.stringify(v) !== JSON.stringify(next[key]) && !changed.includes(key)) changed.push(key);
     if (!chosen.includes(key)) chosen.push(key);
     next[key] = Array.isArray(v) ? [...v] : v;
   };
@@ -141,10 +143,15 @@ export function applySet(settings, pairs) {
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));
     put(key, v);
   }
+  // Compared at the end, so a key set twice back to where it was has not changed.
+  const changed = chosen.filter((k) => JSON.stringify(settings[k]) !== JSON.stringify(next[k]));
   // Only Status bar and Tightest first draw the battery style; in the others a style picked shows nothing.
+  // Warn only when this command hides a style that showed or is new: not for the default, not for one already hidden.
   // Changed, not chosen: the customizer's command always carries battery=, picked or not.
-  if (changed.includes('battery') && !['bar', 'focus'].includes(next.layout)) {
-    warnings.push(`battery: saved, but the ${LAYOUT_NAMES[next.layout]} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`);
+  const draws = (s) => STYLE_LAYOUTS.includes(s.layout);
+  if (next.battery !== DEFAULTS.battery && !draws(next) && (changed.includes('battery') || draws(settings))) {
+    const where = `the ${LAYOUT_NAMES[next.layout]} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`;
+    warnings.push(changed.includes('battery') ? `battery: saved, but ${where}` : `battery: your '${next.battery}' style won't show, as ${where}`);
   }
   return { settings: next, warnings, changed, chosen };
 }

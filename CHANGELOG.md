@@ -2,6 +2,17 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.2.0 (2026-11-07)
+
+[Changes since 1.1.1](https://github.com/zdraveski/claude-juice/compare/v1.1.1...v1.2.0)
+
+New:
+- **Eight shapes instead of a battery.** Pie, Sand, Slider, Pace race, Lives, Dots, Chevrons and Ruler. They show in Status bar and Tightest first, with the number after the shape, and read without colour too. `/juice set battery=slider` (or any of them), or pick one in the customizer.
+- When a look or `layout=` moves the style you picked to a layout that draws its own shapes, juice now says the style won't show there.
+
+Fixed:
+- The Outline style was counted one column too wide, so a narrow window squeezed the line a little early.
+
 ## 1.1.1 (2026-11-07)
 
 [Changes since 1.1.0](https://github.com/zdraveski/claude-juice/compare/v1.1.0...v1.1.1)
