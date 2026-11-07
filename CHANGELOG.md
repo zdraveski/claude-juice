@@ -2,6 +2,13 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.3.1 (2026-11-07)
+
+[Changes since 1.3.0](https://github.com/zdraveski/claude-juice/compare/v1.3.0...v1.3.1)
+
+Changed:
+- The effort level and the batteries move much faster: one step every 2 seconds instead of every 30, and they start again together every 12 seconds instead of every 3½ minutes, so they no longer sit still for minutes and look stuck. juice now refreshes every second, twice a step, so no step is skipped; run `/juice setup` once after updating (`/juice doctor` reminds you). A refresh time you chose yourself is kept, except juice's own old 60 and 30 seconds.
+
 ## 1.3.0 (2026-11-07)
 
 [Changes since 1.2.2](https://github.com/zdraveski/claude-juice/compare/v1.2.2...v1.3.0)

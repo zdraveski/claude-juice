@@ -36,7 +36,7 @@ test('doctor: after setup everything looks fine and names the juice the line run
   const d = config();
   await run(d, ['setup']);
   const r = await run(d, ['doctor']);
-  assert.match(r.text, /^✓ juice is your status line, refreshing every 30 seconds$/m);
+  assert.match(r.text, /^✓ juice is your status line, refreshing every second$/m);
   assert.match(r.text, new RegExp(`^✓ The status line runs juice ${version.replaceAll('.', '\\.')} from a folder on this computer$`, 'm'));
   assert.match(r.text, /^✓ Drawing works/m);
   assert.match(r.text, /Everything looks fine\.$/);
@@ -137,16 +137,18 @@ test('doctor: the real refresh time, and a Node that setup pinned but is gone', 
   const s = JSON.parse(readFileSync(join(d, 'settings.json'), 'utf8'));
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 600 } }));
   assert.match(check(d), /^✓ juice is your status line, refreshing every 600 seconds$/m);
-  assert.doesNotMatch(check(d), /Run \/juice setup to refresh every 30/, 'a time chosen by hand is left alone');
+  assert.doesNotMatch(check(d), /Run \/juice setup to refresh/, 'a time chosen by hand is left alone');
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 60 } }));
-  assert.match(check(d), /^✓ juice is your status line, refreshing once a minute\n· Run \/juice setup to refresh every 30 seconds/m, "juice's old 60");
+  assert.match(check(d), /^✓ juice is your status line, refreshing once a minute\n· Run \/juice setup to refresh every second/m, "juice's old 60");
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 30 } }));
+  assert.match(check(d), /^✓ juice is your status line, refreshing every 30 seconds\n· Run \/juice setup to refresh every second/m, "1.3.0's 30");
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 'abc' } }));
   assert.match(check(d), /doesn't refresh on its own/);
   // The doctor says run setup, so setup must fix it: a hand-typed "60" or -5 is replaced, never "nothing changed".
   for (const odd of ['60', -5]) {
     writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: odd } }));
-    assert.match((await run(d, ['setup'])).text, /refreshes every 30 seconds/, String(odd));
-    assert.match(check(d), /^✓ juice is your status line, refreshing every 30 seconds$/m, String(odd));
+    assert.match((await run(d, ['setup'])).text, /refreshes every second/, String(odd));
+    assert.match(check(d), /^✓ juice is your status line, refreshing every second$/m, String(odd));
   }
   const launcher = s.statusLine.command.replace(/^.*\s(?="[^"]*"\s*$)/, '').trim();
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, command: `PATH="/gone/nvm/v20/bin:$PATH" node ${launcher}` } }));
