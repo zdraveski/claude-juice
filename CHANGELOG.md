@@ -9,6 +9,8 @@ New:
 - **Two new looks** that use them: Capsule (Candy colours) and Road trip (Forest colours). `/juice look 13` and `/juice look 14`.
 - **A new chat says what's coming.** Until Claude's first reply, the line reads "batteries appear after Claude's first reply" instead of looking broken.
 - **Battery order.** The batteries keep your order, as before. If you like, they can move instead: the one that needs you first, or the fullest first. The customizer page has the same choice.
+- **A new look by default.** Glossy batteries in tinted glass, the model name on a small tag, effort steps that warm up as they climb, and quiet dividers between items. `/juice set battery=classic` brings the old bars back.
+- **Battery style.** Glossy, Classic, Outline, Hot tip (heats up only when amber or red), Liquid edge and Pace glow. `/juice set battery=` and the style, or pick one in the customizer.
 
 Fixed:
 - In a window narrower than one battery's words, the cut keeps its name, number and warning ("Week 50% left!") instead of cutting through them.

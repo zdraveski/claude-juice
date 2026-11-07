@@ -162,6 +162,19 @@ Or type `/juice` and then say what you want, in your own words. For example:
 - `/juice my terminal is light` (if the text is hard to read on a light background)
 - `/juice customize` (opens the live customizer with your current settings)
 
+### Battery style
+
+The batteries in the Status bar and Tightest first layouts can be drawn six ways. The other layouts keep their own shapes.
+
+- **Glossy** (the default): each battery lit from above, in glass tinted by its colour.
+- **Classic**: the flat bars juice started with. Type `/juice set battery=classic` to go back to them.
+- **Outline**: thin walls and dots, no filled casing.
+- **Hot tip**: when a battery turns amber or red, its fill heats from green to that colour.
+- **Liquid edge**: a bright edge where the fill ends.
+- **Pace glow**: the fill is soft up to where even use would be now, and bright past it, so going fast shows at a glance.
+
+Pick one in the customizer, or type `/juice set battery=outline` (or any of glossy, classic, outline, hot, liquid, pace).
+
 In a narrow window juice drops the extras first and keeps the batteries that need you until last.
 
 <details>
