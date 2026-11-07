@@ -235,3 +235,10 @@ test('bar: items divided by a dim │, plain gaps once spacing is squeezed', () 
   assert.ok(tight.dropped.includes('spacing'), tight.dropped.join());
   assert.ok(!strip(tight.text).includes(' │ '), strip(tight.text));
 });
+
+// Review: without colour the divider was the same │ as the pace tick.
+test('bar without colour has no divider, so a │ is always the pace tick', () => {
+  const t = text(SAMPLES.busy, {}, { colorDepth: 'none' });
+  assert.ok(!t.includes('  │  '), t);
+  assert.ok(t.includes('│47%'), 'the tick is still there');
+});

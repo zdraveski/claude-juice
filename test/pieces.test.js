@@ -259,3 +259,12 @@ test('ramp: lit steps warm toward the accent', () => {
   assert.equal(new Set(steps.map((x) => x.fg)).size, 5);
   assert.equal(steps[4].fg, rgb(ctx.P.accent, 38));
 });
+
+// Review: glass tinted toward the digit colour cost up to a third of the number's contrast.
+test('glossy: a number off the fill sits on the plain casing, as readable as classic', () => {
+  for (const theme of ['dark', 'light']) for (const colors of PRESET_IDS) for (const level of ['ok', 'warn', 'crit']) {
+    const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, colors, battery: 'glossy' }, { theme });
+    const digit = cells(batteryPct(ctx, 10, level, 7)).find((x) => x.ch === '1');
+    assert.equal(digit.bg, rgb(ctx.P.casing, 48), `${colors} ${theme} ${level}`);
+  }
+});

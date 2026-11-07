@@ -38,7 +38,6 @@ const edge = (c, dark) => {
 function skin(ctx, c, level, cells, w, elapsed) {
   const { P, style, dark } = ctx, glossy = style === 'glossy', outline = style === 'outline';
   const casing = outline ? null : glossy ? mix(P.casing, c, dark ? 0.16 : 0.22) : P.casing;
-  const back = (s) => (casing ? bg(casing, s) : s);
   const last = Math.ceil(cells - 1 / 8) - 1; // the last cell showing any fill
   const soft = style === 'pace' && elapsed > 0 && elapsed < 1 ? Math.floor(elapsed * w) : 0;
   const heat = style === 'hot' && (level === 'warn' || level === 'crit');
@@ -55,7 +54,8 @@ function skin(ctx, c, level, cells, w, elapsed) {
   const tick = (i) => (outline ? fg(P.text, '│') : cells - i >= 0.5 ? bg(color(i), fg(casing, '│')) : bg(casing, fg(P.text, '│')));
   // A number on the fill takes the fill colour where it starts as background, so the whole number is one colour.
   const digit = (ch, onFill, at) => (outline ? fg(onFill ? color(at) : c, bold(ch))
-    : onFill ? bg(color(at), fg(inkOn(color(at)), bold(ch))) : back(fg(c, bold(ch))));
+    // Off the fill, glossy's glass would pull the background toward the digit colour, so digits sit on the plain casing.
+    : onFill ? bg(color(at), fg(inkOn(color(at)), bold(ch))) : bg(P.casing, fg(c, bold(ch))));
   // Rounded caps only when ctx.round and there is a casing to round; always ends in the nub.
   const shell = (body, first, end) => (outline
     ? fg(P.mute, '▕') + body + fg(P.mute, '▏') + fg(P.mute, '▪')
