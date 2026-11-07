@@ -4,6 +4,8 @@ const SGR = /\x1b\[[0-9;]*m/g;
 const WIDE = /\p{Extended_Pictographic}|[\u1100-\u115F\u2E80-\u303E\u3040-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{20000}-\u{3FFFD}]/u;
 
 const rgbOf = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+// a blended t of the way toward b (t 0..1), as #rrggbb.
+export const mix = (a, b, t) => { const y = rgbOf(b); return '#' + rgbOf(a).map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
 export const fg = (h, s) => `${E}38;2;${rgbOf(h).join(';')}m${s}${E}39m`;
 export const bg = (h, s) => `${E}48;2;${rgbOf(h).join(';')}m${s}${E}49m`;
 export const bold = (s) => `${E}1m${s}${E}22m`;
