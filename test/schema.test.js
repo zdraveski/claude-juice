@@ -218,3 +218,16 @@ test('battery setting: default glossy, all six ids accepted, junk falls back wit
   assert.match(toCommand(DEFAULTS), / battery=glossy/);
   assert.equal(applySet({ ...DEFAULTS, battery: 'pace' }, ['look=retro']).settings.battery, 'pace');
 });
+
+// A style picked in a layout that draws its own shapes changed nothing on screen, with no word why (1.1.0).
+test('battery set in a layout that keeps its own shapes says so; bar and focus say nothing', () => {
+  for (const layout of ['segments', 'panel', 'pills', 'tank']) {
+    const { warnings, settings } = applySet({ ...DEFAULTS, layout }, ['battery=outline']);
+    assert.equal(settings.battery, 'outline', layout);
+    assert.equal(warnings.length, 1, layout);
+    assert.match(warnings[0], /^battery: .*layout=bar/, layout);
+  }
+  for (const layout of ['bar', 'focus']) assert.deepEqual(applySet({ ...DEFAULTS, layout }, ['battery=outline']).warnings, [], layout);
+  assert.deepEqual(applySet({ ...DEFAULTS, layout: 'segments' }, ['battery=outline', 'layout=bar']).warnings, []);
+  assert.deepEqual(applySet({ ...DEFAULTS, layout: 'segments' }, ['colors=ocean']).warnings, []);
+});

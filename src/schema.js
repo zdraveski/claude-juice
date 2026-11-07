@@ -1,6 +1,7 @@
 // The one definition of a valid setting. Files, /juice set and share links all pass through here.
 import { PRESETS } from './render/palette.js';
 export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank'];
+const LAYOUT_NAMES = { segments: 'Classic segments', panel: 'Panel', pills: 'Capsules', tank: 'Fuel tank' };
 // yours: the order of show; urgent: the one that needs you most first; fullest: the most used first.
 export const ORDER_IDS = ['yours', 'urgent', 'fullest'];
 export const PRESET_IDS = Object.keys(PRESETS);
@@ -139,6 +140,10 @@ export function applySet(settings, pairs) {
     }
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));
     put(key, v);
+  }
+  // Only Status bar and Tightest first draw the battery style; in the others a style picked shows nothing.
+  if (chosen.includes('battery') && !['bar', 'focus'].includes(next.layout)) {
+    warnings.push(`battery: saved, but the ${LAYOUT_NAMES[next.layout]} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`);
   }
   return { settings: next, warnings, changed, chosen };
 }
