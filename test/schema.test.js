@@ -230,4 +230,7 @@ test('battery set in a layout that keeps its own shapes says so; bar and focus s
   for (const layout of ['bar', 'focus']) assert.deepEqual(applySet({ ...DEFAULTS, layout }, ['battery=outline']).warnings, [], layout);
   assert.deepEqual(applySet({ ...DEFAULTS, layout: 'segments' }, ['battery=outline', 'layout=bar']).warnings, []);
   assert.deepEqual(applySet({ ...DEFAULTS, layout: 'segments' }, ['colors=ocean']).warnings, []);
+  // The customizer's command always carries battery=; pasting a Retro look must not warn about a style nobody picked.
+  const retro = { ...DEFAULTS, ...LOOKS.find((l) => l.id === 'retro').set };
+  assert.deepEqual(applySet(DEFAULTS, toCommand(retro).split(' ').slice(2)).warnings, []);
 });
