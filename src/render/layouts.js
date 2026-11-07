@@ -101,7 +101,8 @@ export const LAYOUTS = {
   bar: (data, ctx) => join([badges(data, ctx), head(data, ctx),
     ...items(data, ctx).map((i) => (ctx.fit.bare ? bare(ctx, i, ' ')
       : name(ctx, i) + ' ' + batteryPct(ctx, i.used, paint(i), ctx.fit.small ? 5 : 7, i.assessed?.elapsed) + spaced(ctx, i) + withSay(ctx, i, ' '))),
-    cost(data, ctx)], ctx.fit.tight ? '  ' : '    '),
+    // Once spacing is squeezed the plain gap is back: a divider costs the column a battery picture needs.
+    cost(data, ctx)], ctx.fit.tight ? '  ' : fg(ctx.P.groove, '  │  ')),
 
   segments: (data, ctx) => join([badges(data, ctx), head(data, ctx),
     ...items(data, ctx).map((i) => (ctx.fit.bare ? bare(ctx, i, ' ')
