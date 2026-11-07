@@ -1,13 +1,13 @@
 // Draws docs/images/customizer.png (the page down to the first row of looks) and customizer.gif (a short tour),
 // from this checkout's web/ page. Run: node scripts/pictures/customizer.mjs (needs Playwright and ffmpeg).
 import { createServer } from 'node:http';
-import { createRequire } from 'node:module';
+import { OUT, IMG, browser as launch } from './shot.mjs';
 import { execSync } from 'node:child_process';
 import { readFile, mkdir, rm } from 'node:fs/promises';
 import { join, extname, normalize } from 'node:path';
 
 const REPO = join(import.meta.dirname, '../../');
-const OUT = join(import.meta.dirname, 'out'), FR = join(OUT, 'frames'), IMG = join(REPO, 'docs/images');
+const FR = join(OUT, 'frames');
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png' };
 const server = createServer(async (req, res) => {
   let p = normalize(join(REPO, decodeURIComponent(new URL(req.url, 'http://x').pathname)));
@@ -16,9 +16,8 @@ const server = createServer(async (req, res) => {
 });
 await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
 const base = `http://127.0.0.1:${server.address().port}/web/`;
-const pw = createRequire(join(execSync('npm root -g', { encoding: 'utf8' }).trim(), 'x.js'))('playwright');
-const browser = await pw.chromium.launch();
-const PW = 390; // a phone viewport: the page's own smallest text is 10.5px, so no width makes it 12px on a phone (see report)
+const browser = await launch();
+const PW = 390; // a phone: the page's smallest text is 10.5px, ~9.4px on a phone; passing 12px would need bigger text in web/
 const open = async (w, h, scale) => {
   const pg = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: scale });
   pg.on('dialog', (d) => d.dismiss());

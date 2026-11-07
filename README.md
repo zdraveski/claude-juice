@@ -12,7 +12,7 @@ Free, open source and unofficial: juice is not made by Anthropic.
 
 </div>
 
-<img src="docs/images/hero.png" alt="claude-juice: your Claude usage at a glance. A battery-style status line for Claude Code, showing Memory, Session, Fable and Weekly, and when Session and Weekly reset." width="480">
+<img src="docs/images/hero.png" alt="claude-juice: your Claude usage at a glance. A battery-style status line for Claude Code, showing Memory, Session and Weekly, and when Session and Weekly reset." width="480">
 
 ## Install
 
