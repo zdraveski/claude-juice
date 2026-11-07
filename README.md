@@ -72,7 +72,7 @@ juice works on Windows, macOS and Linux (tested by hand on Windows, automaticall
 | Weekly | Your weekly limit. |
 | Budget | Only with a company spending limit: how much of it is used. Amber with ! at 85%, red with !! at 90%. |
 
-Next to the batteries you also see the model's name and its effort level: a little staircase that climbs from 1 step (low) to 5 steps (max), with the word beside it.
+Next to the batteries you also see the model's name and its effort level: a little staircase that climbs from 1 step (low) to 5 steps (max), with the word beside it. On your status line the staircase climbs up to your level, one step every 30 seconds, holds there, then starts again; the word always says the level (when a narrow window hides the word, the staircase stands still). The batteries' pictures climb the same way, in four steps from a quarter of the way up to the real amount, and everything starts again together every 3½ minutes; the number and words beside them never move, and a red battery stands still. juice refreshes every 30 seconds so it keeps moving while Claude Code is idle.
 
 The rounded battery ends in the pictures show on their own in VS Code. Other terminals get plain ends, because some fonts draw the rounded ones as boxes; if yours can draw them, type `/juice use round ends`.
 

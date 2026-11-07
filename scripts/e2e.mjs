@@ -58,7 +58,7 @@ if (process.platform !== 'win32') check('sh -c with a bare PATH', '/bin/sh', ['-
 // /juice doctor sees the install as it is: juice is the line, from the plugin store, and drawing works.
 const doctor = juice('doctor');
 assert.equal(doctor.status, 0, 'doctor');
-assert.match(doctor.stdout, /^✓ juice is your status line, refreshing once a minute$/m, doctor.stdout);
+assert.match(doctor.stdout, /^✓ juice is your status line, refreshing every 30 seconds$/m, doctor.stdout);
 assert.match(doctor.stdout, new RegExp(`^✓ The status line runs juice ${version.replaceAll('.', '\\.')}$`, 'm'), doctor.stdout);
 assert.match(doctor.stdout, /^✓ Drawing works/m, doctor.stdout);
 if (process.platform === 'darwin') assert.match(doctor.stdout, /Fable battery: off on a Mac until you type/, doctor.stdout);

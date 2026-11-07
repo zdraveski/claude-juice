@@ -6,7 +6,8 @@ import { createHash } from 'node:crypto';
 import { fg, vis, inkOn, contrast, mix, to256 } from '../src/render/ansi.js';
 import { DEFAULTS, PRESET_IDS, BATTERY_IDS, FORM_IDS } from '../src/schema.js';
 import { PRESETS, NEUTRAL, palette, makeCtx } from '../src/render/palette.js';
-import { battery, batteryPct, batterySeg, batteryLow, ramp, chip, form } from '../src/render/pieces.js';
+import { battery, batteryPct, batterySeg, batteryLow, ramp, chip, form, CLIMB_MS } from '../src/render/pieces.js';
+import { EFFORT } from '../src/render/words.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 
 // The checks that name the casing or the tick are about the classic cells.
@@ -96,6 +97,43 @@ test('ramp', () => {
   assert.equal(strip(s), '▂▃▅▁▁', 'the steps above the level are flat, so the level reads without colour');
   assert.equal(s, [0, 1, 2, 3, 4].map((i) => (i < 3 ? fg(mix(ctx.P.sub, ctx.P.accent, (i + 1) / 5), '▂▃▅▆█'[i]) : fg(ctx.P.groove, '▁'))).join(''));
   assert.notEqual(strip(ramp(ctx, 'medium')), strip(ramp(ctx, 'max')));
+});
+
+test('ramp on the real line climbs to the level every 30 seconds, holds, and starts again', () => {
+  const at = (frame, effort) => strip(ramp({ ...mk(), animate: true, now: new Date(frame * CLIMB_MS + 5000) }, effort));
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6, 7].map((f) => at(f, 'high')), ['▁▁▁▁▁', '▂▁▁▁▁', '▂▃▁▁▁', '▂▃▅▁▁', '▂▃▅▁▁', '▂▃▅▁▁', '▂▃▅▁▁', '▁▁▁▁▁']);
+  assert.deepEqual([0, 1, 6, 7].map((f) => at(f, 'low')), ['▁▁▁▁▁', '▂▁▁▁▁', '▂▁▁▁▁', '▁▁▁▁▁'], 'every level starts again together');
+  assert.deepEqual([5, 6, 7].map((f) => at(f, 'max')), ['▂▃▅▆█', '▂▃▅▆█', '▁▁▁▁▁'], 'max holds a frame at the top');
+  for (let f = 0; f < 14; f++) for (const e of Object.keys(EFFORT)) assert.equal(vis(ramp({ ...mk(), animate: true, now: new Date(f * CLIMB_MS) }, e)), 5, 'the width never moves');
+  assert.equal(strip(ramp({ ...mk(), now: new Date(0) }, 'high')), '▂▃▅▁▁', 'previews stay still');
+  assert.equal(makeCtx(SAMPLES.busy, DEFAULTS, { theme: 'dark', animate: true }).animate, true);
+  assert.equal(makeCtx(SAMPLES.busy, DEFAULTS, { theme: 'dark' }).animate, false);
+});
+
+test('battery pictures on the real line climb to what is used in 4 steps and hold; the number never moves', () => {
+  const live = (f) => ({ ...mk(), animate: true, now: new Date(f * CLIMB_MS + 5000) });
+  const lit = (f) => batteryLow(live(f), 100, 'ok', 8).split(fg(mk().P.good, '▆').replace(/▆.*/, '')).length - 1;
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6, 7].map(lit), [2, 4, 6, 8, 8, 8, 8, 2], 'never from nothing; starts again with the effort steps');
+  assert.deepEqual([0, 1, 2].map((f) => batteryLow(live(f), 100, 'crit', 8)), Array(3).fill(batteryLow(mk(), 100, 'crit', 8)), 'a red battery stands still');
+  const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'dots' }, { theme: 'dark', animate: true });
+  assert.deepEqual([0, 1, 3, 7].map((f) => strip(form({ ...ctx, now: new Date(f * CLIMB_MS) }, 100, 'ok'))), ['••······', '••••····', '••••••••', '••······']);
+  assert.equal(strip(form({ ...ctx, animate: false }, 50, 'ok')), '••••····', 'previews stay still');
+  // 80% used, half the window gone: the tick (going fast) only shows against the whole fill.
+  assert.deepEqual([0, 3].map((f) => strip(battery(live(f), 80, 'warn', 8, 0.5)).includes('│')), [false, true]);
+});
+
+test('climbing never changes a picture\'s width or where its number sits', () => {
+  const at = (style, f) => ({ ...makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: style }, { theme: 'dark', animate: true }), now: new Date(f * CLIMB_MS + 5000) });
+  for (const style of BATTERY_IDS) for (const [pct, e] of [[64, 0.5], [3, 0.9], [100, 0.2]]) {
+    const pics = (f) => [battery(at(style, f), pct, 'warn', 8, e), batteryPct(at(style, f), pct, 'warn', 7, e), batterySeg(at(style, f), pct, 'warn'),
+      batteryLow(at(style, f), pct, 'warn', 14, e), FORM_IDS.includes(style) ? form(at(style, f), pct, 'warn', false, e) : ''];
+    const still = pics(3);
+    for (let f = 0; f < 7; f++) pics(f).forEach((p, j) => {
+      assert.equal(vis(p), vis(still[j]), `${style} ${pct}% frame ${f} piece ${j}`);
+      if (j === 1) assert.equal(strip(p).indexOf(`${pct}%`), strip(still[j]).indexOf(`${pct}%`), `${style} ${pct}% frame ${f}: the number stays put`);
+    });
+  }
+  assert.equal(strip(ramp({ ...mk(), animate: true, now: new Date(0) }, 'high', false)), '▂▃▅▁▁', 'without its word the effort level stands still');
 });
 
 test('palette', () => {

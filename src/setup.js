@@ -11,9 +11,12 @@ const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 const usableBackup = (b) => !!b && typeof b === 'object' && 'statusLine' in b;
 export const readText = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
 // Claude Code only redraws on events, so without a timer the countdowns freeze while it is idle.
-const REFRESH_SECONDS = 60;
+// 30 seconds also moves the effort level's climb (CLIMB_MS in render/pieces.js) while Claude Code is idle.
+const REFRESH_SECONDS = 30;
 // A refresh time Claude Code uses: at least one second (a hand-typed "60", -5 or 0.5 is ignored by it).
 export const refreshes = (statusLine) => Number.isFinite(statusLine?.refreshInterval) && statusLine.refreshInterval >= 1;
+// 60 is what juice itself wrote up to 1.2.2, so setup moves it to the new time; any other time was chosen by hand.
+const keepsRefresh = (statusLine) => refreshes(statusLine) && statusLine.refreshInterval !== 60;
 
 // A symlinked settings.json must stay a symlink, so write to what it points at.
 const writeSettings = (p, v) => writeJsonAtomic(existsSync(p.claudeSettings) ? realpathSync(p.claudeSettings) : p.claudeSettings, v);
@@ -118,15 +121,15 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
     lines.push(settings.statusLine ? 'Saved your current status line so you can get it back.' : 'You had no status line, so there is nothing to save.');
   }
   const current = ours && samePath(settings.statusLine.command, command, platform);
-  if (current && refreshes(settings.statusLine)) lines.push(fix ? 'juice is already your status line.' : 'juice is already your status line. Nothing changed.');
+  if (current && keepsRefresh(settings.statusLine)) lines.push(fix ? 'juice is already your status line.' : 'juice is already your status line. Nothing changed.');
   else if (current) {
     writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, refreshInterval: REFRESH_SECONDS } });
-    lines.push('juice now refreshes once a minute, so its numbers and reset times stay current.');
+    lines.push('juice now refreshes every 30 seconds, so its numbers and reset times stay current and the effort level moves.');
   } else if (ours) {
     // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing;
     // one with the right launcher but an older way of finding Node just gets the current one.
     const sameLauncher = runsLauncher(p, settings.statusLine.command, platform);
-    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: refreshes(settings.statusLine) ? settings.statusLine.refreshInterval : REFRESH_SECONDS } });
+    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: keepsRefresh(settings.statusLine) ? settings.statusLine.refreshInterval : REFRESH_SECONDS } });
     lines.push(sameLauncher ? 'juice is your status line, now set up to find Node even when Claude Code starts from an app.'
       : 'juice was your status line but pointed somewhere else, so it now points at this copy of juice.');
   } else {

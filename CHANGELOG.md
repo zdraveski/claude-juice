@@ -2,6 +2,17 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.3.0 (2026-11-07)
+
+[Changes since 1.2.2](https://github.com/zdraveski/claude-juice/compare/v1.2.2...v1.3.0)
+
+Added:
+- The effort level moves: on your status line its staircase climbs up to your level, one step every 30 seconds, holds there, then starts again. The word beside it always says the level. When a narrow window hides the word, the staircase stands still, so the level can still be read.
+- The batteries move too: Memory, Session, Fable, Weekly and Budget fill in four steps, one every 30 seconds, from a quarter of the way up to the real amount, then hold. They start again together with the effort level every 3½ minutes. Fuel tank fills up to what is left. Only the picture moves: the percentage, the warning marks and the times stay put and always say the real amount. A red battery stands still, and the even-pace tick only shows once the picture is full, so it never says "behind" while it climbs. Previews and `/juice looks` show everything still.
+
+Changed:
+- juice refreshes every 30 seconds instead of once a minute, so the pictures keep moving while Claude Code is idle. Run `/juice setup` once after updating to switch an existing install (`/juice doctor` reminds you); a refresh time other than juice's old 60 seconds is kept.
+
 ## 1.2.2 (2026-11-07)
 
 [Changes since 1.2.1](https://github.com/zdraveski/claude-juice/compare/v1.2.1...v1.2.2)
