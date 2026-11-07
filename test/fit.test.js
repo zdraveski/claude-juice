@@ -7,7 +7,7 @@ import { LAYOUTS } from '../src/render/layouts.js';
 import { FIT_STEPS, fit } from '../src/render/fit.js';
 import { makeCtx } from '../src/render/palette.js';
 import { vis } from '../src/render/ansi.js';
-import { DEFAULTS, LOOKS, applySet } from '../src/schema.js';
+import { DEFAULTS, LOOKS, applySet, BATTERY_IDS, FORM_IDS } from '../src/schema.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 
 const term = (columns, extra = {}) => ({ columns, theme: 'dark', ends: 'round', colorDepth: 'truecolor', ...extra });
@@ -171,5 +171,21 @@ test('the divided bar fits 30-160 columns, never splits a number, and gives way 
     assert.doesNotMatch(t, /\d…$| \d+$/, `${w}: split number: ${t}`);
     const idx = r.dropped.filter((x) => x !== 'the end of the line').map((x) => labels.indexOf(x));
     assert.ok(idx.every((x, i) => x >= 0 && (i === 0 || x > idx[i - 1])), `${w}: ${r.dropped}`);
+  }
+});
+
+test('every battery style and form fits 30-160 columns in Status bar and Tightest first, never splitting a number', () => {
+  for (const battery of BATTERY_IDS) for (const layout of ['bar', 'focus']) for (let w = 30; w <= 160; w++) {
+    const r = render(SAMPLES.trouble, { ...DEFAULTS, layout, battery }, term(w)), t = strip(r.text);
+    assert.ok(widest(r.text) <= w, `${battery} ${layout} ${w}: ${t}`);
+    assert.doesNotMatch(t, /\d…$| \d+$/, `${battery} ${layout} ${w}: split number: ${t}`);
+  }
+});
+
+test('a form gets shorter before it goes: some width shows the squeezed shape with its number', () => {
+  for (const battery of FORM_IDS.filter((id) => id !== 'pie')) {
+    const squeezed = [...Array(131).keys()].map((i) => render(SAMPLES.trouble, { ...DEFAULTS, battery }, term(30 + i)))
+      .find((r) => r.dropped.includes('battery size') && !r.dropped.includes('battery pictures'));
+    assert.ok(squeezed, battery);
   }
 });

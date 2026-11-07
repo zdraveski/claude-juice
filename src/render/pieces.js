@@ -107,29 +107,34 @@ export function batteryLow(ctx, pct, level, w = 14, elapsed) {
 
 // The forms: a shape instead of a battery, each at [normal, squeezed] width. u is used 0..1, e the even-pace
 // point 0..1 (or undefined). Used and left differ by shape, so a form reads without colour too.
-const SAND = '⠀⡀⣀⣄⣤⣦⣶⣷⣿', at = (x, w) => Math.round(x * w);
-const run = (ctx, c, n, w, on, off) => fg(c, on.repeat(n)) + fg(ctx.P.groove, off.repeat(w - n));
-const paceAt = (e, w) => (e > 0 && e < 1 ? at(e, w - 1) : -1);
+// The unused part is in the label grey: a thin · or ♡ in the groove colour all but vanishes.
+const SAND = '⠀⡀⣀⣄⣤⣦⣶⣷⣿';
+// x of w steps, rounded, but only 0 looks empty and only 1 looks full (99% must not pass for blocked).
+const at = (x, w) => (x > 0 && x < 1 ? Math.min(w - 1, Math.max(1, Math.round(x * w))) : Math.round(x * w));
+const run = (ctx, c, n, w, on, off) => fg(c, on.repeat(n)) + fg(ctx.P.mute, off.repeat(w - n));
+// The even-pace mark on the same scale as the fill, so on pace it lands right where the fill ends.
+const paceAt = (e, w) => (e > 0 && e < 1 ? at(e, w) : -1);
 const FORMS = {
   pie: [[1, 1], (ctx, c, u) => fg(c, '○◔◑◕●'[at(u, 4)])],
   sand: [[5, 3], (ctx, c, u, w) => {
     const n = at(u, w * 8);
     return fg(c, [...Array(w).keys()].map((i) => SAND[Math.max(0, Math.min(8, n - i * 8))]).join(''));
   }],
-  slider: [[8, 5], (ctx, c, u, w) => { const k = at(u, w - 1); return fg(c, '━'.repeat(k) + '●') + fg(ctx.P.groove, '─'.repeat(w - 1 - k)); }],
+  slider: [[8, 5], (ctx, c, u, w) => { const k = at(u, w - 1); return fg(c, '━'.repeat(k) + '●') + fg(ctx.P.mute, '─'.repeat(w - 1 - k)); }],
   // You (●) racing the even pace (│): ahead of the line is going fast. On the line, you cover it.
   race: [[9, 6], (ctx, c, u, w, e) => {
-    const k = at(u, w - 1), t = paceAt(e, w);
-    return [...Array(w).keys()].map((i) => (i === k ? fg(c, '●') : i === t ? fg(ctx.P.sub, '│') : fg(ctx.P.groove, '·'))).join('');
+    const k = at(u, w - 1), t = paceAt(e, w - 1);
+    return [...Array(w).keys()].map((i) => (i === k ? fg(c, '●') : i === t ? fg(ctx.P.text, '│') : fg(ctx.P.mute, '·'))).join('');
   }],
-  // Counts what is left, like the tank: any left at all keeps a heart.
-  lives: [[5, 3], (ctx, c, u, w) => run(ctx, c, Math.ceil((1 - u) * w), w, '♥', '♡')],
+  // Counts what is left, like the tank: any left at all keeps a heart, any used loses one.
+  lives: [[5, 3], (ctx, c, u, w) => run(ctx, c, at(1 - u, w), w, '♥', '♡')],
   dots: [[8, 5], (ctx, c, u, w) => run(ctx, c, at(u, w), w, '•', '·')],
   chevrons: [[6, 4], (ctx, c, u, w) => run(ctx, c, at(u, w), w, '▸', '▹')],
   ruler: [[8, 5], (ctx, c, u, w, e) => {
-    const k = at(u, w), t = tickAt(e, w);
+    // Fill and tick round alike, so on pace the tick always sits just past the fill.
+    const k = at(u, w), t = paceAt(e, w);
     let s = '';
-    for (let i = 0; i < w; i++) s += i === t ? fg(ctx.P.text, '╋') : i < k ? fg(c, '━') : fg(ctx.P.groove, '─');
+    for (let i = 0; i < w; i++) s += i === t ? fg(ctx.P.text, '╋') : i < k ? fg(c, '━') : fg(ctx.P.mute, '─');
     return fg(ctx.P.sub, '┣') + s + fg(ctx.P.sub, '┫');
   }],
 };

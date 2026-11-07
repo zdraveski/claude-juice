@@ -14,9 +14,9 @@ export const bold = (s) => `${E}1m${s}${E}22m`;
 export const ESCAPES = /\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\|$)|\x1b[^[\]]?|[\x00-\x09\x0b-\x1f\x7f-\x9f]/g;
 export const strip = (s) => s.replace(ESCAPES, '');
 
-// ♥ is pictographic but draws one column (text presentation by default); the lives form uses it bare.
+// ♥ and ▪ are pictographic but draw one column (text presentation by default); lives and outline use them bare.
 // shortcut: a badge's "♥" + VS16 counts 1 but draws 2, upgrade to presentation-aware widths if one shows up.
-const width = (ch) => (ch === '️' ? 0 : ch !== '♥' && WIDE.test(ch) ? 2 : 1);
+const width = (ch) => (ch === '️' ? 0 : !'♥▪'.includes(ch) && WIDE.test(ch) ? 2 : 1);
 export const vis = (s) => { let n = 0; for (const ch of strip(s)) n += width(ch); return n; };
 
 // Cut a coloured line to n visible columns without breaking its escape codes.

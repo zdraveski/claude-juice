@@ -311,9 +311,30 @@ test('forms: without colour they stay, and used differs from left by shape', () 
   }
 });
 
-test('forms: lit in the level colour, the rest in the groove; every form survives 256 colours', () => {
+test('forms: lit in the level colour, the rest in the label grey; every form survives 256 colours', () => {
   const ctx = sk('dots'), c = cells(form(ctx, 50, 'crit', false));
   assert.equal(c[0].fg, rgb(ctx.P.bad, 38));
-  assert.equal(c.at(-1).fg, rgb(ctx.P.groove, 38));
+  assert.equal(c.at(-1).fg, rgb(ctx.P.mute, 38));
   for (const id of FORM_IDS) assert.ok(!/[34]8;2;/.test(to256(form(sk(id, 'light'), 45, 'warn', false, 0.5))), id);
+});
+
+test('forms: only 100% looks full and only 0% looks empty', () => {
+  for (const id of FORM_IDS) for (const small of [false, true]) {
+    assert.notEqual(fm(id, 99, small, 0.5), fm(id, 100, small, 0.5), `${id} 99 vs 100 small=${small}`);
+    assert.notEqual(fm(id, 1, small, 0.5), fm(id, 0, small, 0.5), `${id} 1 vs 0 small=${small}`);
+  }
+  assert.equal(fm('pie', 88), '◕');
+  assert.equal(fm('pie', 1), '◔');
+  assert.equal(fm('sand', 1), '⡀⠀⠀⠀⠀');
+});
+
+test('ruler: on pace always puts the tick just past the fill', () => {
+  for (const small of [false, true]) for (let p = 5; p <= 95; p += 5) {
+    const s = fm('ruler', p, small, p / 100).slice(1, -1), t = s.indexOf('╋');
+    assert.ok(t > 0 && s[t - 1] === '━' && !s.slice(t + 1).includes('━'), `${p}% small=${small}: ${s}`);
+  }
+});
+
+test('forms: the unused part stands out from the background in every theme', () => {
+  for (const theme of ['dark', 'light']) assert.ok(contrast(sk('dots', theme).P.mute, NEUTRAL[theme].bg) >= 3, theme);
 });

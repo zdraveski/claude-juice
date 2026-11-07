@@ -169,7 +169,7 @@ The batteries in the Status bar and Tightest first layouts can be drawn six ways
 - **Glossy** (the default): each battery lit from above, in glass tinted by its colour.
 - **Classic**: the flat bars juice started with. Type `/juice set battery=classic` to go back to them.
 - **Outline**: thin walls and dots, no filled casing.
-- **Hot tip**: when a battery turns amber or red, its fill heats from green to that colour.
+- **Hot tip**: when a battery turns amber or red, its fill heats from the plenty-left colour (green in most sets) to that colour.
 - **Liquid edge**: a bright edge where the fill ends.
 - **Pace glow**: the fill is soft up to where even use would be now, and bright past it, so going fast shows at a glance.
 
@@ -182,9 +182,9 @@ The shapes put the number after them, and read without colour too:
 - **Lives** `♥♥♥♡♡ 47%`: what is left, as hearts.
 - **Dots** `••••···· 47%`: a string of beads.
 - **Chevrons** `▸▸▸▹▹▹ 47%`: arrows that march on as you use it.
-- **Ruler** `┣━━━━╋───┫ 47%`: a ruler with even use as a raised tick.
+- **Ruler** `┣━━━━─╋──┫ 47%`: a ruler with even use as a raised tick.
 
-Pie, Sand and Chevrons need a font that has those signs (Cascadia Code, JetBrains Mono and Menlo do). If you see boxes, pick another.
+Only Pace race and Ruler show where even use would be. Pie, Sand, Chevrons, Lives and Ruler need a font that has those signs (Cascadia Code, JetBrains Mono and Menlo do). If you see boxes, pick another.
 
 Pick one in the customizer, or type `/juice set battery=outline` (or any of glossy, classic, outline, hot, liquid, pace, pie, sand, slider, race, lives, dots, chevrons, ruler).
 

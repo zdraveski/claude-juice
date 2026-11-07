@@ -40,3 +40,7 @@ test('CJK characters count as 2 columns', () => {
   assert.equal(vis('ａ'), 2);
   assert.equal(vis('abc'), 3);
 });
+
+test('vis: ♥ and ▪ draw one column (text presentation)', () => {
+  assert.equal(vis('♥▪'), 2);
+});

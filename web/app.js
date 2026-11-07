@@ -10,7 +10,7 @@ const BATTERIES = ['memory', 'session', 'fable', 'week'];
 const COLOR_NAMES = ['Plenty left', 'Going fast', 'Almost empty', 'Accent'];
 const WIDTHS = { small: 80, medium: 120, wide: 400 };
 const LAYOUTS = {
-  bar: ['Status bar', 'Compact, number inside each battery'],
+  bar: ['Status bar', 'Compact, the number with each battery'],
   segments: ['Classic segments', 'Five bars, like an old phone'],
   focus: ['Tightest first', 'The one to watch gets the spotlight'],
   panel: ['Panel', 'One row each, everything spelled out'],
