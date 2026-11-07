@@ -4,7 +4,7 @@ import { vis, cut, strip } from './ansi.js';
 // so hiding the ones that are fine is the very last step, after every word and space has given way.
 export const FIT_STEPS = [['badges', 'badges'], ['noRefills', 'reset times'], ['noEffortWord', 'the effort word'], ['noCost', 'cost'],
   ['noEffort', 'the effort level'], ['noModel', 'the model name'], ['tight', 'spacing'], ['small', 'battery size'],
-  ['shortWords', 'warning words'], ['bare', 'battery pictures'], ['onlyTrouble', 'batteries that are fine'],
+  ['noAmberOut', 'amber run-out times'], ['shortWords', 'warning words'], ['bare', 'battery pictures'], ['onlyTrouble', 'batteries that are fine'],
   ['onlyRed', 'batteries going a bit fast'], ['noNotes', 'run-out and reset times']];
 // After hiding the fine batteries, the amber ones go; then even a red one's words ("out ~2:44 PM") go before a red
 // battery itself is lost to the last-resort cut.

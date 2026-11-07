@@ -42,13 +42,15 @@ export function resetWhen(t, now, squeezed = false) {
 
 const TONE = { ok: 'mute', warn: 'watch', crit: 'bad' };
 
-// The countdown is always shown and its colour does the warning; red also says when it runs out at this pace.
+// The countdown is always shown and its colour does the warning; amber and red also say when it runs out at this pace.
 // noReset: another battery on screen already counts down to the same reset, so only the run-out time is said.
+// A narrow window keeps the run-out time for red only: amber keeps its reset, so it never crowds out every time.
+export const saysOut = (a, squeezed) => !!a?.outAt && (!squeezed || a.level === 'crit');
 export function limitNote(a, now, { squeezed = false, noReset = false } = {}) {
   if (a.resetsAt) {
     const left = `resets ${resetWhen(a.resetsAt, now, squeezed)}`;
-    const out = a.outAt ? `${squeezed ? 'out' : 'runs out'} ~${clock(a.outAt, now)}` : '';
-    // Squeezed, only one half fits, and when it runs out before the reset that is the half that matters.
+    const out = saysOut(a, squeezed) ? `${squeezed ? 'out' : 'runs out'} ~${clock(a.outAt, now)}` : '';
+    // Squeezed, only one half fits, and when red runs out before the reset that is the half that matters.
     const text = noReset ? out : squeezed ? out || left : out ? `${out} · ${left}` : left;
     return { text, tone: TONE[a.level] };
   }

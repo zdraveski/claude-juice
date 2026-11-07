@@ -49,6 +49,12 @@ test('limitNote: always when it resets, coloured by how it is going', () => {
   assert.deepEqual(limitNote(out, NOW), { text: 'runs out ~2:44 PM · resets in 2h 5m', tone: 'bad' });
   assert.equal(limitNote(out, NOW, { squeezed: true }).text, 'out ~2:44 PM', 'a tight window keeps the more urgent half');
   assert.equal(limitNote(fine, NOW, { squeezed: true }).text, 'resets 2h 10m');
+  const amber = assess({ used: 35, resetsAt: at(12600), windowSec: win }, NOW); // 35% after 1h 30m of 5h
+  assert.equal(amber.level, 'warn');
+  assert.match(limitNote(amber, NOW).text, /^runs out ~\d+:\d\d [AP]M · resets in 3h 30m$/);
+  assert.equal(limitNote(amber, NOW).tone, 'watch');
+  assert.equal(limitNote(amber, NOW, { squeezed: true }).text, 'resets 3h 30m', 'a tight window keeps the run-out time for red only');
+  assert.equal(limitNote(amber, NOW, { squeezed: true, noReset: true }).text, '');
 });
 
 test('clock: the time today, the weekday this week, "next" a week out, the date further', () => {

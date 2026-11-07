@@ -1,6 +1,6 @@
 import { fg, bg, bold, inkOn } from './ansi.js';
 import { assess, memLevel } from './limits.js';
-import { limitNote, memoryNote, LABELS, EFFORT } from './words.js';
+import { limitNote, memoryNote, saysOut, LABELS, EFFORT } from './words.js';
 import { tone } from './palette.js';
 import { ramp, chip, battery, batteryPct, batterySeg, batteryLow, form, isForm } from './pieces.js';
 
@@ -31,8 +31,10 @@ const cost = (data, ctx) => (!costShown(data, ctx) ? ''
 // already used up, then the earliest run-out time (or the reset, for one that lasts until then), then the fullest.
 // Memory never blocks you, it only gets summarised.
 const RANK = { crit: 2, warn: 1, ok: 0 };
-const blocksAt = (i) => (!i.assessed ? Infinity : i.used >= 100 ? -Infinity : (i.assessed.outAt ?? i.assessed.resetsAt)?.getTime() ?? Infinity);
-const byNeed = (a, b) => RANK[b.level] - RANK[a.level] || (a.level === 'crit' ? blocksAt(a) - blocksAt(b) : 0) || b.used - a.used;
+// An amber one that lasts until its reset blocks nothing, so only its run-out time counts.
+const blocksAt = (i) => (!i.assessed ? Infinity : i.used >= 100 ? -Infinity
+  : (i.runsOut ?? (i.level === 'crit' ? i.assessed.resetsAt : null))?.getTime() ?? Infinity);
+const byNeed = (a, b) => RANK[b.level] - RANK[a.level] || (a.level !== 'ok' ? blocksAt(a) - blocksAt(b) : 0) || b.used - a.used;
 
 function items(data, ctx) {
   const { settings, fit } = ctx, squeezed = !!fit.shortWords;
@@ -47,8 +49,11 @@ function items(data, ctx) {
     make[id] = () => {
       const limit = data.limits[id];
       if (!limit || (id === 'budget' && data.account !== 'gateway')) return null;
-      const assessed = assess(limit, data.now);
-      return { id, short: (squeezed && LABELS[id][2]) || LABELS[id][0], long: LABELS[id][1], used: assessed.used, level: assessed.level, assessed, hot: id === 'fable' && !!data.model?.isFable };
+      const assessed = assess(limit, data.now), runsOut = assessed.outAt;
+      // Squeezed words would hide amber's run-out time anyway, so it goes first and the words stay whole.
+      // The order still knows it (runsOut): the battery that runs out keeps its lead.
+      if (fit.noAmberOut && assessed.level !== 'crit') delete assessed.outAt;
+      return { id, short: (squeezed && LABELS[id][2]) || LABELS[id][0], long: LABELS[id][1], used: assessed.used, level: assessed.level, assessed, runsOut, hot: id === 'fable' && !!data.model?.isFable };
     };
   }
   let out = settings.show.map((id) => make[id]?.()).filter(Boolean);
@@ -69,7 +74,7 @@ function items(data, ctx) {
   // Fable resets with the weekly limit; while Weekly shows that countdown, one is enough. Only while it
   // really shows it: a fine Weekly with reset times off, or squeezed to its run-out time, shows none.
   const weekItem = out.find((i) => i.id === 'week');
-  const weekSaysReset = weekItem && wants(ctx, weekItem) && !(fit.shortWords && weekItem.assessed.outAt);
+  const weekSaysReset = weekItem && wants(ctx, weekItem) && !(fit.shortWords && saysOut(weekItem.assessed, true));
   const week = weekSaysReset ? weekItem.assessed.resetsAt : null;
   for (const i of out) if (i.id === 'fable' && week && i.assessed.resetsAt && Math.abs(i.assessed.resetsAt - week) < 60000) i.sameReset = true;
   return out;
@@ -79,7 +84,7 @@ function items(data, ctx) {
 const name = (ctx, i, long) => (i.hot ? fg(ctx.P.accent, long ? i.long : i.short) : lbl(ctx, long ? i.long : i.short));
 // A battery that shares its reset with one on screen still says when it runs out, just not the repeated countdown.
 // noNotes, the very last fit step: no words at all, so a red battery's number stays on screen.
-const wants = (ctx, i) => !ctx.fit.noNotes && (!i.sameReset || !!i.assessed?.outAt)
+const wants = (ctx, i) => !ctx.fit.noNotes && (!i.sameReset || saysOut(i.assessed, !!ctx.fit.shortWords))
   && (i.level !== 'ok' || ((ctx.fit.noRefills ? 'warnings' : ctx.settings.refills) === 'always' && !!i.assessed));
 function say(ctx, i) {
   const n = i.assessed

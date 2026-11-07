@@ -2,6 +2,14 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.2.2 (2026-11-07)
+
+[Changes since 1.2.1](https://github.com/zdraveski/claude-juice/compare/v1.2.1...v1.2.2)
+
+Changed:
+- An amber battery that is on track to run out before it resets now says when, as a red one already did: "runs out ~Sat 2:12 PM · resets Mon 3:32 AM". It waits until a tenth of the limit's time has passed (about 17 hours of a week), so a busy first morning doesn't predict a run-out days away. When the line is too wide, that time is the first thing to go after the battery size, and a narrow window keeps the reset time instead.
+- The battery that needs you most is now an amber one that will run out, ahead of one that lasts until it resets: first when batteries move by need, in the Tightest first spotlight, and for the one time Capsules and Fuel tank show in a narrow window.
+
 ## 1.2.1 (2026-11-07)
 
 [Changes since 1.2.0](https://github.com/zdraveski/claude-juice/compare/v1.2.0...v1.2.1)

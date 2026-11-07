@@ -18,9 +18,10 @@ export function assess(limit, now) {
   }
   // Pace alone only reaches red once half is gone, and only when it runs out before the reset, not at it.
   out.level = used >= 90 || (used >= 50 && projected > 100) ? 'crit' : projected >= 85 ? 'warn' : 'ok';
-  // Red is the one level that says when it runs out, and only when that is clearly before the reset.
+  // Amber and red say when it runs out, but only when that is clearly before the reset. Amber is under half used,
+  // so its guess rests on little: it waits for a full tenth of the window, not the 3-hour cap above.
   const outAt = now.getTime() + ((100 - used) / used) * elapsed * 1000;
-  if (out.level === 'crit' && projected > 100 && used < 100 && limit.resetsAt - outAt >= 60000) out.outAt = new Date(outAt);
+  if ((out.level === 'crit' || elapsed >= win * 0.1) && projected > 100 && used < 100 && limit.resetsAt - outAt >= 60000) out.outAt = new Date(outAt);
   return out;
 }
 
