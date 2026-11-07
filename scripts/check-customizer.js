@@ -89,11 +89,13 @@ test('clicking a look applies and highlights it; changing anything clears the hi
 });
 
 // In a layout with its own shapes, picking a style left the preview unchanged with no word why (1.1.0).
-test('the battery style says which layouts show it, only when the layout ignores it', async () => {
+test('the battery style says which layouts show it, only when a picked style is hidden', async () => {
   const { page } = await open();
   const hint = () => page.textContent('[data-hint=battery]');
   assert.doesNotMatch(await hint(), /keeps its own shapes/);
   await page.click('[data-layout=segments]');
+  assert.doesNotMatch(await hint(), /keeps its own shapes/, 'the default style: nothing to warn about, as in /juice set');
+  await page.click('[data-key=battery][data-v=pie]');
   assert.match(await hint(), /Classic segments keeps its own shapes/);
   await page.click('[data-layout=focus]');
   assert.doesNotMatch(await hint(), /keeps its own shapes/);
