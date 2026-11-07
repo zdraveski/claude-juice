@@ -2,7 +2,9 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
-## Unreleased
+## 1.2.0 (2026-11-07)
+
+[Changes since 1.1.1](https://github.com/zdraveski/claude-juice/compare/v1.1.1...v1.2.0)
 
 New:
 - **Eight shapes instead of a battery.** Pie, Sand, Slider, Pace race, Lives, Dots, Chevrons and Ruler. They show in Status bar and Tightest first, with the number after the shape, and read without colour too. `/juice set battery=slider` (or any of them), or pick one in the customizer.

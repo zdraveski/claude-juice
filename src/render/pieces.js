@@ -114,8 +114,7 @@ const SAND = '⠂⡀⣀⣄⣤⣦⣶⣷⣿';
 // x of w steps, rounded, but only 0 looks empty and only 1 looks full (99% must not pass for blocked).
 const at = (x, w) => (x > 0 && x < 1 ? Math.min(w - 1, Math.max(1, Math.round(x * w))) : Math.round(x * w));
 const run = (ctx, c, n, w, on, off) => fg(c, on.repeat(n)) + fg(ctx.P.mute, off.repeat(w - n));
-// The even-pace mark on the same scale as the fill, so on pace it lands right where the fill ends.
-const paceAt = (e, w) => (e > 0 && e < 1 ? at(e, w) : -1);
+// The even-pace mark goes on the same scale as the fill (at), so on pace it lands right where the fill ends.
 // gap: used minus even use, in whole points. Within a point you are on pace: the mark goes where yours is (k).
 // Further apart but in the same cell: step the mark one cell so ahead or behind shows.
 // The tiny add keeps a half point rounding up: 0.145 * 100 is 14.4999… in floating point.
@@ -131,7 +130,7 @@ const FORMS = {
   slider: [[8, 5], (ctx, c, u, w) => { const k = at(u, w - 1); return fg(c, '━'.repeat(k) + '●') + fg(ctx.P.mute, '─'.repeat(w - 1 - k)); }],
   // You (●) racing the even pace (│): ahead of the line is going fast. On the line, you cover it.
   race: [[9, 6], (ctx, c, u, w, e) => {
-    const k = at(u, w - 1), t = e > 0 && e < 1 ? nudge(paceAt(e, w - 1), k, gapOf(u, e)) : -1;
+    const k = at(u, w - 1), t = e > 0 && e < 1 ? nudge(at(e, w - 1), k, gapOf(u, e)) : -1;
     return [...Array(w).keys()].map((i) => (i === k ? fg(c, '●') : i === t ? fg(ctx.P.text, '│') : fg(ctx.P.mute, '·'))).join('');
   }],
   // Counts what is left, like the tank: any left at all keeps a heart, any used loses one.
@@ -142,7 +141,7 @@ const FORMS = {
     // The tick marks the last cell even use would fill: on the fill's end when on pace, inside it when ahead,
     // past it when behind. It is ╋ on a lit cell and ┿ on an unlit one, so the fill always shows in full.
     // On pace with nothing lit there is no fill end to mark, so no tick (┿ there would say behind).
-    const k = at(u, w), n = e > 0 && e < 1 ? nudge(paceAt(e, w) - 1, k - 1, gapOf(u, e)) : null;
+    const k = at(u, w), n = e > 0 && e < 1 ? nudge(at(e, w) - 1, k - 1, gapOf(u, e)) : null;
     const t = n === null || (k === 0 && n < 0) ? -1 : Math.max(0, n);
     let s = '';
     for (let i = 0; i < w; i++) s += i === t ? fg(ctx.P.text, i < k ? '╋' : '┿') : i < k ? fg(c, '━') : fg(ctx.P.mute, '─');
@@ -152,5 +151,5 @@ const FORMS = {
 export const isForm = (ctx) => Object.hasOwn(FORMS, ctx.style);
 export function form(ctx, pct, level, small, elapsed) {
   const [widths, draw] = FORMS[ctx.style];
-  return draw(ctx, tone(ctx, level), Math.max(0, Math.min(100, pct)) / 100, widths[+small], elapsed);
+  return draw(ctx, tone(ctx, level), Math.max(0, Math.min(100, pct)) / 100, widths[small ? 1 : 0], elapsed);
 }

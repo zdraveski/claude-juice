@@ -1,6 +1,8 @@
 // The one definition of a valid setting. Files, /juice set and share links all pass through here.
 import { PRESETS } from './render/palette.js';
 export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank'];
+// The layouts that draw the battery style; the others keep their own shapes.
+export const STYLE_LAYOUTS = ['bar', 'focus'];
 const LAYOUT_NAMES = { segments: 'Classic segments', panel: 'Panel', pills: 'Capsules', tank: 'Fuel tank' };
 // yours: the order of show; urgent: the one that needs you most first; fullest: the most used first.
 export const ORDER_IDS = ['yours', 'urgent', 'fullest'];
@@ -146,7 +148,7 @@ export function applySet(settings, pairs) {
   // Only Status bar and Tightest first draw the battery style; in the others a style picked shows nothing.
   // Warn only when this command hides a style that showed or is new: not for the default, not for one already hidden.
   // Changed, not chosen: the customizer's command always carries battery=, picked or not.
-  const draws = (s) => ['bar', 'focus'].includes(s.layout);
+  const draws = (s) => STYLE_LAYOUTS.includes(s.layout);
   if (next.battery !== DEFAULTS.battery && !draws(next) && (changed.includes('battery') || draws(settings))) {
     const where = `the ${LAYOUT_NAMES[next.layout]} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`;
     warnings.push(changed.includes('battery') ? `battery: saved, but ${where}` : `battery: your '${next.battery}' style won't show, as ${where}`);

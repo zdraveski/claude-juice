@@ -97,11 +97,15 @@ const spaced = (ctx, i) => (MARK[i.level] ? (ctx.fit.shortWords ? '' : ' ') + ma
 // The last fit step: the battery as words only, so its number, warning and time survive a narrow window.
 const bare = (ctx, i, sep) => name(ctx, i) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i) + withSay(ctx, i, sep);
 
+// The bar's picture: a shape with its number after it, or a battery with the number inside.
+const barPicture = (ctx, i) => (isForm(ctx)
+  ? form(ctx, i.used, paint(i), ctx.fit.small, i.assessed?.elapsed) + ' ' + num(ctx, `${i.used}%`, i.level)
+  : batteryPct(ctx, i.used, paint(i), ctx.fit.small ? 5 : 7, i.assessed?.elapsed));
+
 export const LAYOUTS = {
   bar: (data, ctx) => join([badges(data, ctx), head(data, ctx),
     ...items(data, ctx).map((i) => (ctx.fit.bare ? bare(ctx, i, ' ')
-      : name(ctx, i) + ' ' + (isForm(ctx) ? form(ctx, i.used, paint(i), !!ctx.fit.small, i.assessed?.elapsed) + ' ' + num(ctx, `${i.used}%`, i.level)
-        : batteryPct(ctx, i.used, paint(i), ctx.fit.small ? 5 : 7, i.assessed?.elapsed)) + spaced(ctx, i) + withSay(ctx, i, ' '))),
+      : name(ctx, i) + ' ' + barPicture(ctx, i) + spaced(ctx, i) + withSay(ctx, i, ' '))),
     // Once spacing is squeezed the plain gap is back: a divider costs the column a battery picture needs.
     // Without colour a │ divider looks like the pace tick, so no colour means the plain gap too.
     cost(data, ctx)], ctx.fit.tight ? '  ' : ctx.mono ? '    ' : fg(ctx.P.groove, '  │  ')),
@@ -116,7 +120,7 @@ export const LAYOUTS = {
     if (!it.length) return join([badges(data, ctx), head(data, ctx), cost(data, ctx)]);
     // Focus shows the others without countdowns, so the big one keeps its own even when it shares a reset.
     const [shown, ...rest] = it, big = { ...shown, sameReset: false }, bigNote = wants(ctx, big) ? say(ctx, big) : '', t = ctx.fit.tight;
-    const picture = ctx.fit.bare ? '' : (isForm(ctx) ? form(ctx, big.used, paint(big), !!ctx.fit.small, big.assessed?.elapsed)
+    const picture = ctx.fit.bare ? '' : (isForm(ctx) ? form(ctx, big.used, paint(big), ctx.fit.small, big.assessed?.elapsed)
       : battery(ctx, big.used, paint(big), ctx.fit.small ? 6 : 12, big.assessed?.elapsed)) + ' ';
     return join([badges(data, ctx), head(data, ctx),
       name(ctx, big, true) + ' ' + picture + num(ctx, bold(`${big.used}% used`), big.level) + spaced(ctx, big) + (bigNote ? lbl(ctx, ' · ') + bigNote : ''),

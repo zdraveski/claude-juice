@@ -3,11 +3,10 @@ import assert from 'node:assert/strict';
 import { strip } from './helpers.js';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { fg, inkOn, contrast, mix, to256 } from '../src/render/ansi.js';
+import { fg, vis, inkOn, contrast, mix, to256 } from '../src/render/ansi.js';
 import { DEFAULTS, PRESET_IDS, BATTERY_IDS, FORM_IDS } from '../src/schema.js';
 import { PRESETS, NEUTRAL, palette, makeCtx } from '../src/render/palette.js';
 import { battery, batteryPct, batterySeg, batteryLow, ramp, chip, form } from '../src/render/pieces.js';
-import { vis } from '../src/render/ansi.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 
 // The checks that name the casing or the tick are about the classic cells.
