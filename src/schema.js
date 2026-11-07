@@ -6,7 +6,9 @@ const LAYOUT_NAMES = { segments: 'Classic segments', panel: 'Panel', pills: 'Cap
 export const ORDER_IDS = ['yours', 'urgent', 'fullest'];
 export const PRESET_IDS = Object.keys(PRESETS);
 // How the bar and focus batteries are drawn; classic is the flat look juice started with.
-export const BATTERY_IDS = ['glossy', 'classic', 'outline', 'hot', 'liquid', 'pace'];
+// The forms draw a shape instead of a battery (see FORMS in render/pieces.js).
+export const FORM_IDS = ['pie', 'sand', 'slider', 'race', 'lives', 'dots', 'chevrons', 'ruler'];
+export const BATTERY_IDS = ['glossy', 'classic', 'outline', 'hot', 'liquid', 'pace', ...FORM_IDS];
 export const SHOW_IDS = Object.freeze(['model', 'effort', 'memory', 'session', 'fable', 'week', 'budget']);
 // Said by set, setup and the doctor alike, with the one fix the /juice skill knows.
 export const NOTHING_SHOWN = 'Your juice settings choose nothing to show, so the line stays empty. Type /juice show all the batteries to bring them back.';

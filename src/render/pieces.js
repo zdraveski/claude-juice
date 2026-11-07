@@ -36,7 +36,8 @@ const edge = (c, dark) => {
 // glossy: lit-from-above cells in tinted glass; outline: walls and dots, no casing; hot: the fill heats from
 // good to the warning colour, only when warning; liquid: a bright leading edge; pace: soft up to the even pace, no tick.
 function skin(ctx, c, level, cells, w, elapsed) {
-  const { P, style, dark } = ctx, glossy = style === 'glossy', outline = style === 'outline';
+  // No colour: lit and unlit must differ by shape, which only the classic cells do.
+  const { P, dark } = ctx, style = ctx.mono ? 'classic' : ctx.style, glossy = style === 'glossy', outline = style === 'outline';
   const casing = outline ? null : glossy ? mix(P.casing, c, dark ? 0.16 : 0.22) : P.casing;
   const last = Math.ceil(cells - 1 / 8) - 1; // the last cell showing any fill
   // Soft up to the even-pace point; a window that has run out puts that point at the end.
@@ -102,4 +103,38 @@ export function batteryLow(ctx, pct, level, w = 14, elapsed) {
   let s = '';
   for (let i = 0; i < w; i++) s += i === t ? fg(ctx.P.text, '│') : i < lit ? fg(tone(ctx, level), '▆') : fg(ctx.P.casing, ctx.mono ? OFF : '▆');
   return s + fg(ctx.P.nub, '■');
+}
+
+// The forms: a shape instead of a battery, each at [normal, squeezed] width. u is used 0..1, e the even-pace
+// point 0..1 (or undefined). Used and left differ by shape, so a form reads without colour too.
+const SAND = '⠀⡀⣀⣄⣤⣦⣶⣷⣿', at = (x, w) => Math.round(x * w);
+const run = (ctx, c, n, w, on, off) => fg(c, on.repeat(n)) + fg(ctx.P.groove, off.repeat(w - n));
+const paceAt = (e, w) => (e > 0 && e < 1 ? at(e, w - 1) : -1);
+const FORMS = {
+  pie: [[1, 1], (ctx, c, u) => fg(c, '○◔◑◕●'[at(u, 4)])],
+  sand: [[5, 3], (ctx, c, u, w) => {
+    const n = at(u, w * 8);
+    return fg(c, [...Array(w).keys()].map((i) => SAND[Math.max(0, Math.min(8, n - i * 8))]).join(''));
+  }],
+  slider: [[8, 5], (ctx, c, u, w) => { const k = at(u, w - 1); return fg(c, '━'.repeat(k) + '●') + fg(ctx.P.groove, '─'.repeat(w - 1 - k)); }],
+  // You (●) racing the even pace (│): ahead of the line is going fast. On the line, you cover it.
+  race: [[9, 6], (ctx, c, u, w, e) => {
+    const k = at(u, w - 1), t = paceAt(e, w);
+    return [...Array(w).keys()].map((i) => (i === k ? fg(c, '●') : i === t ? fg(ctx.P.sub, '│') : fg(ctx.P.groove, '·'))).join('');
+  }],
+  // Counts what is left, like the tank: any left at all keeps a heart.
+  lives: [[5, 3], (ctx, c, u, w) => { const left = Math.ceil((1 - u) * w); return fg(c, '♥'.repeat(left)) + fg(ctx.P.groove, '♡'.repeat(w - left)); }],
+  dots: [[8, 5], (ctx, c, u, w) => run(ctx, c, at(u, w), w, '•', '·')],
+  chevrons: [[6, 4], (ctx, c, u, w) => run(ctx, c, at(u, w), w, '▸', '▹')],
+  ruler: [[8, 5], (ctx, c, u, w, e) => {
+    const k = at(u, w), t = tickAt(e, w);
+    let s = '';
+    for (let i = 0; i < w; i++) s += i === t ? fg(ctx.P.text, '╋') : i < k ? fg(c, '━') : fg(ctx.P.groove, '─');
+    return fg(ctx.P.sub, '┣') + s + fg(ctx.P.sub, '┫');
+  }],
+};
+export const isForm = (ctx) => Object.hasOwn(FORMS, ctx.style);
+export function form(ctx, pct, level, small, elapsed) {
+  const [widths, draw] = FORMS[ctx.style];
+  return draw(ctx, tone(ctx, level), Math.max(0, Math.min(100, pct)) / 100, widths[+small], elapsed);
 }

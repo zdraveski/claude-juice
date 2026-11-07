@@ -206,8 +206,8 @@ test('the /juice skill numbers the looks and names the colour sets exactly as th
   for (const id of PRESET_IDS) assert.ok(skill.includes(`${id} (${PRESETS[id].name}`), `colour set ${id} (${PRESETS[id].name}) is not named in the skill`);
 });
 
-test('battery setting: default glossy, all six ids accepted, junk falls back with a warning', () => {
-  assert.deepEqual(BATTERY_IDS, ['glossy', 'classic', 'outline', 'hot', 'liquid', 'pace']);
+test('battery setting: default glossy, all fourteen ids accepted, junk falls back with a warning', () => {
+  assert.deepEqual(BATTERY_IDS, ['glossy', 'classic', 'outline', 'hot', 'liquid', 'pace', 'pie', 'sand', 'slider', 'race', 'lives', 'dots', 'chevrons', 'ruler']);
   assert.equal(sanitize({}, {}).settings.battery, 'glossy');
   for (const id of BATTERY_IDS) assert.equal(sanitize({ battery: id }, {}).settings.battery, id);
   const bad = sanitize({ battery: 'shiny' }, {});

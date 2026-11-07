@@ -164,7 +164,7 @@ Or type `/juice` and then say what you want, in your own words. For example:
 
 ### Battery style
 
-The batteries in the Status bar and Tightest first layouts can be drawn six ways. The other layouts keep their own shapes.
+The batteries in the Status bar and Tightest first layouts can be drawn six ways, or swapped for one of eight shapes. The other layouts keep their own shapes.
 
 - **Glossy** (the default): each battery lit from above, in glass tinted by its colour.
 - **Classic**: the flat bars juice started with. Type `/juice set battery=classic` to go back to them.
@@ -173,7 +173,20 @@ The batteries in the Status bar and Tightest first layouts can be drawn six ways
 - **Liquid edge**: a bright edge where the fill ends.
 - **Pace glow**: the fill is soft up to where even use would be now, and bright past it, so going fast shows at a glance.
 
-Pick one in the customizer, or type `/juice set battery=outline` (or any of glossy, classic, outline, hot, liquid, pace).
+The shapes put the number after them, and read without colour too:
+
+- **Pie** `◑ 47%`: one little pie that fills by quarters.
+- **Sand** `⣿⣿⣄⠀⠀ 47%`: fine grains that pile up, eight to a cell.
+- **Slider** `━━━●──── 47%`: a knob on a track.
+- **Pace race** `····●│··· 47%`: you (●) racing even use (│). Ahead of the line means going fast.
+- **Lives** `♥♥♥♡♡ 47%`: what is left, as hearts.
+- **Dots** `••••···· 47%`: a string of beads.
+- **Chevrons** `▸▸▸▹▹▹ 47%`: arrows that march on as you use it.
+- **Ruler** `┣━━━━╋───┫ 47%`: a ruler with even use as a raised tick.
+
+Pie, Sand and Chevrons need a font that has those signs (Cascadia Code, JetBrains Mono and Menlo do). If you see boxes, pick another.
+
+Pick one in the customizer, or type `/juice set battery=outline` (or any of glossy, classic, outline, hot, liquid, pace, pie, sand, slider, race, lives, dots, chevrons, ruler).
 
 In a narrow window juice drops the extras first and keeps the batteries that need you until last.
 

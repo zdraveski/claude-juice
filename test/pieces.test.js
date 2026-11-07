@@ -4,9 +4,10 @@ import { strip } from './helpers.js';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fg, inkOn, contrast, mix, to256 } from '../src/render/ansi.js';
-import { DEFAULTS, PRESET_IDS, BATTERY_IDS } from '../src/schema.js';
+import { DEFAULTS, PRESET_IDS, BATTERY_IDS, FORM_IDS } from '../src/schema.js';
 import { PRESETS, NEUTRAL, palette, makeCtx } from '../src/render/palette.js';
-import { battery, batteryPct, batterySeg, batteryLow, ramp, chip } from '../src/render/pieces.js';
+import { battery, batteryPct, batterySeg, batteryLow, ramp, chip, form } from '../src/render/pieces.js';
+import { vis } from '../src/render/ansi.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 
 // The checks that name the casing or the tick are about the classic cells.
@@ -140,16 +141,18 @@ test('samples and withAccount', () => {
   assert.equal(JSON.stringify(d), before);
 });
 
-test('makeCtx: style follows the setting, classic without colour', () => {
+test('makeCtx: style follows the setting, even without colour (the skins draw classic then)', () => {
   const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'hot' }, { theme: 'dark' });
   assert.equal(ctx.style, 'hot');
   assert.equal(ctx.dark, true);
   assert.equal(makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'hot' }, { theme: 'light' }).dark, false);
-  assert.equal(makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'hot' }, { theme: 'dark', colorDepth: 'none' }).style, 'classic');
+  assert.equal(makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'hot' }, { theme: 'dark', colorDepth: 'none' }).style, 'hot');
 });
 
 // Battery styles. sk: a plain-ends context drawing one style.
 const sk = (style, theme = 'dark', extra = {}) => makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: style }, { theme, ends: 'plain', ...extra });
+// The styles that draw a battery; the forms (pie, sand, ...) draw their own shapes.
+const SKINS = BATTERY_IDS.filter((id) => !FORM_IDS.includes(id));
 
 // Every classic battery and batteryPct, hashed: the fixture was recorded from the code before the styles existed.
 function classicRun() {
@@ -168,9 +171,9 @@ test('classic style matches the old output byte for byte', () => {
   assert.deepEqual(classicRun(), want);
 });
 
-test('no colour draws every style as classic', () => {
+test('no colour draws every battery skin as classic', () => {
   const plain = strip(batteryPct(sk('classic'), 62, 'warn', 7, 0.4));
-  for (const style of BATTERY_IDS) assert.equal(strip(batteryPct(sk(style, 'dark', { colorDepth: 'none' }), 62, 'warn', 7, 0.4)), plain, style);
+  for (const style of SKINS) assert.equal(strip(batteryPct(sk(style, 'dark', { colorDepth: 'none' }), 62, 'warn', 7, 0.4)), plain, style);
 });
 
 test('glossy: full cells are ▀ on the fill, glass casing is tinted', () => {
@@ -230,11 +233,11 @@ test('pace: soft before the pace point, no tick', () => {
 });
 
 test('every style survives 256 colours', () => {
-  for (const style of BATTERY_IDS) for (const pct of [0, 45, 82, 100])
+  for (const style of SKINS) for (const pct of [0, 45, 82, 100])
     assert.ok(!/[34]8;2;/.test(to256(batteryPct(sk(style), pct, 'warn', 7, 0.5) + battery(sk(style, 'light'), pct, 'crit', 12, 0.3))), style);
 });
 
-for (const style of BATTERY_IDS) for (const [left, w, t] of [[35, 7], [45, 7], [50, 7], [82, 7], [60, 5], [62, 7, 0.57], [82, 7, 0.5]]) {
+for (const style of SKINS) for (const [left, w, t] of [[35, 7], [45, 7], [50, 7], [82, 7], [60, 5], [62, 7, 0.57], [82, 7, 0.5]]) {
   test(`${style}: ${left}% (w=${w}${t ? `, tick ${t}` : ''}) digits stay whole, one colour each`, () => {
     // Outline's left wall is not a cell.
     const text = `${left}%`, all = cells(batteryPct(sk(style), left, 'warn', w, t)).filter((c) => c.ch !== '▕' && c.ch !== '\ue0b6').slice(0, w);
@@ -271,4 +274,46 @@ test('glossy: a number off the fill sits on the plain casing, as readable as cla
     const digit = cells(batteryPct(ctx, 10, level, 7)).find((x) => x.ch === '1');
     assert.equal(digit.bg, rgb(ctx.P.casing, 48), `${colors} ${theme} ${level}`);
   }
+});
+
+// The forms: shapes instead of a battery, the number after them.
+const FORM_W = { pie: [1, 1], sand: [5, 3], slider: [8, 5], race: [9, 6], lives: [5, 3], dots: [8, 5], chevrons: [6, 4], ruler: [10, 7] };
+const fm = (style, pct, small = false, elapsed, extra) => strip(form(sk(style, 'dark', extra), pct, 'ok', small, elapsed));
+
+test('forms: a fixed width at every level, normal and squeezed', () => {
+  assert.deepEqual(Object.keys(FORM_W), FORM_IDS);
+  for (const id of FORM_IDS) for (const small of [false, true]) for (const pct of [0, 1, 13, 47, 50, 88, 99, 100]) for (const e of [undefined, 0.25, 0.9])
+    assert.equal(vis(form(sk(id), pct, 'warn', small, e)), FORM_W[id][+small], `${id} ${pct}% small=${small}`);
+});
+
+test('forms: the shapes', () => {
+  assert.deepEqual([0, 13, 50, 70, 100].map((p) => fm('pie', p)), ['○', '◔', '◑', '◕', '●']);
+  assert.equal(fm('sand', 50), '⣿⣿⣤⠀⠀');
+  assert.equal(fm('sand', 100), '⣿⣿⣿⣿⣿');
+  assert.equal(fm('slider', 0), '●───────');
+  assert.equal(fm('slider', 50), '━━━━●───');
+  assert.equal(fm('slider', 100), '━━━━━━━●');
+  assert.equal(fm('race', 47, false, 0.25), '··│·●····');
+  assert.equal(fm('race', 47), '····●····', 'no window: no pace line');
+  assert.equal(fm('race', 25, false, 0.25), '··●······', 'on pace: you cover the line');
+  assert.deepEqual([0, 50, 99, 100].map((p) => fm('lives', p)), ['♥♥♥♥♥', '♥♥♥♡♡', '♥♡♡♡♡', '♡♡♡♡♡']);
+  assert.equal(fm('dots', 50), '••••····');
+  assert.equal(fm('chevrons', 50), '▸▸▸▹▹▹');
+  assert.equal(fm('ruler', 50, false, 0.25), '┣━━╋━────┫');
+  assert.equal(fm('ruler', 50), '┣━━━━────┫');
+});
+
+test('forms: without colour they stay, and used differs from left by shape', () => {
+  assert.equal(sk('slider', 'dark', { colorDepth: 'none' }).style, 'slider');
+  for (const id of FORM_IDS) {
+    const none = { colorDepth: 'none' };
+    assert.notEqual(fm(id, 30, false, undefined, none), fm(id, 70, false, undefined, none), id);
+  }
+});
+
+test('forms: lit in the level colour, the rest in the groove; every form survives 256 colours', () => {
+  const ctx = sk('dots'), c = cells(form(ctx, 50, 'crit', false));
+  assert.equal(c[0].fg, rgb(ctx.P.bad, 38));
+  assert.equal(c.at(-1).fg, rgb(ctx.P.groove, 38));
+  for (const id of FORM_IDS) assert.ok(!/[34]8;2;/.test(to256(form(sk(id, 'light'), 45, 'warn', false, 0.5))), id);
 });
