@@ -148,8 +148,8 @@ test('steps run in order and are all tried before a cut', () => {
   assert.ok(cuts > 0, 'no case exercised the cut');
 });
 
-test('FIT_STEPS has the thirteen steps in the agreed order', () => {
-  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'noEffort', 'noModel', 'tight', 'small', 'shortWords', 'bare', 'onlyTrouble', 'onlyRed', 'noNotes']);
+test('FIT_STEPS has the fourteen steps in the agreed order', () => {
+  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'noEffort', 'noModel', 'tight', 'small', 'noAmberOut', 'shortWords', 'bare', 'onlyTrouble', 'onlyRed', 'noNotes']);
 });
 
 test('a missing columns count means 120', () => {
@@ -188,4 +188,18 @@ test('a form gets shorter before it goes: some width shows the squeezed shape wi
       .find((r) => r.dropped.includes('battery size') && !r.dropped.includes('battery pictures'));
     assert.ok(squeezed, battery);
   }
+});
+
+test('with only amber batteries, a narrow window keeps their reset times', () => {
+  const now = new Date(SAMPLES.busy.now), D7 = 604800, r = new Date(now.getTime() + 0.8 * D7 * 1000);
+  const data = { ...SAMPLES.busy, limits: { ...SAMPLES.busy.limits,
+    session: { used: 20, windowSec: 18000, resetsAt: new Date(now.getTime() + 0.8 * 18000 * 1000) },
+    week: { used: 30, windowSec: D7, resetsAt: r }, fable: { used: 41, windowSec: D7, resetsAt: r } } }; // Fable runs out first
+  for (const layout of ['bar', 'segments']) for (const w of [60, 70, 80]) {
+    const t = strip(go(data, layout, w).text);
+    assert.match(t, /Session 20%! resets (in )?4h .*Week(ly)? 30%! resets /, `${layout}/${w}: ${t}`);
+  }
+  const wide = go(data, 'bar', 120), t = strip(wide.text);
+  assert.ok(wide.dropped.includes('amber run-out times') && !wide.dropped.includes('warning words'), wide.dropped.join());
+  assert.match(t, /Session .*resets in 4h .*Weekly .*resets Tue/, 'Fable\'s run-out time goes before any word is shortened');
 });

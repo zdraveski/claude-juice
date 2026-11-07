@@ -251,3 +251,18 @@ test('a form draws in Status bar and Tightest first, the number after it, the wa
   assert.match(focus, /[○◔◑◕●] \d+% used/);
   assert.ok(!focus.includes('■'));
 });
+
+test('of two amber batteries, the one that runs out leads, not the fuller one that lasts', () => {
+  const now = new Date(SAMPLES.busy.now), H5 = 18000, D7 = 604800;
+  const lim = (used, gone, win) => ({ used, windowSec: win, resetsAt: new Date(now.getTime() + (1 - gone) * win * 1000) });
+  const data = { ...SAMPLES.busy, limits: { ...SAMPLES.busy.limits, session: lim(35, 0.3, H5), week: lim(45, 0.5, D7), fable: lim(20, 0.5, D7) } };
+  inOrder(text(data, { order: 'urgent' }), ['Session', 'runs out ~', 'Weekly']);
+  assert.match(text(data, { layout: 'focus' }), /│ {3}Session .*35% used ! · runs out ~.*│ {3}Weekly 45%!/, 'the spotlight goes to the one that runs out');
+  assert.match(text(data, { layout: 'pills' }), /Session 35% !.{1,3}runs out ~/);
+  // Narrower, the run-out time leaves the words, but the one that runs out still leads.
+  for (const columns of [60, 80, 100]) {
+    assert.match(text(data, { layout: 'focus' }, { columns }), /^[^│]*Session .*│.*Week/, `focus ${columns}`);
+    assert.ok(!/Week(ly)? 45% ?!.{0,3}resets/.test(text(data, { layout: 'pills' }, { columns })), `pills ${columns}: the one time is Session's`);
+  }
+  inOrder(text(data, { layout: 'segments', order: 'urgent' }, { columns: 140 }), ['Session', 'Weekly']);
+});

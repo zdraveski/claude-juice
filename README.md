@@ -82,7 +82,8 @@ The colours for Session, Weekly and Fable depend on your pace as well as on how 
 
 - Green means plenty left.
 - Amber with ! means you are going a bit fast. At this pace you will use most of it (85% or more) before it resets.
-- Red with !! means almost empty, or half or more used and on track to run out before it resets. A red battery that is on track to run out also says when, for example "runs out ~4:04 PM · resets in 2h 10m".
+- Red with !! means almost empty, or half or more used and on track to run out before it resets.
+- An amber or red battery that is on track to run out before it resets also says when, for example "runs out ~4:04 PM · resets in 2h 10m".
 
 While Fable is fine it has its own colour (violet in most colour sets), so you can tell it apart. When it goes fast or runs low it turns amber or red with ! or !! like the others.
 
@@ -193,7 +194,7 @@ In a narrow window juice drops the extras first and keeps the batteries that nee
 <details>
 <summary>What a narrow window drops, in order</summary>
 
-In a narrow window juice makes room step by step: first badges, reset times, the effort word and cost, then the effort level and the model name, then spacing, battery size and shorter words, then every battery as words only (`Session 88%!! out ~2:44 PM`), then the batteries that are fine, then the amber ones, and last a red battery's words ("out ~2:44 PM"), so a red battery itself is the last thing to go. Whatever freed room gets used again, so a battery keeps its picture whenever it fits. Only in a very small window is the end of the line cut.
+In a narrow window juice makes room step by step: first badges, reset times, the effort word and cost, then the effort level and the model name, then spacing, battery size, an amber battery's run-out time and shorter words, then every battery as words only (`Session 88%!! out ~2:44 PM`), then the batteries that are fine, then the amber ones, and last a red battery's words ("out ~2:44 PM"), so a red battery itself is the last thing to go. Whatever freed room gets used again, so a battery keeps its picture whenever it fits. Only in a very small window is the end of the line cut.
 
 </details>
 

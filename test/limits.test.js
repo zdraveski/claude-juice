@@ -19,9 +19,19 @@ test('on pace to run out is crit', () => {
   assert.equal(A(95, 93600, D7).level, 'crit');
 });
 
-test('red on pace says when it runs out; amber, green and a slow 90% do not', () => {
+test('amber or red on pace to run out says when; on track to finish at the reset, green and a slow 90% do not', () => {
   assert.equal(Math.round((A(88, 7500, H5).outAt - at(0)) / 1000), 1432); // 12% more at 88% per 10500s
-  assert.equal(A(19, 537840, D7).outAt, undefined);
+  const fast = A(19, 537840, D7); // 19% after 18.6 hours of a week: amber, and empty well before the reset
+  assert.equal(fast.level, 'warn');
+  assert.ok(fast.outAt > at(0) && fast.outAt < at(537840));
+  for (const [used, s, w] of [[60, 7200, H5], [50, 277200, D7]]) {
+    assert.equal(A(used, s, w).level, 'warn');
+    assert.equal(A(used, s, w).outAt, undefined, `${used}%: amber, but it lasts until the reset`);
+  }
+  const monday = A(2, D7 - 3 * 3600, D7); // 2% three hours into the week: amber, but too little to guess from
+  assert.equal(monday.level, 'warn');
+  assert.equal(monday.outAt, undefined);
+  assert.equal(A(10, D7 - 8 * 3600, D7).outAt, undefined, 'amber waits for a tenth of the week');
   assert.equal(A(12, 13680, H5).outAt, undefined);
   assert.equal(A(92, 100, H5).outAt, undefined, 'slow enough to last until the reset');
   assert.equal(A(100, 3600, H5).outAt, undefined, 'already out');
