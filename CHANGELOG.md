@@ -5,7 +5,7 @@ To update, type `/plugin`, update juice, then restart Claude Code.
 ## Not released yet
 
 Fixed:
-- `/juice set battery=` in a layout that keeps its own shapes (Classic segments, Panel, Capsules, Fuel tank) now says the style only shows in Status bar and Tightest first, instead of seeming to do nothing.
+- `/juice set battery=` in a layout that keeps its own shapes (Classic segments, Panel, Capsules, Fuel tank) now says the style only shows in Status bar and Tightest first, instead of seeming to do nothing. The customizer page says the same under Battery style.
 
 ## 1.1.0 (2026-11-07)
 

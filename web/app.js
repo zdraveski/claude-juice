@@ -125,7 +125,7 @@ $('presets').innerHTML = Object.entries(PRESETS).map(([id, p]) =>
   `<button class="opt preset" type="button" data-preset="${id}"><div class="chips" aria-hidden="true" data-chips="${id}"></div><strong>${p.name}</strong><span>${p.note}</span></button>`).join('')
   + `<button class="opt preset" type="button" data-preset="custom"><div class="chips" aria-hidden="true" data-chips="custom"></div><strong>Your own</strong><span>Pick below</span></button>`;
 $('custom').innerHTML = COLOR_NAMES.map((t, i) => `<label>${t}<input type="color" data-custom="${i}"><span class="ratio" data-ratio="${i}"></span></label>`).join('');
-$('details').innerHTML = DETAILS.map(([k, t, d, opts]) => `<div class="drow"><div><div class="t">${t}</div><div class="d">${d}</div></div>${segHtml(k, opts, t)}</div>`).join('');
+$('details').innerHTML = DETAILS.map(([k, t, d, opts]) => `<div class="drow"><div><div class="t">${t}</div><div class="d" data-hint="${k}">${d}</div></div>${segHtml(k, opts, t)}</div>`).join('');
 
 function update() {
   // A chosen terminal colour wins, as in the real line (terminal.js): the preview's Dark/Light only stands in for Automatic.
@@ -157,6 +157,9 @@ function update() {
   document.querySelectorAll('[data-preset]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.preset === (typeof s.colors === 'string' ? s.colors : 'custom')));
   document.querySelectorAll('[data-chips]').forEach((el) => { const set = el.dataset.chips === 'custom' ? customs[view.term] : PRESETS[el.dataset.chips][view.term]; el.innerHTML = set.map((c) => `<i style="background:${c}"></i>`).join(''); });
   document.querySelectorAll('[data-key]').forEach((b) => b.setAttribute('aria-pressed', s[b.dataset.key] === b.dataset.v));
+  // Only Status bar and Tightest first draw the style; say so in the others, or picking one seems to do nothing.
+  $('details').querySelector('[data-hint=battery]').textContent = DETAILS.find(([k]) => k === 'battery')[2]
+    + (['bar', 'focus'].includes(s.layout) ? '' : `. ${LAYOUTS[s.layout][0]} keeps its own shapes: styles show in Status bar and Tightest first`);
   document.querySelectorAll('[data-view]').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', view[seg.dataset.view] === b.dataset.v)));
   $('model').value = view.model;
   // Custom colours: one set per terminal colour, each checked against that terminal's background.
