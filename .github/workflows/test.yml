@@ -21,7 +21,7 @@ jobs:
         node: [24, 26]
     runs-on: ${{ matrix.os }}
     steps:
-      # Pinned to exact commits (the v4 tags), so a moved tag can't change what runs here.
+      # Pinned to exact commits (the tags named after each), so a moved tag can't change what runs here.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -33,3 +33,17 @@ jobs:
       - name: Mac Keychain, through the real security tool
         if: runner.os == 'macOS'
         run: node scripts/mac-keychain.mjs
+
+  customizer:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    env:
+      CI_REQUIRE_PLAYWRIGHT: 1 # a missing Playwright must fail this job, not skip
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm i -g playwright@1.65.0 # pinned, so a new release can't turn this red on its own
+      - run: playwright install --with-deps chromium
+      - run: node scripts/check-customizer.js

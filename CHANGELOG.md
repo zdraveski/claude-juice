@@ -8,6 +8,13 @@ To update, type `/plugin`, update juice, then restart Claude Code.
 
 Changed:
 - juice now supports the two newest long-term Node versions, 24 and 26. On an older Node the line still draws, but `/juice doctor` says to update Node from nodejs.org.
+- A setting juice doesn't know, like a shape from a newer juice, now says how to update juice instead of only "isn't valid".
+- Shapes light a cell only when more than half of it is used, so 50% no longer looks over half: the slider's knob sits just left of the middle, and Lives shows 2 hearts of 5.
+
+Fixed:
+- With no colour and plain ends, the line no longer starts with a stray space before the model name.
+- A badge with an emoji like ❤️ is counted two columns wide, as terminals draw it, so the line never runs past the edge.
+- The customizer's battery style row wraps properly in older browsers.
 
 ## 1.2.0 (2026-11-07)
 

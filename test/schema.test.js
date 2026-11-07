@@ -245,3 +245,12 @@ test('battery set in a layout that keeps its own shapes says so; bar and focus s
   quiet({}, ['battery=hot', 'battery=glossy', 'layout=panel']);
   assert.deepEqual(applySet({ ...DEFAULTS, layout: 'panel' }, ['layout=bar', 'layout=panel']).changed, []);
 });
+
+test('unknown values mention updating juice; junk settings never print "undefined"', () => {
+  assert.match(applySet(DEFAULTS, ['battery=nope']).warnings[0], /isn't valid, keeping 'glossy'\. If it's new, update juice: type \/plugin/);
+  for (const layout of [undefined, 'junk']) {
+    const w = applySet({ ...DEFAULTS, layout }, ['battery=pie']).warnings.join();
+    assert.match(w, /^battery: saved, but the current layout/);
+    assert.doesNotMatch(w, /undefined/);
+  }
+});

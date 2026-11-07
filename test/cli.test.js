@@ -431,6 +431,12 @@ test('set and badges keep settings and values this version doesn\'t know', async
   assert.doesNotMatch(fixed.out, /Warning: layout/);
 });
 
+test('set warns when a battery style won\'t show in the layout, not for the default style', async () => {
+  const r = await run(env(), ['set', 'layout=panel', 'battery=pie']);
+  assert.match(r.out, /Warning: battery: saved, but the Panel layout keeps its own shapes/);
+  assert.doesNotMatch((await run(env(), ['set', 'layout=panel', 'battery=glossy'])).out, /keeps its own shapes/);
+});
+
 test('set, get, and bad set', async () => {
   const d = env();
   const r = await run(d, ['set', 'layout=panel']);

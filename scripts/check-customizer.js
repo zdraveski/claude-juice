@@ -23,8 +23,8 @@ function playwright() {
 }
 const pw = playwright();
 if (!pw) {
-  console.log('Skipped: these checks need Playwright. Install it with: npm i -g playwright');
-  process.exit(0);
+  console.log(`${process.env.CI_REQUIRE_PLAYWRIGHT ? 'Missing Playwright' : 'Skipped'}: these checks need Playwright. Install it with: npm i -g playwright`);
+  process.exit(process.env.CI_REQUIRE_PLAYWRIGHT ? 1 : 0); // CI must fail, not skip
 }
 
 // Serves only files inside this repo.

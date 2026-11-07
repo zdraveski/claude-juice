@@ -253,6 +253,7 @@ test('chip: model on a tinted tag, round caps only when round', () => {
   const round = makeCtx(SAMPLES.busy, DEFAULTS, { theme: 'dark', ends: 'round' }), plain = sk('glossy'), light = sk('glossy', 'light');
   assert.equal(strip(chip(round, 'Opus 5.5')), '\ue0b6◆ Opus 5.5\ue0b4');
   assert.equal(strip(chip(plain, 'Opus 5.5')), ' ◆ Opus 5.5 ');
+  assert.equal(strip(chip(sk('glossy', 'dark', { colorDepth: 'none' }), 'Opus 5.5')), '◆ Opus 5.5', 'no tint, so no padding');
   const tag = (ctx) => cells(chip(ctx, 'Opus 5.5')).find((x) => x.ch === 'O');
   assert.equal(tag(plain).bg, rgb(mix(plain.P.bg, plain.P.accent, 0.22), 48));
   assert.equal(tag(light).bg, rgb(mix(light.P.bg, light.P.accent, 0.14), 48));
@@ -290,12 +291,12 @@ test('forms: the shapes', () => {
   assert.equal(fm('sand', 50), '⣿⣿⣤⠂⠂');
   assert.equal(fm('sand', 100), '⣿⣿⣿⣿⣿');
   assert.equal(fm('slider', 0), '●───────');
-  assert.equal(fm('slider', 50), '━━━━●───');
+  assert.equal(fm('slider', 50), '━━━●────');
   assert.equal(fm('slider', 100), '━━━━━━━●');
   assert.equal(fm('race', 47, false, 0.25), '··│·●····');
   assert.equal(fm('race', 47), '····●····', 'no window: no pace line');
   assert.equal(fm('race', 25, false, 0.25), '··●······', 'on pace: you cover the line');
-  assert.deepEqual([0, 50, 99, 100].map((p) => fm('lives', p)), ['♥♥♥♥♥', '♥♥♥♡♡', '♥♡♡♡♡', '♡♡♡♡♡']);
+  assert.deepEqual([0, 50, 99, 100].map((p) => fm('lives', p)), ['♥♥♥♥♥', '♥♥♡♡♡', '♥♡♡♡♡', '♡♡♡♡♡']);
   assert.equal(fm('dots', 50), '••••····');
   assert.equal(fm('chevrons', 50), '▸▸▸▹▹▹');
   assert.equal(fm('ruler', 50, false, 0.25), '┣━╋━━────┫');
@@ -335,11 +336,12 @@ test('forms: only 100% looks full and only 0% looks empty', () => {
 });
 
 test('ruler and race: on pace, a little ahead and a little behind always look different', () => {
-  for (const small of [false, true]) for (let p = 30; p <= 85; p += 5) { // with one lit cell there is no room inside the fill for an ahead tick
+  for (const small of [false, true]) for (let p = 2; p <= 98; p++) {
     const e = p / 100, r = (u) => fm('ruler', u, small, e).slice(1, -1), q = (u) => fm('race', u, small, e);
     const on = r(p), ahead = r(p + 2), behind = r(p - 2);
     assert.ok(on.includes('╋') && !on.slice(on.indexOf('╋')).includes('━'), `on ${p}% small=${small}: ${on}`);
-    assert.ok(ahead.slice(ahead.indexOf('╋')).includes('━'), `ahead ${p}% small=${small}: ${ahead}`);
+    // Below about 18% (30% squeezed) one cell is lit: no room inside the fill for an ahead tick.
+    if (p + 2 > (small ? 30 : 18)) assert.ok(ahead.slice(ahead.indexOf('╋')).includes('━'), `ahead ${p}% small=${small}: ${ahead}`);
     assert.ok(behind.includes('┿') && !behind.slice(behind.indexOf('┿')).includes('━'), `behind ${p}% small=${small}: ${behind}`);
     assert.ok(!q(p).includes('│'), `race on ${p}%: ${q(p)}`);
     assert.ok(q(p + 2).indexOf('│') < q(p + 2).indexOf('●'), `race ahead ${p}%: ${q(p + 2)}`);
@@ -364,6 +366,20 @@ test('ruler and race: within a point of even use is on pace, more is ahead or be
   // Nothing used just after a reset is on pace: no tick, as ┿ would say behind.
   for (const small of [false, true]) for (const e of [0.001, 0.01, 0.013]) assert.doesNotMatch(fm('ruler', 0, small, e), /[╋┿]/, `e=${e} small=${small}`);
   assert.match(fm('ruler', 0, false, 0.05), /┿/, 'behind still shows at 0% once even use is past a point');
+  assert.match(fm('ruler', 0, true, 0.2), /┿/, 'behind still shows at 0% once even use is past a point, squeezed too');
+});
+test('forms: an exact half cell rounds down, so a cell lights only when more than half is used', () => {
+  assert.equal(fm('dots', 50, true), '••···');
+  assert.equal(fm('lives', 50, true), '♥♡♡');
+  assert.equal(fm('chevrons', 50, true), '▸▸▹▹');
+  assert.equal(fm('dots', 51, true), '•••··');
+  assert.equal(fm('dots', 1, true), '•····', 'but any use still lights one');
+});
+test('forms: a missing percentage draws like 0 at the fixed width and never throws', () => {
+  for (const id of FORM_IDS) for (const small of [false, true]) for (const pct of [undefined, NaN, null]) {
+    assert.equal(fm(id, pct, small, 0.5), fm(id, 0, small, 0.5), `${id} ${pct}`);
+    assert.equal(vis(form(sk(id), pct, 'ok', small)), FORM_W[id][+small], `${id} ${pct}`);
+  }
 });
 
 test('forms: an empty or full run sends no empty colour codes', () => {
