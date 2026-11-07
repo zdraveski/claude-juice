@@ -122,7 +122,7 @@ A look sets the layout, the colours, what shows, the cost, the reset times and t
 | Capsule | Rounded capsules in Candy colours that fill with colour when they need you. |
 | Road trip | A fuel gauge in Forest colours: shows what is left, not what is used. |
 
-The picture shows the first 12. Capsule and Road trip use the Capsules and Fuel tank layouts (see [Six layouts](#six-layouts)).
+Capsule and Road trip use the Capsules and Fuel tank layouts (see [Six layouts](#six-layouts)).
 
 </details>
 

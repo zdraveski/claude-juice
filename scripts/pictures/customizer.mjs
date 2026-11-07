@@ -18,6 +18,7 @@ await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
 const base = `http://127.0.0.1:${server.address().port}/web/`;
 const pw = createRequire(join(execSync('npm root -g', { encoding: 'utf8' }).trim(), 'x.js'))('playwright');
 const browser = await pw.chromium.launch();
+const PW = 390; // a phone viewport: the page's own smallest text is 10.5px, so no width makes it 12px on a phone (see report)
 const open = async (w, h, scale) => {
   const pg = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: scale });
   pg.on('dialog', (d) => d.dismiss());
@@ -29,7 +30,7 @@ const open = async (w, h, scale) => {
 
 // ---------- PNG: page top through the first row of looks, then a dark margin ----------
 {
-  const pg = await open(1280, 1200, 2);
+  const pg = await open(PW, 1200, 2);
   const bottom = await pg.evaluate(() => {
     const cards = [...document.querySelectorAll('[data-look]')], top = cards[0].getBoundingClientRect().top;
     cards.filter((c) => c.getBoundingClientRect().top > top + 1).forEach((c) => (c.style.display = 'none'));
@@ -38,14 +39,14 @@ const open = async (w, h, scale) => {
     let m = sec.parentElement.nextElementSibling; while (m) { m.style.display = 'none'; m = m.nextElementSibling; }
     return Math.ceil(sec.getBoundingClientRect().bottom + scrollY);
   });
-  await pg.setViewportSize({ width: 1280, height: bottom + 60 });
-  await pg.screenshot({ path: join(IMG, 'customizer.png'), clip: { x: 0, y: 0, width: 1280, height: bottom + 60 } });
-  console.log('customizer.png', `1280x${bottom + 60} @2x`);
+  await pg.setViewportSize({ width: PW, height: bottom + 60 });
+  await pg.screenshot({ path: join(IMG, 'customizer.png'), clip: { x: 0, y: 0, width: PW, height: bottom + 60 } });
+  console.log('customizer.png', `${PW}x${bottom + 60} @2x`);
   await pg.close();
 }
 
 // ---------- GIF frames: Juice -> Spotlight -> Colour-blind friendly -> Light -> Dark -> Juice ----------
-const W = 1200, H = 760, FPS = 10;
+const W = PW, H = 760, FPS = 10;
 const pg = await open(W, H, 1);
 await pg.addStyleTag({ content: '#fc{position:fixed;left:0;top:0;z-index:99999;pointer-events:none;width:26px;height:26px}#fr{position:fixed;z-index:99998;pointer-events:none;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid #e2885f;opacity:0}' });
 await pg.evaluate(() => {
