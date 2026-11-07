@@ -12,7 +12,7 @@ Free, open source and unofficial: juice is not made by Anthropic.
 
 </div>
 
-![claude-juice: your Claude usage at a glance. A battery-style status line for Claude Code, showing Memory, Session, Fable and Weekly, and when Session and Weekly reset.](docs/images/hero.png)
+<img src="docs/images/hero.png" alt="claude-juice: your Claude usage at a glance. A battery-style status line for Claude Code, showing Memory, Session, Fable and Weekly, and when Session and Weekly reset." width="480">
 
 ## Install
 
@@ -58,11 +58,11 @@ juice works on Windows, macOS and Linux (tested by hand on Windows, automaticall
 
 ## What you get
 
-![Everything juice gives you: used % like Anthropic, when every limit resets, ! and !! warnings, a violet Fable battery, 14 ready-made looks, 13 colour sets, live numbers in every window (with the Fable battery on), the /juice command, and a one-step undo.](docs/images/features.png)
+<img src="docs/images/features.png" alt="Everything juice gives you: used % like Anthropic, when every limit resets, ! and !! warnings, a violet Fable battery, 14 ready-made looks, 13 colour sets, live numbers in every window (with the Fable battery on), the /juice command, and a one-step undo." width="480">
 
 ## What the batteries mean
 
-![Reading the status line, each part labelled: the model, the effort level from low to max, Memory (room used in this chat), Session (your 5-hour limit), when it resets, Fable (its own weekly limit), Weekly (your weekly limit), and ! or !! when it is going fast or nearly out.](docs/images/anatomy.png)
+<img src="docs/images/anatomy.png" alt="Reading the status line, each part labelled: the model, the effort level from low to max, Memory (room used in this chat), Session (your 5-hour limit), when it resets, Fable (its own weekly limit), Weekly (your weekly limit), and ! or !! when it is going fast or nearly out." width="480">
 
 | Battery | What it shows |
 |:---|:---|
@@ -86,7 +86,7 @@ The colours for Session, Weekly and Fable depend on your pace as well as on how 
 
 While Fable is fine it has its own colour (violet in most colour sets), so you can tell it apart. When it goes fast or runs low it turns amber or red with ! or !! like the others.
 
-![Colours tell you how it is going: green means plenty left, amber with ! means going a bit fast, red with !! means nearly out and says when it runs out, and Fable is violet while it is fine. A thin line on each battery marks an even pace.](docs/images/colours.png)
+<img src="docs/images/colours.png" alt="Colours tell you how it is going: green means plenty left, amber with ! means going a bit fast, red with !! means nearly out and says when it runs out, and Fable is violet while it is fine. A thin line on each battery marks an even pace." width="480">
 
 In every layout except Classic segments, a thin line on these batteries marks where you would be if you used the limit evenly. If the colour reaches past the line, you are going faster than that. Before the line, you have time to spare.
 
@@ -100,7 +100,7 @@ Pro and Max plans show the limits that apply to them. If you pay as you go with 
 
 A look sets the layout, the colours, what shows, the cost, the reset times and the battery ends, all in one go. Your terminal colour, Fable setting and badges stay as they are. Pick one, then change anything you like. (If you chose round or plain ends yourself, type `/juice use round ends` or `/juice use plain ends` again after picking a look.)
 
-![The 14 ready-made looks, each drawn as it really looks: Juice, Just the basics, Spotlight, Everything, Retro phone, Quiet, Night owl, Easy to see, Colour-blind friendly, Works everywhere, Cost watcher, Fable first, Capsule and Road trip.](docs/images/looks.png)
+<img src="docs/images/looks.png" alt="Four of the 14 ready-made looks, each drawn as it really looks: Juice, Just the basics, Retro phone and Easy to see, then the names of the other 10." width="480">
 
 <details>
 <summary>The 14 looks in words</summary>
@@ -143,7 +143,7 @@ The batteries keep the order you chose. To let them move instead, type `/juice p
 
 There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose. Or make your own in the customizer.
 
-![The 13 colour sets on a dark terminal, each showing a fine battery, an amber one with ! and a red one with !!.](docs/images/colour-sets.png)
+<img src="docs/images/colour-sets.png" alt="Four of the 13 colour sets on a dark terminal, Claude, Colour-blind safe, Midnight and Candy, each showing a fine battery, an amber one with ! and a red one with !!, then the names of the other 9." width="480">
 
 ## Change how it looks
 

@@ -74,20 +74,22 @@ const colours = doc('', 'Colours tell you <em>how it\'s going</em>', 'Not only h
   card('var(--violet)', 'Violet: Fable, while fine', 'Fable has its own colour, then warns like the others.', one('fable'), 'violet') +
   card('var(--red)', 'Red with !!: nearly out', 'Almost empty, or on track to run out before it resets. It tells you when.', one('session', low), 'red'));
 
-// ---------- 3. All the looks, one per row, each drawn with its own settings but limited to what fits ----------
+// ---------- 3. A few looks, each drawn with its own settings but limited to what fits, then the names of the rest ----------
+const more = (names) => `<div class="card"><h3 style="margin-top:0">+ ${names.length} more</h3><p>${names.join(', ')}.</p></div>`;
+const SOME_LOOKS = ['juice', 'basics', 'retro', 'easy'], SOME_SETS = ['claude', 'safe', 'midnight', 'candy'];
 const lookCard = (l, n) => { const r = fits(line(busy, { ...l.set, show: ['session'], cost: 'off', refills: 'warnings' }), l.name); return `<div class="card"><div class="box term">${r.html}</div><h3><b class="num">${n + 1}</b>${l.name}</h3><p>${l.note}</p></div>`; };
 const looks = doc('.num{flex:none;width:52px;height:52px;border-radius:12px;background:var(--clay);color:#141312;display:grid;place-items:center;font-size:33px}',
   `${LOOKS.length} <em>ready-made looks</em>`, 'One click in the customizer, or <span class="mono" style="color:var(--ink);font-size:25px">/juice look 7</span> in Claude Code.',
-  LOOKS.map(lookCard).join(''));
+  LOOKS.map((l, n) => SOME_LOOKS.includes(l.id) ? lookCard(l, n) : '').join('') + more(LOOKS.filter((l) => !SOME_LOOKS.includes(l.id)).map((l) => l.name)));
 
-// ---------- 4. All the colour sets on dark, each with a fine, an amber ! and a red !! battery ----------
+// ---------- 4. A few colour sets on dark, each with a fine, an amber ! and a red !! battery, then the names of the rest ----------
 const fine = withLimit(busy, 'session', 20), amber = withLimit(busy, 'session', 55), red = withLimit(busy, 'session', 96);
 const setCard = ([id, p]) => {
   const ls = [fine, amber, red].map((d) => fits(line(d, { colors: id, show: ['session'], refills: 'warnings' }), p.name));
   return `<div class="card"><h3 style="margin-top:0">${p.name}</h3><p>${p.note}</p><div class="box term" style="margin-top:16px;display:grid;gap:8px">${ls.map((l) => `<div>${l.html}</div>`).join('')}</div></div>`;
 };
 const sets = doc('', `${Object.keys(PRESETS).length} <em>colour sets</em>`, 'Shown on a dark terminal. Each has a light-terminal version too, and you can make your own.',
-  Object.entries(PRESETS).map(setCard).join(''));
+  SOME_SETS.map((id) => setCard([id, PRESETS[id]])).join('') + more(Object.keys(PRESETS).filter((id) => !SOME_SETS.includes(id)).map((id) => PRESETS[id].name)));
 
 const br = await browser();
 await shoot(br, 'anatomy', anatomy);
