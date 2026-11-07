@@ -136,3 +136,11 @@ test('samples and withAccount', () => {
   assert.deepEqual(p.limits, {});
   assert.equal(JSON.stringify(d), before);
 });
+
+test('makeCtx: style follows the setting, classic without colour', () => {
+  const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'hot' }, { theme: 'dark' });
+  assert.equal(ctx.style, 'hot');
+  assert.equal(ctx.dark, true);
+  assert.equal(makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'hot' }, { theme: 'light' }).dark, false);
+  assert.equal(makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'hot' }, { theme: 'dark', colorDepth: 'none' }).style, 'classic');
+});
