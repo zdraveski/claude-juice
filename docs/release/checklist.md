@@ -2,7 +2,7 @@
 
 These checks need what GitHub's tests don't have: a real Claude Code, a real Mac and real terminals. GitHub already
 runs every test and the end-to-end check (install, the real command through bash and sh, a hung badge killed with
-its child, restore) on Windows, macOS and Linux with Node 18, 22 and 24 on every push.
+its child, restore) on Windows, macOS and Linux with Node 24 and 26 on every push.
 
 ## 0. main is what people install
 

@@ -16,7 +16,7 @@ Free, open source and unofficial: juice is not made by Anthropic.
 
 ## Install
 
-You need Node 18 or newer. To check, type `node --version` in a terminal; if you don't have it, get it from [nodejs.org](https://nodejs.org). Then type these into Claude Code, one at a time:
+You need Node 24 or newer. To check, type `node --version` in a terminal; if you don't have it, get it from [nodejs.org](https://nodejs.org). Then type these into Claude Code, one at a time:
 
 1. Add the juice marketplace:
 
@@ -216,7 +216,7 @@ juice only runs badges you added yourself on this computer: each one is approved
 
 Type `/juice doctor` first. It checks, in plain words, your Node version, whether juice is your status line, which juice it runs, whether a project setting hides it, whether your juice settings and badges are usable, whether drawing works with them, when juice last saw your limits, how the Fable battery is doing and the last problem the status line hit, and says what to do about each. It never shows your badge commands or another status line's command, and your home folder reads `~`, so it doesn't show your user name. If you ask for help, [open a bug report](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) and include what it says.
 
-- **The status line is empty.** Type `/juice setup` again; it repairs the line and says if a project setting or `disableAllHooks` is hiding it. If it is still empty, check that Node is installed (type `node --version` in a terminal; you need 18 or newer, from nodejs.org), then restart Claude Code.
+- **The status line is empty.** Type `/juice setup` again; it repairs the line and says if a project setting or `disableAllHooks` is hiding it. If it is still empty, check that Node is installed (type `node --version` in a terminal; you need 24 or newer, from nodejs.org), then restart Claude Code.
 - **The text is hard to read on a light background.** Type `/juice my terminal is light`.
 - **You see boxes or question marks instead of round battery ends.** Type `/juice use plain ends`.
 - **You want round battery ends outside VS Code.** Type `/juice use round ends`.

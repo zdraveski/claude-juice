@@ -2,6 +2,13 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.2.1 (2026-11-07)
+
+[Changes since 1.2.0](https://github.com/zdraveski/claude-juice/compare/v1.2.0...v1.2.1)
+
+Changed:
+- juice now supports the two newest long-term Node versions, 24 and 26. On an older Node the line still draws, but `/juice doctor` says to update Node from nodejs.org.
+
 ## 1.2.0 (2026-11-07)
 
 [Changes since 1.1.1](https://github.com/zdraveski/claude-juice/compare/v1.1.1...v1.2.0)
