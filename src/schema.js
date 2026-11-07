@@ -145,7 +145,8 @@ export function applySet(settings, pairs) {
   }
   // Only Status bar and Tightest first draw the battery style; in the others a style picked shows nothing.
   // Changed, not chosen: the customizer's command always carries battery=, picked or not.
-  if (changed.includes('battery') && !['bar', 'focus'].includes(next.layout)) {
+  // Warn when a style is set, or a look moves a chosen style to a layout that ignores it.
+  if ((changed.includes('battery') || (changed.includes('layout') && next.battery !== DEFAULTS.battery)) && !['bar', 'focus'].includes(next.layout)) {
     warnings.push(`battery: saved, but the ${LAYOUT_NAMES[next.layout]} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`);
   }
   return { settings: next, warnings, changed, chosen };

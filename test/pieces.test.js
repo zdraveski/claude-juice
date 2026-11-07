@@ -288,7 +288,7 @@ test('forms: a fixed width at every level, normal and squeezed', () => {
 
 test('forms: the shapes', () => {
   assert.deepEqual([0, 13, 50, 70, 100].map((p) => fm('pie', p)), ['○', '◔', '◑', '◕', '●']);
-  assert.equal(fm('sand', 50), '⣿⣿⣤⠀⠀');
+  assert.equal(fm('sand', 50), '⣿⣿⣤⠒⠒');
   assert.equal(fm('sand', 100), '⣿⣿⣿⣿⣿');
   assert.equal(fm('slider', 0), '●───────');
   assert.equal(fm('slider', 50), '━━━━●───');
@@ -299,7 +299,8 @@ test('forms: the shapes', () => {
   assert.deepEqual([0, 50, 99, 100].map((p) => fm('lives', p)), ['♥♥♥♥♥', '♥♥♥♡♡', '♥♡♡♡♡', '♡♡♡♡♡']);
   assert.equal(fm('dots', 50), '••••····');
   assert.equal(fm('chevrons', 50), '▸▸▸▹▹▹');
-  assert.equal(fm('ruler', 50, false, 0.25), '┣━━╋━────┫');
+  assert.equal(fm('ruler', 50, false, 0.25), '┣━╋━━────┫');
+  assert.equal(fm('ruler', 25, false, 0.5), '┣━━─┿────┫');
   assert.equal(fm('ruler', 50), '┣━━━━────┫');
 });
 
@@ -319,20 +320,31 @@ test('forms: lit in the level colour, the rest in the label grey; every form sur
 });
 
 test('forms: only 100% looks full and only 0% looks empty', () => {
-  for (const id of FORM_IDS) for (const small of [false, true]) {
-    assert.notEqual(fm(id, 99, small, 0.5), fm(id, 100, small, 0.5), `${id} 99 vs 100 small=${small}`);
-    assert.notEqual(fm(id, 1, small, 0.5), fm(id, 0, small, 0.5), `${id} 1 vs 0 small=${small}`);
+  for (const id of FORM_IDS) for (const small of [false, true]) for (const e of [undefined, 0.5, 0.9, 0.97]) {
+    assert.notEqual(fm(id, 99, small, e), fm(id, 100, small, e), `${id} 99 vs 100 small=${small} e=${e}`);
+    assert.notEqual(fm(id, 1, small, e), fm(id, 0, small, e), `${id} 1 vs 0 small=${small} e=${e}`);
   }
   assert.equal(fm('pie', 88), '◕');
   assert.equal(fm('pie', 1), '◔');
-  assert.equal(fm('sand', 1), '⡀⠀⠀⠀⠀');
+  assert.equal(fm('sand', 1), '⡀⠒⠒⠒⠒');
+  assert.equal(fm('sand', 0), '⠒⠒⠒⠒⠒', 'an empty gauge still shows');
 });
 
-test('ruler: on pace always puts the tick just past the fill', () => {
-  for (const small of [false, true]) for (let p = 5; p <= 95; p += 5) {
-    const s = fm('ruler', p, small, p / 100).slice(1, -1), t = s.indexOf('╋');
-    assert.ok(t > 0 && s[t - 1] === '━' && !s.slice(t + 1).includes('━'), `${p}% small=${small}: ${s}`);
+test('ruler and race: on pace, a little ahead and a little behind always look different', () => {
+  for (const small of [false, true]) for (let p = 30; p <= 85; p += 5) { // with one lit cell there is no room inside the fill for an ahead tick
+    const e = p / 100, r = (u) => fm('ruler', u, small, e).slice(1, -1), q = (u) => fm('race', u, small, e);
+    const on = r(p), ahead = r(p + 2), behind = r(p - 2);
+    assert.ok(on.includes('╋') && !on.slice(on.indexOf('╋')).includes('━'), `on ${p}% small=${small}: ${on}`);
+    assert.ok(ahead.slice(ahead.indexOf('╋')).includes('━'), `ahead ${p}% small=${small}: ${ahead}`);
+    assert.ok(behind.includes('┿') && !behind.slice(behind.indexOf('┿')).includes('━'), `behind ${p}% small=${small}: ${behind}`);
+    assert.ok(!q(p).includes('│'), `race on ${p}%: ${q(p)}`);
+    assert.ok(q(p + 2).indexOf('│') < q(p + 2).indexOf('●'), `race ahead ${p}%: ${q(p + 2)}`);
+    assert.ok(q(p - 2).indexOf('│') > q(p - 2).indexOf('●'), `race behind ${p}%: ${q(p - 2)}`);
   }
+});
+
+test('forms: an empty or full run sends no empty colour codes', () => {
+  for (const [id, p] of [['lives', 100], ['dots', 0], ['chevrons', 0], ['dots', 100]]) assert.doesNotMatch(form(sk(id), p, 'ok', false), /m\x1b\[39m/, id);
 });
 
 test('forms: the unused part stands out from the background in every theme', () => {

@@ -176,15 +176,15 @@ The batteries in the Status bar and Tightest first layouts can be drawn six ways
 The shapes put the number after them, and read without colour too:
 
 - **Pie** `◑ 47%`: one little pie that fills by quarters.
-- **Sand** `⣿⣿⣄⠀⠀ 47%`: fine grains that pile up, eight to a cell.
+- **Sand** `⣿⣿⣄⠒⠒ 47%`: fine grains that pile up, eight to a cell.
 - **Slider** `━━━●──── 47%`: a knob on a track.
-- **Pace race** `····●│··· 47%`: you (●) racing even use (│). Ahead of the line means going fast.
+- **Pace race** `···│●···· 47%`: you (●) racing even use (│). Here you're ahead of the line, so going fast. On the line, you cover it.
 - **Lives** `♥♥♥♡♡ 47%`: what is left, as hearts.
 - **Dots** `••••···· 47%`: a string of beads.
 - **Chevrons** `▸▸▸▹▹▹ 47%`: arrows that march on as you use it.
-- **Ruler** `┣━━━━─╋──┫ 47%`: a ruler with even use as a raised tick.
+- **Ruler** `┣━━╋━────┫ 47%`: a ruler with even use as a tick. Here the tick is inside the fill, so you're ahead. On pace it sits on the fill's end; behind, it stands past it as `┿`.
 
-Only Pace race and Ruler show where even use would be. Pie, Sand, Chevrons, Lives and Ruler need a font that has those signs (Cascadia Code, JetBrains Mono and Menlo do). If you see boxes, pick another.
+The Pace race and Ruler examples are 47% used with 40% of the window gone. Of the shapes, only those two show where even use would be. Pie, Sand, Chevrons, Lives and Ruler need a font that has those signs (Cascadia Code, JetBrains Mono and Menlo do). If you see boxes, pick another.
 
 Pick one in the customizer, or type `/juice set battery=outline` (or any of glossy, classic, outline, hot, liquid, pace, pie, sand, slider, race, lives, dots, chevrons, ruler).
 

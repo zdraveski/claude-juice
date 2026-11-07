@@ -233,4 +233,7 @@ test('battery set in a layout that keeps its own shapes says so; bar and focus s
   // The customizer's command always carries battery=; pasting a Retro look must not warn about a style nobody picked.
   const retro = { ...DEFAULTS, ...LOOKS.find((l) => l.id === 'retro').set };
   assert.deepEqual(applySet(DEFAULTS, toCommand(retro).split(' ').slice(2)).warnings, []);
+  // A look that moves a chosen style to a layout that ignores it says so too; the default style stays quiet.
+  assert.match(applySet({ ...DEFAULTS, battery: 'pie' }, ['look=retro']).warnings.join(), /^battery: .*layout=bar/);
+  assert.deepEqual(applySet(DEFAULTS, ['look=retro']).warnings, []);
 });

@@ -6,7 +6,7 @@ const WIDE = /\p{Extended_Pictographic}|[\u1100-\u115F\u2E80-\u303E\u3040-\uA4CF
 const rgbOf = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 // a blended t of the way toward b (t 0..1), as #rrggbb.
 export const mix = (a, b, t) => { const y = rgbOf(b); return '#' + rgbOf(a).map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
-export const fg = (h, s) => `${E}38;2;${rgbOf(h).join(';')}m${s}${E}39m`;
+export const fg = (h, s) => (s ? `${E}38;2;${rgbOf(h).join(';')}m${s}${E}39m` : '');
 export const bg = (h, s) => `${E}48;2;${rgbOf(h).join(';')}m${s}${E}49m`;
 export const bold = (s) => `${E}1m${s}${E}22m`;
 // Every escape sequence (CSI, OSC ending in BEL or ESC \, other ESC x) and control character except \n,
