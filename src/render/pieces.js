@@ -39,7 +39,8 @@ function skin(ctx, c, level, cells, w, elapsed) {
   const { P, style, dark } = ctx, glossy = style === 'glossy', outline = style === 'outline';
   const casing = outline ? null : glossy ? mix(P.casing, c, dark ? 0.16 : 0.22) : P.casing;
   const last = Math.ceil(cells - 1 / 8) - 1; // the last cell showing any fill
-  const soft = style === 'pace' && elapsed > 0 && elapsed < 1 ? Math.floor(elapsed * w) : 0;
+  // Soft up to the even-pace point; a window that has run out puts that point at the end.
+  const soft = style !== 'pace' ? 0 : elapsed >= 1 ? w : Math.max(0, tickAt(elapsed, w));
   const heat = style === 'hot' && (level === 'warn' || level === 'crit');
   const color = (i) => (heat ? mix(P.good, c, last > 0 ? Math.min(1, i / last) : 1)
     : style === 'liquid' && i === last ? edge(c, dark)

@@ -179,11 +179,13 @@ test('glossy: full cells are ▀ on the fill, glass casing is tinted', () => {
   for (const x of cells(battery(ctx, 0, 'ok')).slice(0, 8)) assert.deepEqual([x.ch, x.bg], ['▀', rgb(mix(ctx.P.casing, c, 0.16), 48)]);
 });
 
-test('glossy light: the empty shine differs from the casing', () => {
-  for (const colors of PRESET_IDS) {
-    const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, colors }, { theme: 'light' });
-    const casing = mix(ctx.P.casing, ctx.P.good, 0.22);
-    assert.ok(contrast(mix(casing, '#ffffff', 0.45), casing) > 1.05, colors);
+const hexOf = (esc) => '#' + esc.split(';').slice(2).map((v) => (+v).toString(16).padStart(2, '0')).join('');
+
+test('glossy: the empty shine stands out from its glass in every set, theme and level', () => {
+  for (const theme of ['dark', 'light']) for (const colors of PRESET_IDS) for (const level of ['ok', 'warn', 'crit', 'fable']) {
+    const empty = cells(battery(makeCtx(SAMPLES.busy, { ...DEFAULTS, colors }, { theme }), 0, level))[1];
+    assert.equal(empty.ch, '▀');
+    assert.ok(contrast(hexOf(empty.fg), hexOf(empty.bg)) > 1.15, `${colors} ${theme} ${level}`);
   }
 });
 
@@ -223,6 +225,8 @@ test('pace: soft before the pace point, no tick', () => {
   assert.deepEqual(cells(s).slice(0, 6).map((x) => x.fg), [soft, soft, soft, soft, c, c].map((h) => rgb(h, 38)));
   assert.ok(!strip(s).includes('│'));
   assert.equal(battery(ctx, 80, 'ok', 8), battery(sk('classic'), 80, 'ok', 8), 'no window: classic');
+  // A window that has run out (a stale cache clamps elapsed to 1) puts the pace point at the end: all soft.
+  assert.ok(cells(battery(ctx, 80, 'ok', 8, 1)).slice(0, 6).every((x) => x.fg === rgb(soft, 38)));
 });
 
 test('every style survives 256 colours', () => {
