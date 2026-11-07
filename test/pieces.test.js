@@ -326,11 +326,13 @@ test('forms: only 100% looks full and only 0% looks empty', () => {
   }
   assert.equal(fm('pie', 88), '◕');
   assert.equal(fm('pie', 1), '◔');
-  assert.equal(fm('sand', 1), '⡀⠂⠂⠂⠂');
+  assert.equal(fm('sand', 1), '⣀⠂⠂⠂⠂');
+  assert.equal(fm('sand', 1, true), '⣀⠂⠂');
   assert.equal(fm('sand', 0), '⠂⠂⠂⠂⠂', 'an empty gauge still shows');
-  // Without colour an empty cell must not look fuller than one grain: one dot each, in different places.
-  const dots = (ch) => (ch.codePointAt(0) - 0x2800).toString(2).replace(/0/g, '').length;
-  assert.ok(dots('⠂') <= dots('⡀') && fm('sand', 0, false, undefined, { colorDepth: 'none' }) !== fm('sand', 1, false, undefined, { colorDepth: 'none' }));
+  // Without colour an empty cell must look lighter than the least use: one dot against two.
+  const dots = (s) => [...s].reduce((n, ch) => n + (ch.codePointAt(0) - 0x2800).toString(2).replace(/0/g, '').length, 0);
+  const mono = (p, small) => fm('sand', p, small, undefined, { colorDepth: 'none' });
+  for (const small of [false, true]) assert.ok(dots(mono(1, small)) - dots(mono(0, small)) >= 1 && mono(1, small)[0] === '⣀', `small=${small}`);
 });
 
 test('ruler and race: on pace, a little ahead and a little behind always look different', () => {
@@ -349,7 +351,7 @@ test('ruler and race: on pace, a little ahead and a little behind always look di
 test('ruler and race: within a point of even use is on pace, more is ahead or behind, every time', () => {
   for (const small of [false, true]) for (let p = 2; p <= 98; p++) for (const d of [-1.5, -1, -0.5, 0, 0.5, 1, 1.5]) {
     const e = (p + d) / 100, r = fm('ruler', p, small, e).slice(1, -1), q = fm('race', p, small, e), at = `${p}% e=${e} small=${small}`;
-    const t = r.search(/[╋┿]/), lit = r.split('━').length - 1 + (r[t] === '╋'), on = Math.abs(p - Math.round(e * 100)) <= 1;
+    const t = r.search(/[╋┿]/), lit = r.split('━').length - 1 + (r[t] === '╋'), on = Math.abs(p - Math.round(p + d)) <= 1;
     if (on) {
       assert.equal(t, lit - 1 < 0 ? 0 : lit - 1, `ruler on pace ${at}: ${r}`);
       assert.ok(!q.includes('│'), `race on pace ${at}: ${q}`);
@@ -358,6 +360,11 @@ test('ruler and race: within a point of even use is on pace, more is ahead or be
   // 11 with 12 gone and 12 with 13 gone are both a point behind: same look, no flicker.
   assert.equal(fm('ruler', 11, false, 0.12), fm('ruler', 11, false, 0.11));
   assert.equal(fm('ruler', 12, false, 0.13), fm('ruler', 12, false, 0.12));
+  // A half point rounds up even where floating point says 14.4999…: 16% with 14.5% gone is a point ahead, on pace.
+  assert.ok(!fm('race', 16, false, 0.145).includes('│'));
+  // Nothing used just after a reset is on pace: no tick, as ┿ would say behind.
+  for (const small of [false, true]) for (const e of [0.001, 0.01, 0.013]) assert.doesNotMatch(fm('ruler', 0, small, e), /[╋┿]/, `e=${e} small=${small}`);
+  assert.match(fm('ruler', 0, false, 0.05), /┿/, 'behind still shows at 0% once even use is past a point');
 });
 
 test('forms: an empty or full run sends no empty colour codes', () => {

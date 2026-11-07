@@ -108,7 +108,9 @@ export function batteryLow(ctx, pct, level, w = 14, elapsed) {
 // The forms: a shape instead of a battery, each at [normal, squeezed] width. u is used 0..1, e the even-pace
 // point 0..1 (or undefined). Used and left differ by shape, so a form reads without colour too.
 // The unused part is in the label grey: a thin · or ♡ in the groove colour all but vanishes.
-const SAND = '⠂⡀⣀⣄⣤⣦⣶⣷⣿'; // [0] is an empty cell: one dot halfway up, where no grain sits alone (blank braille would hide the gauge)
+// [0] is an empty cell: one dot halfway up (blank braille would hide the gauge). Any use shows at least
+// two grains (⣀), so without colour 1% is a line on the floor, not one dot moved down from 0%.
+const SAND = '⠂⡀⣀⣄⣤⣦⣶⣷⣿';
 // x of w steps, rounded, but only 0 looks empty and only 1 looks full (99% must not pass for blocked).
 const at = (x, w) => (x > 0 && x < 1 ? Math.min(w - 1, Math.max(1, Math.round(x * w))) : Math.round(x * w));
 const run = (ctx, c, n, w, on, off) => fg(c, on.repeat(n)) + fg(ctx.P.mute, off.repeat(w - n));
@@ -116,12 +118,14 @@ const run = (ctx, c, n, w, on, off) => fg(c, on.repeat(n)) + fg(ctx.P.mute, off.
 const paceAt = (e, w) => (e > 0 && e < 1 ? at(e, w) : -1);
 // gap: used minus even use, in whole points. Within a point you are on pace: the mark goes where yours is (k).
 // Further apart but in the same cell: step the mark one cell so ahead or behind shows.
-const gapOf = (u, e) => Math.round(u * 100) - Math.round(e * 100);
+// The tiny add keeps a half point rounding up: 0.145 * 100 is 14.4999… in floating point.
+const pt = (x) => Math.round(x * 100 + 1e-9);
+const gapOf = (u, e) => pt(u) - pt(e);
 const nudge = (t, k, gap) => (Math.abs(gap) <= 1 ? k : t === k ? t + (gap > 0 ? -1 : 1) : t);
 const FORMS = {
   pie: [[1, 1], (ctx, c, u) => fg(c, '○◔◑◕●'[at(u, 4)])],
   sand: [[5, 3], (ctx, c, u, w) => {
-    const n = at(u, w * 8);
+    const n = Math.max(u > 0 ? 2 : 0, at(u, w * 8));
     return [...Array(w).keys()].map((i) => { const g = Math.max(0, Math.min(8, n - i * 8)); return fg(g ? c : ctx.P.mute, SAND[g]); }).join('');
   }],
   slider: [[8, 5], (ctx, c, u, w) => { const k = at(u, w - 1); return fg(c, '━'.repeat(k) + '●') + fg(ctx.P.mute, '─'.repeat(w - 1 - k)); }],
@@ -137,7 +141,9 @@ const FORMS = {
   ruler: [[8, 5], (ctx, c, u, w, e) => {
     // The tick marks the last cell even use would fill: on the fill's end when on pace, inside it when ahead,
     // past it when behind. It is ╋ on a lit cell and ┿ on an unlit one, so the fill always shows in full.
-    const k = at(u, w), t = e > 0 && e < 1 ? Math.max(0, nudge(paceAt(e, w) - 1, k - 1, gapOf(u, e))) : -1;
+    // On pace with nothing lit there is no fill end to mark, so no tick (┿ there would say behind).
+    const k = at(u, w), n = e > 0 && e < 1 ? nudge(paceAt(e, w) - 1, k - 1, gapOf(u, e)) : null;
+    const t = n === null || (k === 0 && n < 0) ? -1 : Math.max(0, n);
     let s = '';
     for (let i = 0; i < w; i++) s += i === t ? fg(ctx.P.text, i < k ? '╋' : '┿') : i < k ? fg(c, '━') : fg(ctx.P.mute, '─');
     return fg(ctx.P.sub, '┣') + s + fg(ctx.P.sub, '┫');
