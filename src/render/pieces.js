@@ -10,9 +10,9 @@ const OFF = '░';
 // On the real status line (ctx.animate) the steps climb up to the level, hold, and start again,
 // one frame per CLIMB_MS: a redraw only shows a new frame once the clock has moved on.
 // The effort steps and the batteries share one cycle of CLIMB_FRAMES, so they all start again together;
-// max (5 steps) still holds a frame at the top.
-export const CLIMB_MS = 30000;
-export const CLIMB_FRAMES = 7;
+// max (5 steps) still holds a frame at the top. CLIMB_MS is twice the refresh setup writes (REFRESH_SECONDS).
+export const CLIMB_MS = 2000;
+export const CLIMB_FRAMES = 6;
 const frame = (ctx) => Math.floor(ctx.now.getTime() / CLIMB_MS) % CLIMB_FRAMES;
 // Without the word beside it the steps are the only way to read the level, so they stand still.
 export function ramp(ctx, effort, withWord = true) {

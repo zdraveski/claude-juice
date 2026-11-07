@@ -14,7 +14,7 @@ import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
 import { fableCacheState, fetchedCounts } from './readings.js';
 import { recall } from './lastseen.js';
-import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes, constant, readText } from './setup.js';
+import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes, constant, readText, OLD_REFRESH } from './setup.js';
 import { hideHome } from './paths.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
 
@@ -53,9 +53,9 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   else if (line && !here) out.push(bad("juice is your status line but points at a folder that isn't this one (settings copied from another computer?). Run /juice setup."));
   else if (line) {
     const every = line.refreshInterval;
-    out.push(refreshes(line) ? ok(`juice is your status line, refreshing ${every === 60 ? 'once a minute' : `every ${every} seconds`}`)
-      // 60 is juice's own old time: setup moves it to 30, so the pictures climb a step at a time while idle.
-      + (every === 60 ? '\n' + info('Run /juice setup to refresh every 30 seconds, so the effort level and batteries move a step at a time.') : '')
+    out.push(refreshes(line) ? ok(`juice is your status line, refreshing ${every === 60 ? 'once a minute' : every === 1 ? 'every second' : `every ${every} seconds`}`)
+      // juice's own old times: setup moves them, so the pictures climb a step at a time while idle.
+      + (OLD_REFRESH.includes(every) ? '\n' + info(`Run /juice setup to refresh every second, so the effort level and batteries move a step at a time.`) : '')
       : bad("juice is your status line but doesn't refresh on its own, so its numbers and reset times go stale while Claude Code is idle. Run /juice setup."));
   }
 

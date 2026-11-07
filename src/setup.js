@@ -11,12 +11,13 @@ const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 const usableBackup = (b) => !!b && typeof b === 'object' && 'statusLine' in b;
 export const readText = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
 // Claude Code only redraws on events, so without a timer the countdowns freeze while it is idle.
-// 30 seconds also moves the effort level's climb (CLIMB_MS in render/pieces.js) while Claude Code is idle.
-const REFRESH_SECONDS = 30;
+// Every second also moves the pictures' climb: two redraws per step (CLIMB_MS in render/pieces.js), so a step is never skipped.
+const REFRESH_SECONDS = 1;
+// What juice itself wrote before (60 up to 1.2.2, 30 in 1.3.0), so setup moves it; any other time was chosen by hand.
+export const OLD_REFRESH = [60, 30];
 // A refresh time Claude Code uses: at least one second (a hand-typed "60", -5 or 0.5 is ignored by it).
 export const refreshes = (statusLine) => Number.isFinite(statusLine?.refreshInterval) && statusLine.refreshInterval >= 1;
-// 60 is what juice itself wrote up to 1.2.2, so setup moves it to the new time; any other time was chosen by hand.
-const keepsRefresh = (statusLine) => refreshes(statusLine) && statusLine.refreshInterval !== 60;
+const keepsRefresh = (statusLine) => refreshes(statusLine) && !OLD_REFRESH.includes(statusLine.refreshInterval);
 
 // A symlinked settings.json must stay a symlink, so write to what it points at.
 const writeSettings = (p, v) => writeJsonAtomic(existsSync(p.claudeSettings) ? realpathSync(p.claudeSettings) : p.claudeSettings, v);
@@ -124,7 +125,7 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   if (current && keepsRefresh(settings.statusLine)) lines.push(fix ? 'juice is already your status line.' : 'juice is already your status line. Nothing changed.');
   else if (current) {
     writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, refreshInterval: REFRESH_SECONDS } });
-    lines.push('juice now refreshes every 30 seconds, so its numbers and reset times stay current and the effort level moves.');
+    lines.push(`juice now refreshes every second, so its numbers and reset times stay current and its pictures move.`);
   } else if (ours) {
     // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing;
     // one with the right launcher but an older way of finding Node just gets the current one.

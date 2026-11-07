@@ -99,11 +99,11 @@ test('ramp', () => {
   assert.notEqual(strip(ramp(ctx, 'medium')), strip(ramp(ctx, 'max')));
 });
 
-test('ramp on the real line climbs to the level every 30 seconds, holds, and starts again', () => {
-  const at = (frame, effort) => strip(ramp({ ...mk(), animate: true, now: new Date(frame * CLIMB_MS + 5000) }, effort));
-  assert.deepEqual([0, 1, 2, 3, 4, 5, 6, 7].map((f) => at(f, 'high')), ['▁▁▁▁▁', '▂▁▁▁▁', '▂▃▁▁▁', '▂▃▅▁▁', '▂▃▅▁▁', '▂▃▅▁▁', '▂▃▅▁▁', '▁▁▁▁▁']);
-  assert.deepEqual([0, 1, 6, 7].map((f) => at(f, 'low')), ['▁▁▁▁▁', '▂▁▁▁▁', '▂▁▁▁▁', '▁▁▁▁▁'], 'every level starts again together');
-  assert.deepEqual([5, 6, 7].map((f) => at(f, 'max')), ['▂▃▅▆█', '▂▃▅▆█', '▁▁▁▁▁'], 'max holds a frame at the top');
+test('ramp on the real line climbs to the level a step at a time, holds, and starts again', () => {
+  const at = (frame, effort) => strip(ramp({ ...mk(), animate: true, now: new Date(frame * CLIMB_MS + CLIMB_MS / 2) }, effort));
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map((f) => at(f, 'high')), ['▁▁▁▁▁', '▂▁▁▁▁', '▂▃▁▁▁', '▂▃▅▁▁', '▂▃▅▁▁', '▂▃▅▁▁', '▁▁▁▁▁']);
+  assert.deepEqual([0, 1, 5, 6].map((f) => at(f, 'low')), ['▁▁▁▁▁', '▂▁▁▁▁', '▂▁▁▁▁', '▁▁▁▁▁'], 'every level starts again together');
+  assert.deepEqual([4, 5, 6].map((f) => at(f, 'max')), ['▂▃▅▆▁', '▂▃▅▆█', '▁▁▁▁▁'], 'max holds a frame at the top');
   for (let f = 0; f < 14; f++) for (const e of Object.keys(EFFORT)) assert.equal(vis(ramp({ ...mk(), animate: true, now: new Date(f * CLIMB_MS) }, e)), 5, 'the width never moves');
   assert.equal(strip(ramp({ ...mk(), now: new Date(0) }, 'high')), '▂▃▅▁▁', 'previews stay still');
   assert.equal(makeCtx(SAMPLES.busy, DEFAULTS, { theme: 'dark', animate: true }).animate, true);
@@ -111,19 +111,19 @@ test('ramp on the real line climbs to the level every 30 seconds, holds, and sta
 });
 
 test('battery pictures on the real line climb to what is used in 4 steps and hold; the number never moves', () => {
-  const live = (f) => ({ ...mk(), animate: true, now: new Date(f * CLIMB_MS + 5000) });
+  const live = (f) => ({ ...mk(), animate: true, now: new Date(f * CLIMB_MS + CLIMB_MS / 2) });
   const lit = (f) => batteryLow(live(f), 100, 'ok', 8).split(fg(mk().P.good, '▆').replace(/▆.*/, '')).length - 1;
-  assert.deepEqual([0, 1, 2, 3, 4, 5, 6, 7].map(lit), [2, 4, 6, 8, 8, 8, 8, 2], 'never from nothing; starts again with the effort steps');
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map(lit), [2, 4, 6, 8, 8, 8, 2], 'never from nothing; starts again with the effort steps');
   assert.deepEqual([0, 1, 2].map((f) => batteryLow(live(f), 100, 'crit', 8)), Array(3).fill(batteryLow(mk(), 100, 'crit', 8)), 'a red battery stands still');
   const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'dots' }, { theme: 'dark', animate: true });
-  assert.deepEqual([0, 1, 3, 7].map((f) => strip(form({ ...ctx, now: new Date(f * CLIMB_MS) }, 100, 'ok'))), ['••······', '••••····', '••••••••', '••······']);
+  assert.deepEqual([0, 1, 3, 6].map((f) => strip(form({ ...ctx, now: new Date(f * CLIMB_MS) }, 100, 'ok'))),['••······', '••••····', '••••••••', '••······']);
   assert.equal(strip(form({ ...ctx, animate: false }, 50, 'ok')), '••••····', 'previews stay still');
   // 80% used, half the window gone: the tick (going fast) only shows against the whole fill.
   assert.deepEqual([0, 3].map((f) => strip(battery(live(f), 80, 'warn', 8, 0.5)).includes('│')), [false, true]);
 });
 
 test('climbing never changes a picture\'s width or where its number sits', () => {
-  const at = (style, f) => ({ ...makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: style }, { theme: 'dark', animate: true }), now: new Date(f * CLIMB_MS + 5000) });
+  const at = (style, f) => ({ ...makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: style }, { theme: 'dark', animate: true }), now: new Date(f * CLIMB_MS + CLIMB_MS / 2) });
   for (const style of BATTERY_IDS) for (const [pct, e] of [[64, 0.5], [3, 0.9], [100, 0.2]]) {
     const pics = (f) => [battery(at(style, f), pct, 'warn', 8, e), batteryPct(at(style, f), pct, 'warn', 7, e), batterySeg(at(style, f), pct, 'warn'),
       batteryLow(at(style, f), pct, 'warn', 14, e), FORM_IDS.includes(style) ? form(at(style, f), pct, 'warn', false, e) : ''];
