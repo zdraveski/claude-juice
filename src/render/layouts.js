@@ -2,7 +2,7 @@ import { fg, bg, bold, inkOn } from './ansi.js';
 import { assess, memLevel } from './limits.js';
 import { limitNote, memoryNote, LABELS, EFFORT } from './words.js';
 import { tone } from './palette.js';
-import { ramp, battery, batteryPct, batterySeg, batteryLow } from './pieces.js';
+import { ramp, chip, battery, batteryPct, batterySeg, batteryLow } from './pieces.js';
 
 const lbl = (ctx, t) => fg(ctx.P.mute, t);
 const num = (ctx, t, level) => fg(level === 'ok' ? ctx.P.text : tone(ctx, level), t);
@@ -14,7 +14,7 @@ const badges = (data, ctx) => (ctx.fit.badges ? '' : data.badges.filter(Boolean)
 function head(data, ctx, word = true) {
   const { P, settings, fit } = ctx, show = settings.show;
   const model = show.includes('model') && !fit.noModel && data.model
-    ? fg(P.accent, '◆') + ' ' + fg(P.text, data.model.name) : '';
+    ? chip(ctx, data.model.name) : '';
   const effort = show.includes('effort') && !fit.noEffort && data.effort
     ? ramp(ctx, data.effort) + (word && !fit.noEffortWord ? ' ' + fg(P.sub, EFFORT[data.effort][1]) : '') : '';
   return join([model, effort], '  ');

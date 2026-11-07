@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { fg, inkOn, contrast, mix, to256 } from '../src/render/ansi.js';
 import { DEFAULTS, PRESET_IDS, BATTERY_IDS } from '../src/schema.js';
 import { PRESETS, NEUTRAL, palette, makeCtx } from '../src/render/palette.js';
-import { battery, batteryPct, batterySeg, batteryLow, ramp } from '../src/render/pieces.js';
+import { battery, batteryPct, batterySeg, batteryLow, ramp, chip } from '../src/render/pieces.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 
 // The checks that name the casing or the tick are about the classic cells.
@@ -94,7 +94,7 @@ test('batteryLow uses only ▆ and ■', () => {
 test('ramp', () => {
   const ctx = mk(), s = ramp(ctx, 'high');
   assert.equal(strip(s), '▂▃▅▁▁', 'the steps above the level are flat, so the level reads without colour');
-  assert.equal(s, [0, 1, 2, 3, 4].map((i) => (i < 3 ? fg(ctx.P.accent, '▂▃▅▆█'[i]) : fg(ctx.P.groove, '▁'))).join(''));
+  assert.equal(s, [0, 1, 2, 3, 4].map((i) => (i < 3 ? fg(mix(ctx.P.sub, ctx.P.accent, (i + 1) / 5), '▂▃▅▆█'[i]) : fg(ctx.P.groove, '▁'))).join(''));
   assert.notEqual(strip(ramp(ctx, 'medium')), strip(ramp(ctx, 'max')));
 });
 
@@ -242,3 +242,20 @@ for (const style of BATTERY_IDS) for (const [left, w, t] of [[35, 7], [45, 7], [
     assert.equal(new Set(run.map((c) => c.fg)).size, 1, 'one foreground across the text');
   });
 }
+
+test('chip: model on a tinted tag, round caps only when round', () => {
+  const round = makeCtx(SAMPLES.busy, DEFAULTS, { theme: 'dark', ends: 'round' }), plain = sk('glossy'), light = sk('glossy', 'light');
+  assert.equal(strip(chip(round, 'Opus 5.5')), '\ue0b6◆ Opus 5.5\ue0b4');
+  assert.equal(strip(chip(plain, 'Opus 5.5')), ' ◆ Opus 5.5 ');
+  const tag = (ctx) => cells(chip(ctx, 'Opus 5.5')).find((x) => x.ch === 'O');
+  assert.equal(tag(plain).bg, rgb(mix(plain.P.bg, plain.P.accent, 0.22), 48));
+  assert.equal(tag(light).bg, rgb(mix(light.P.bg, light.P.accent, 0.14), 48));
+  assert.equal(tag(plain).fg, rgb(plain.P.text, 38));
+  assert.ok(chip(plain, 'Opus 5.5').includes('\x1b[1m'), 'the name is bold');
+});
+
+test('ramp: lit steps warm toward the accent', () => {
+  const ctx = mk(), steps = cells(ramp(ctx, 'max'));
+  assert.equal(new Set(steps.map((x) => x.fg)).size, 5);
+  assert.equal(steps[4].fg, rgb(ctx.P.accent, 38));
+});

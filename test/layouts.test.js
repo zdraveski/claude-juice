@@ -217,3 +217,12 @@ test('before the first reply the line says the batteries are coming, and stops o
   assert.ok(!text({ ...fresh, memoryUsed: 3 }).includes('first reply'), 'an API key after its first reply');
   assert.ok(!text(fresh, {}, { columns: 40 }).includes('first reply'), 'only when it fits');
 });
+
+test('the model sits on a chip, and hiding the model hides the chip', () => {
+  assert.ok(text(SAMPLES.busy).startsWith('\ue0b6◆ Opus 5.5\ue0b4'), text(SAMPLES.busy));
+  assert.ok(!text(SAMPLES.busy, { show: ['effort', 'memory', 'session'] }).includes('◆'));
+  for (const columns of [30, 40, 50]) {
+    const r = render(SAMPLES.trouble, DEFAULTS, { ...term, columns });
+    if (!strip(r.text).includes('Opus')) assert.ok(!strip(r.text).includes('◆'), `${columns}: ${strip(r.text)}`);
+  }
+});

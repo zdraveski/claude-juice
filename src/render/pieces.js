@@ -10,8 +10,16 @@ const OFF = '░';
 export function ramp(ctx, effort) {
   const n = EFFORT[effort][0];
   let s = '';
-  for (let i = 0; i < 5; i++) s += i < n ? fg(ctx.P.accent, RAMP[i]) : fg(ctx.P.groove, '▁');
+  // Lit steps warm from the quiet grey to the accent as they climb.
+  for (let i = 0; i < 5; i++) s += i < n ? fg(mix(ctx.P.sub, ctx.P.accent, (i + 1) / 5), RAMP[i]) : fg(ctx.P.groove, '▁');
   return s;
+}
+
+// The model's name on a tag tinted with the accent; rounded ends only when ctx.round.
+export function chip(ctx, text) {
+  const { P } = ctx, tint = mix(P.bg, P.accent, ctx.dark ? 0.22 : 0.14);
+  const body = fg(P.accent, '◆ ') + fg(P.text, bold(text));
+  return ctx.round ? fg(tint, CAP_L) + bg(tint, body) + fg(tint, CAP_R) : bg(tint, ' ' + body + ' ');
 }
 
 // The even-pace tick: the cell where the fill would be now if the limit were used evenly (elapsed is 0..1).
