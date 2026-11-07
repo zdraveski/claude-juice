@@ -123,7 +123,7 @@ const FORMS = {
     return [...Array(w).keys()].map((i) => (i === k ? fg(c, '●') : i === t ? fg(ctx.P.sub, '│') : fg(ctx.P.groove, '·'))).join('');
   }],
   // Counts what is left, like the tank: any left at all keeps a heart.
-  lives: [[5, 3], (ctx, c, u, w) => { const left = Math.ceil((1 - u) * w); return fg(c, '♥'.repeat(left)) + fg(ctx.P.groove, '♡'.repeat(w - left)); }],
+  lives: [[5, 3], (ctx, c, u, w) => run(ctx, c, Math.ceil((1 - u) * w), w, '♥', '♡')],
   dots: [[8, 5], (ctx, c, u, w) => run(ctx, c, at(u, w), w, '•', '·')],
   chevrons: [[6, 4], (ctx, c, u, w) => run(ctx, c, at(u, w), w, '▸', '▹')],
   ruler: [[8, 5], (ctx, c, u, w, e) => {
