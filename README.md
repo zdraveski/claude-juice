@@ -58,7 +58,7 @@ juice works on Windows, macOS and Linux (tested by hand on Windows, automaticall
 
 ## What you get
 
-![Everything juice gives you: used % like Anthropic, when every limit resets, ! and !! warnings, a violet Fable battery, 12 ready-made looks, 13 colour sets, live numbers in every window (with the Fable battery on), the /juice command, and a one-step undo.](docs/images/features.png)
+![Everything juice gives you: used % like Anthropic, when every limit resets, ! and !! warnings, a violet Fable battery, 14 ready-made looks, 13 colour sets, live numbers in every window (with the Fable battery on), the /juice command, and a one-step undo.](docs/images/features.png)
 
 ## What the batteries mean
 
@@ -100,7 +100,7 @@ Pro and Max plans show the limits that apply to them. If you pay as you go with 
 
 A look sets the layout, the colours, what shows, the cost, the reset times and the battery ends, all in one go. Your terminal colour, Fable setting and badges stay as they are. Pick one, then change anything you like. (If you chose round or plain ends yourself, type `/juice use round ends` or `/juice use plain ends` again after picking a look.)
 
-![The 12 ready-made looks, each drawn as it really looks: Juice, Just the basics, Spotlight, Everything, Retro phone, Quiet, Night owl, Easy to see, Colour-blind friendly, Works everywhere, Cost watcher and Fable first.](docs/images/looks.png)
+![The 14 ready-made looks, each drawn as it really looks: Juice, Just the basics, Spotlight, Everything, Retro phone, Quiet, Night owl, Easy to see, Colour-blind friendly, Works everywhere, Cost watcher, Fable first, Capsule and Road trip.](docs/images/looks.png)
 
 <details>
 <summary>The 14 looks in words</summary>
