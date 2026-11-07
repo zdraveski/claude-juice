@@ -2,7 +2,9 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
-## Not released yet
+## 1.1.0 (2026-11-07)
+
+[Changes since 1.0.2](https://github.com/zdraveski/claude-juice/compare/v1.0.2...v1.1.0)
 
 New:
 - **Two new layouts.** Capsules: each battery a rounded capsule that fills with colour when it needs you. Fuel tank: shows what is left instead of what is used.
