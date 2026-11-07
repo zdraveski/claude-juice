@@ -54,6 +54,8 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   else if (line) {
     const every = line.refreshInterval;
     out.push(refreshes(line) ? ok(`juice is your status line, refreshing ${every === 60 ? 'once a minute' : `every ${every} seconds`}`)
+      // 60 is juice's own old time: setup moves it to 30, so the pictures climb a step at a time while idle.
+      + (every === 60 ? '\n' + info('Run /juice setup to refresh every 30 seconds, so the effort level and batteries move a step at a time.') : '')
       : bad("juice is your status line but doesn't refresh on its own, so its numbers and reset times go stale while Claude Code is idle. Run /juice setup."));
   }
 

@@ -34,7 +34,7 @@ export function palette(settings, theme) {
 
 export const makeCtx = (data, settings, terminal) => ({
   P: palette(settings, terminal.theme), round: terminal.ends === 'round', mono: terminal.colorDepth === 'none', settings,
-  style: settings.battery || 'glossy', dark: terminal.theme === 'dark', now: data.now, fit: {},
+  style: settings.battery || 'glossy', dark: terminal.theme === 'dark', now: data.now, fit: {}, animate: !!terminal.animate && data.now instanceof Date,
 });
 
 const TONE = { ok: 'good', warn: 'watch', crit: 'bad', fable: 'fable' };

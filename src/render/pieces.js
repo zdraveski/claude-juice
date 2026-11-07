@@ -7,8 +7,17 @@ const EIGHTH = ' ▏▎▍▌▋▊▉', RAMP = '▂▃▅▆█';
 const OFF = '░';
 
 // Steps above the level are drawn flat, so the staircase climbs by shape, not by colour alone.
-export function ramp(ctx, effort) {
-  const n = EFFORT[effort][0];
+// On the real status line (ctx.animate) the steps climb up to the level, hold, and start again,
+// one frame per CLIMB_MS: a redraw only shows a new frame once the clock has moved on.
+// The effort steps and the batteries share one cycle of CLIMB_FRAMES, so they all start again together;
+// max (5 steps) still holds a frame at the top.
+export const CLIMB_MS = 30000;
+export const CLIMB_FRAMES = 7;
+const frame = (ctx) => Math.floor(ctx.now.getTime() / CLIMB_MS) % CLIMB_FRAMES;
+// Without the word beside it the steps are the only way to read the level, so they stand still.
+export function ramp(ctx, effort, withWord = true) {
+  const level = EFFORT[effort][0];
+  const n = ctx.animate && withWord ? Math.min(frame(ctx), level) : level;
   let s = '';
   // Lit steps warm from the quiet grey to the accent as they climb.
   for (let i = 0; i < 5; i++) s += i < n ? fg(mix(ctx.P.sub, ctx.P.accent, (i + 1) / 5), RAMP[i]) : fg(ctx.P.groove, '▁');
@@ -66,7 +75,19 @@ function skin(ctx, c, level, cells, w, elapsed) {
   return { casing, color, cell, tick, digit, shell, ticks: style !== 'pace' };
 }
 
+// On the real line the batteries' pictures climb too, in the same cycle: from a quarter of what is used up to all
+// of it in CLIMB_STEPS steps, then hold until everything starts again. Never from nothing: an empty picture beside
+// "90%" would say the opposite. Only the picture moves; the number and words always say the real amount.
+// A red battery stands still: it is the one to read at a glance.
+export const CLIMB_STEPS = 4;
+const share = (ctx, level) => (ctx.animate && level !== 'crit' ? Math.min(frame(ctx) + 1, CLIMB_STEPS) / CLIMB_STEPS : 1);
+export const climb = (ctx, pct, level) => pct * share(ctx, level);
+// The even-pace tick shows only once the whole fill does: against part of it, someone going fast would read "behind".
+const paced = (ctx, level, elapsed) => (share(ctx, level) < 1 ? undefined : elapsed);
+
 export function battery(ctx, pct, level, w = 8, elapsed) {
+  pct = climb(ctx, pct, level);
+  elapsed = paced(ctx, level, elapsed);
   const c = tone(ctx, level), cells = (pct / 100) * w, k = skin(ctx, c, level, cells, w, elapsed), t = k.ticks ? tickAt(elapsed, w) : -1;
   let s = '';
   for (let i = 0; i < w; i++) s += i === t ? k.tick(i) : k.cell(i);
@@ -75,7 +96,8 @@ export function battery(ctx, pct, level, w = 8, elapsed) {
 
 export function batteryPct(ctx, pct, level, w = 7, elapsed) {
   const c = tone(ctx, level), text = `${pct}%`, cells = (pct / 100) * w, full = Math.round(cells), n = text.length, mid = Math.floor((w - n) / 2);
-  const k = skin(ctx, c, level, cells, w, elapsed);
+  // The digits stay where the real fill and tick put them; only the fill around them climbs.
+  const shown = climb(ctx, pct, level), k = skin(ctx, c, level, (shown / 100) * w, w, paced(ctx, level, elapsed));
   // Keep the digits together: centre them unless the fill edge would cut through.
   let t0 = full >= mid + n || full <= mid ? mid : w - full >= n ? full : 0, t = k.ticks ? tickAt(elapsed, w) : -1;
   // The tick never covers a digit: the digits move to the nearest spot clear of it and the fill edge, else the tick goes.
@@ -83,16 +105,18 @@ export function batteryPct(ctx, pct, level, w = 7, elapsed) {
     const free = [...Array(w - n + 1).keys()].filter((x) => (x + n <= full || x >= full) && !(t >= x && t < x + n));
     if (free.length) t0 = free.sort((a, b) => Math.abs(a - t0) - Math.abs(b - t0))[0]; else t = -1;
   }
-  const onFill = t0 + n <= full;
+  if (paced(ctx, level, elapsed) === undefined) t = -1;
+  const onFill = t0 + n <= Math.round((shown / 100) * w);
   let s = '';
   for (let i = 0; i < w; i++) {
     if (i >= t0 && i < t0 + n) s += k.digit(text[i - t0], onFill, t0);
     else s += i === t ? k.tick(i) : k.cell(i);
   }
-  return k.shell(s, pct > 0 && (t0 > 0 || onFill) ? k.color(0) : k.casing, pct >= 100 ? k.color(w - 1) : k.casing);
+  return k.shell(s, shown > 0 && (t0 > 0 || onFill) ? k.color(0) : k.casing, shown >= 100 ? k.color(w - 1) : k.casing);
 }
 
 export function batterySeg(ctx, pct, level, n = 5) {
+  pct = climb(ctx, pct, level);
   const lit = pct > 0 ? Math.max(1, Math.round(pct / (100 / n))) : 0;
   let s = '';
   for (let i = 0; i < n; i++) s += bg(ctx.P.casing, i < lit ? fg(tone(ctx, level), '▊') : fg(ctx.P.segOff, ctx.mono ? OFF : '▊'));
@@ -100,6 +124,8 @@ export function batterySeg(ctx, pct, level, n = 5) {
 }
 
 export function batteryLow(ctx, pct, level, w = 14, elapsed) {
+  pct = climb(ctx, pct, level);
+  elapsed = paced(ctx, level, elapsed);
   const lit = Math.round((pct / 100) * w), t = tickAt(elapsed, w);
   let s = '';
   for (let i = 0; i < w; i++) s += i === t ? fg(ctx.P.text, '│') : i < lit ? fg(tone(ctx, level), '▆') : fg(ctx.P.casing, ctx.mono ? OFF : '▆');
@@ -153,5 +179,5 @@ const FORMS = {
 export const isForm = (ctx) => Object.hasOwn(FORMS, ctx.style);
 export function form(ctx, pct, level, small, elapsed) {
   const [widths, draw] = FORMS[ctx.style];
-  return draw(ctx, tone(ctx, level), Math.max(0, Math.min(100, pct || 0)) / 100, widths[small ? 1 : 0], elapsed);
+  return draw(ctx, tone(ctx, level), Math.max(0, Math.min(100, climb(ctx, pct || 0, level))) / 100, widths[small ? 1 : 0], paced(ctx, level, elapsed));
 }

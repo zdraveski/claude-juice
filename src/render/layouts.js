@@ -2,7 +2,7 @@ import { fg, bg, bold, inkOn } from './ansi.js';
 import { assess, memLevel } from './limits.js';
 import { limitNote, memoryNote, saysOut, LABELS, EFFORT } from './words.js';
 import { tone } from './palette.js';
-import { ramp, chip, battery, batteryPct, batterySeg, batteryLow, form, isForm } from './pieces.js';
+import { ramp, chip, battery, batteryPct, batterySeg, batteryLow, form, isForm, climb } from './pieces.js';
 
 const lbl = (ctx, t) => fg(ctx.P.mute, t);
 const num = (ctx, t, level) => fg(level === 'ok' ? ctx.P.text : tone(ctx, level), t);
@@ -16,7 +16,7 @@ function head(data, ctx, word = true) {
   const model = show.includes('model') && !fit.noModel && data.model
     ? chip(ctx, data.model.name) : '';
   const effort = show.includes('effort') && !fit.noEffort && data.effort
-    ? ramp(ctx, data.effort) + (word && !fit.noEffortWord ? ' ' + fg(P.sub, EFFORT[data.effort][1]) : '') : '';
+    ? ramp(ctx, data.effort, word && !fit.noEffortWord) + (word && !fit.noEffortWord ? ' ' + fg(P.sub, EFFORT[data.effort][1]) : '') : '';
   return join([model, effort], '  ');
 }
 
@@ -162,7 +162,7 @@ export const LAYOUTS = {
     const it = items(data, ctx), told = ctx.fit.shortWords && it.slice().sort(byNeed).find((i) => withSay(ctx, i, ' '));
     return join([badges(data, ctx), head(data, ctx),
       ...it.map((i) => {
-        const w = ctx.fit.small ? 3 : 4, left = 100 - i.used, n = left > 0 ? Math.max(1, Math.round((left / 100) * w)) : 0;
+        const w = ctx.fit.small ? 3 : 4, left = 100 - i.used, shown = climb(ctx, left, i.level), n = shown > 0 ? Math.max(1, Math.round((shown / 100) * w)) : 0;
         const gauge = ctx.fit.bare ? '' : fg(tone(ctx, paint(i)), '▰'.repeat(n)) + fg(ctx.P.segOff, '▱'.repeat(w - n)) + ' ';
         return name(ctx, i) + ' ' + gauge + num(ctx, `${left}% left`, i.level) + mark(ctx, i) + (!ctx.fit.shortWords || i === told ? withSay(ctx, i, ' ') : '');
       }),
