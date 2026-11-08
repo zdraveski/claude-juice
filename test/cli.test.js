@@ -327,7 +327,8 @@ test('the home folder\'s own .claude is never taken for a project that hides jui
   try {
     process.env.HOME = home; process.env.USERPROFILE = home;
     const out = install(paths({ CLAUDE_CONFIG_DIR: env() }), { pluginRoot: '/dev/juice', cwd: join(home, 'work') }).join('\n');
-    assert.doesNotMatch(out, /won't show in that project/, out);
+    // Only this home's .claude (../.claude from work): on Windows the temp folder sits inside the real home, whose own settings are read too.
+    assert.doesNotMatch(out, /^\.\.\/\.claude\/.*won't show in that project/m, out);
   } finally { for (const [k, v] of Object.entries(keep)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } }
 });
 
