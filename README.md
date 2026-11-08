@@ -60,9 +60,10 @@ juice is made for Claude Code only. It shows wherever Claude Code shows a status
 | The terminal inside VS Code, run `claude` there | Shows, with round battery ends (tested) |
 | The terminal inside JetBrains, Cursor or another editor | Should show, as in any terminal (not tested) |
 | The Claude chat panel in VS Code | Doesn't show: Claude Code doesn't run a status line there (tested) |
-| The Claude desktop app and claude.ai/code | Not tested |
+| The Code tab in the Claude desktop app | Didn't show in our last test (Windows) |
+| claude.ai/code | Not tested |
 
-If you use the VS Code chat panel, open VS Code's terminal and type `claude` to see juice.
+If you use the VS Code chat panel or the desktop app, open a terminal and type `claude` to see juice.
 
 <p align="center">
   <a href="https://zdraveski.github.io/claude-juice/web/"><img src="docs/images/open-customizer.png" alt="Open the live customizer" width="340"></a>
