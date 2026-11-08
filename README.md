@@ -50,6 +50,21 @@ The only thing juice itself sends anywhere is a usage request to `api.anthropic.
 
 juice works on Windows, macOS and Linux (tested by hand on Windows, automatically on all three). On a Mac or Linux, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) if something looks off.
 
+### Where juice shows
+
+juice is made for Claude Code only. It shows wherever Claude Code shows a status line, which is when you run `claude` in a terminal:
+
+| Where you use Claude Code | juice |
+| --- | --- |
+| A terminal window: PowerShell, Git Bash, Windows Terminal, macOS Terminal, iTerm, Linux | Shows (tested on Windows) |
+| The terminal inside VS Code, run `claude` there | Shows, with round battery ends (tested) |
+| The terminal inside JetBrains, Cursor or another editor | Should show, as in any terminal (not tested) |
+| The Claude chat panel in VS Code | Doesn't show: Claude Code doesn't run a status line there (tested) |
+| The Code tab in the Claude desktop app | Didn't show in our last test (Windows) |
+| claude.ai/code | Not tested |
+
+If you use the VS Code chat panel or the desktop app, open a terminal and type `claude` to see juice.
+
 <p align="center">
   <a href="https://zdraveski.github.io/claude-juice/web/"><img src="docs/images/open-customizer.png" alt="Open the live customizer" width="340"></a>
   <br>
