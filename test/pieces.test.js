@@ -110,6 +110,28 @@ test('ramp on the real line climbs to the level a step at a time, holds, and sta
   assert.equal(makeCtx(SAMPLES.busy, DEFAULTS, { theme: 'dark' }).animate, false);
 });
 
+test('redrawn every second (setup\'s refresh), the climb shows every step and never skips one, even when redraws run late', () => {
+  // max shows a different picture on each of the 6 frames, so the pictures seen tell which steps were drawn.
+  const steps = ['▁▁▁▁▁', '▂▁▁▁▁', '▂▃▁▁▁', '▂▃▅▁▁', '▂▃▅▆▁', '▂▃▅▆█'];
+  const draws = (every, start) => {
+    let seed = 7, t = start; // fixed pseudo-random lateness, so the test never flakes
+    const seen = [];
+    for (let i = 0; i < 300; i++) {
+      seen.push(steps.indexOf(strip(ramp({ ...mk(), animate: true, now: new Date(t) }, 'max'))));
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      t += every + (seed % 200); // Claude Code may start each redraw up to 200 ms late
+    }
+    return seen;
+  };
+  const skips = (seen) => seen.slice(1).filter((s, i) => s !== seen[i] && s !== (seen[i] + 1) % steps.length).length;
+  for (const start of [0, 1, 999, 1999]) {
+    const seen = draws(1000, start);
+    assert.ok(!seen.includes(-1), 'only the known pictures');
+    assert.equal(skips(seen), 0, `no step skipped, starting at ${start} ms`);
+  }
+  assert.ok(skips(draws(2000, 1999)) > 0, 'a redraw every 2 seconds does skip steps, which is why setup asks for 1');
+});
+
 test('battery pictures on the real line climb to what is used in 4 steps and hold; the number never moves', () => {
   const live = (f) => ({ ...mk(), animate: true, now: new Date(f * CLIMB_MS + CLIMB_MS / 2) });
   const lit = (f) => batteryLow(live(f), 100, 'ok', 8).split(fg(mk().P.good, '▆').replace(/▆.*/, '')).length - 1;
