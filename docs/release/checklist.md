@@ -51,8 +51,8 @@ Use a normal session, not auto mode: auto mode approves on its own, so permissio
 10. **No flashing windows (Windows).** Add the badge `git branch --show-current`, then work for 2 minutes.
     Pass: no console window ever flashes.
 11. **Fable numbers.** On a Max account, the Fable battery matches Anthropic's usage page.
-12. **Desktop app.** Open a Code tab in the Claude desktop app. Write down whether the status line shows there at all
-    (this decides how much the 0.4.0 mod matters).
+12. **Desktop app.** Open a Code tab in the Claude desktop app. Write down whether the status line shows there at all.
+    It showed at 1.0.0 but not on 2026-11-08 (Windows). If the answer changes, update "Where juice shows" in the README.
 
 ## 3. On a Mac
 
