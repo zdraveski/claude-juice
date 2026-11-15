@@ -152,3 +152,7 @@ test('refresh-badges sweeps old cache files only', async () => {
   gone.forEach((f) => assert.equal(existsSync(f), false, f));
   kept.forEach((f) => assert.equal(existsSync(f), true, f));
 });
+
+test('badge text loses bidi overrides and zero-width marks', () => {
+  assert.equal(cleanBadge('a\u202eb\u200bc'), 'abc');
+});
