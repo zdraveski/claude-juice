@@ -203,3 +203,10 @@ test('with only amber batteries, a narrow window keeps their reset times', () =>
   assert.ok(wide.dropped.includes('amber run-out times') && !wide.dropped.includes('warning words'), wide.dropped.join());
   assert.match(t, /Session .*resets in 4h .*Weekly .*resets Tue/, 'Fable\'s run-out time goes before any word is shortened');
 });
+
+test('the last-resort cut never leaves a tank number without its "left"', () => {
+  for (let columns = 8; columns <= 16; columns++) {
+    const t = strip(go(SAMPLES.trouble, 'tank', columns).text);
+    assert.ok(!/\d+%(?! left)/.test(t), `${columns} columns: ${t}`);
+  }
+});

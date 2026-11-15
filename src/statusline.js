@@ -40,7 +40,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     if (badges) extras.badges = badges.texts;
 
     const data = normalize(stdin, extras, now);
-    const terminal = detectTerminal({ env, settings, claudeTheme: readClaudeTheme(p.claudeSettings) });
+    const terminal = detectTerminal({ env, settings, claudeTheme: () => readClaudeTheme(p.claudeSettings) });
     // Only the real line moves, and only with motion on: each climb needs a refresh every second.
     const { text } = render(data, settings, { ...terminal, animate: settings.motion === 'on' });
 

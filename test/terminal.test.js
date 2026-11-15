@@ -9,7 +9,7 @@ import { detectTerminal, readClaudeTheme } from '../src/terminal.js';
 import { remember, recall } from '../src/lastseen.js';
 import { NOW, at } from './helpers.js';
 
-const det = (env = {}, settings = DEFAULTS, claudeTheme = null) => detectTerminal({ env, settings, claudeTheme });
+const det = (env = {}, settings = DEFAULTS, claudeTheme = null) => detectTerminal({ env, settings, claudeTheme: () => claudeTheme });
 const tmpPaths = () => paths({ CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-')) });
 
 test('detects everything from env', () => {
@@ -162,4 +162,22 @@ test('remember never throws; recall of corrupt file is null', () => {
   writeFileSync(join(q.cacheDir, 'lastseen.json'), '[1]');
   assert.equal(recall(q), null);
   assert.equal(recall({ cacheDir: '/nonexistent/x' }), null);
+});
+
+test('COLUMNS is a whole positive number or it is ignored', () => {
+  assert.equal(det({ COLUMNS: '1e9' }).columns, 1e9 - 4, 'not read as 1');
+  assert.equal(det({ COLUMNS: '80px' }).columns, 116);
+  assert.equal(det({ COLUMNS: '80.5' }).columns, 116);
+  assert.equal(det({ COLUMNS: ' 90 ' }).columns, 86);
+});
+
+test('with no colour the rounded ends become plain ones, so no bare cap glyphs print', () => {
+  assert.equal(det({ TERM_PROGRAM: 'vscode', NO_COLOR: '1' }).ends, 'plain');
+  assert.equal(det({ TERM_PROGRAM: 'vscode' }).ends, 'round');
+});
+
+test('Claude Code settings are read only when the theme needs them', () => {
+  const boom = () => { throw new Error('read'); };
+  for (const terminal of ['dark', 'light']) detectTerminal({ env: {}, settings: { ...DEFAULTS, terminal }, claudeTheme: boom });
+  assert.equal(detectTerminal({ env: {}, settings: { ...DEFAULTS, terminal: 'auto' }, claudeTheme: () => 'light' }).theme, 'light');
 });

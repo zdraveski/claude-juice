@@ -266,3 +266,9 @@ test('of two amber batteries, the one that runs out leads, not the fuller one th
   }
   inOrder(text(data, { layout: 'segments', order: 'urgent' }, { columns: 140 }), ['Session', 'Weekly']);
 });
+
+test('a cost under a cent says so, and a big cost has thousands separators', () => {
+  const d = { ...SAMPLES.busy, account: 'payg', limits: {} };
+  assert.match(text({ ...d, costUsd: 0.004 }), /spent <\$0\.01/);
+  assert.match(text({ ...d, costUsd: 1234567.891 }), /spent \$1,234,567\.89/);
+});

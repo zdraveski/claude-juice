@@ -11,7 +11,7 @@ const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 function limit(used, resetsAt, windowSec) {
   used = pct(used);
   if (used === null) return undefined;
-  const t = typeof resetsAt === 'string' ? Date.parse(resetsAt) : num(resetsAt) === null ? NaN : resetsAt * 1000;
+  const t = typeof resetsAt === 'string' ? Date.parse(resetsAt) : num(resetsAt) === null ? NaN : resetsAt > 1e11 ? resetsAt : resetsAt * 1000; // above 1e11 it is already milliseconds
   const d = new Date(t); // out-of-range values (1e20) give an Invalid Date
   return { used, resetsAt: Number.isNaN(d.getTime()) ? null : d, windowSec };
 }
