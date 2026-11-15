@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, statSync, chmodSync, rmSync, utimesSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { tmpdir, homedir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
-import { main } from '../src/cli.js';
+import { main, friendly } from '../src/cli.js';
 import { isJuice } from '../src/setup.js';
 import { CUSTOMIZER_URL, LOOKS } from '../src/schema.js';
 
@@ -542,6 +542,24 @@ test('badges remove takes --yes before or after the number', async () => {
   await run(d, ['badges', 'add', 'echo B', '--yes']);
   assert.equal((await run(d, ['badges', 'remove', '--yes', '2'])).code, 0);
   assert.equal((await run(d, ['badges', 'list', '--show'])).out, '1. echo A');
+});
+
+test('badges add with no command gives an example that works in every shell', async () => {
+  const r = await run(env(), ['badges', 'add']);
+  assert.match(r.err, /badges add "git branch --show-current" --yes/);
+  assert.doesNotMatch(r.err, /rtk/);
+});
+
+test('a file juice cannot save reaches the person as one plain sentence, never a raw error with their path', async () => {
+  for (const code of ['EPERM', 'EACCES', 'EROFS', 'EBUSY', 'ENOSPC', 'ENOTDIR']) {
+    const text = friendly(Object.assign(new Error(`${code}: nope, open '/home/sam/.claude/juice.json'`), { code }));
+    assert.match(text, /^juice couldn't save a file/, code);
+    assert.doesNotMatch(text, /sam|\.json/, code);
+  }
+  const other = friendly(new Error(`EISDIR: illegal operation on a directory, open '${homedir()}/.claude/juice.json'`));
+  assert.doesNotMatch(other, new RegExp(homedir().replaceAll('\\', '\\\\')));
+  assert.match(other, /EISDIR/);
+  assert.equal(friendly({}), 'Something went wrong.');
 });
 
 test('badges list keeps keys out of the chat: first word only, whole commands with --show', async () => {

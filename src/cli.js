@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { paths } from './paths.js';
+import { paths, hideHome } from './paths.js';
 import { readJson } from './cache.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { applySet, encodeLink, fableEnabled, CUSTOMIZER_URL, LOOKS, NOTHING_SHOWN } from './schema.js';
@@ -88,7 +88,7 @@ export async function main(argv, io) {
         const yes = all.at(-1) === '--yes', rest = yes ? all.slice(0, -1) : all;
         if (sub === 'add') {
           const command = rest.join(' ');
-          if (!command) { io.err('Give the command to add, for example: badges add "rtk gain" --yes'); return 1; }
+          if (!command) { io.err('Give the command to add, for example: badges add "git branch --show-current" --yes'); return 1; }
           if (!yes) { io.out(`This badge would run: ${command}`); io.out('Run again with --yes to add it.'); return 2; }
           addBadge(p, command);
           io.out(`Added badge: ${command}`);
@@ -133,10 +133,19 @@ export async function main(argv, io) {
     }
   } catch (e) {
     if (e instanceof NeedsConfirm) { io.out(e.message); return 2; }
-    // A read-only file or folder: plain words, not an EPERM with the full path (and the person's name) in it.
-    const locked = e?.code === 'EPERM' || e?.code === 'EACCES';
-    io.err(locked ? "juice couldn't save a file in your Claude folder because it is read-only. Make it writable (Claude can do it for you), then try again."
-      : e?.message || 'Something went wrong.');
+    io.err(friendly(e));
     return 1;
   }
 }
+
+// Plain words for a file that can't be saved, not a raw error with the full path (and the person's name) in it.
+const CANT_SAVE = "juice couldn't save a file in your Claude folder because ";
+const SAVE_FAILS = {
+  EPERM: 'it is read-only. Make it writable (Claude can do it for you), then try again.',
+  EROFS: 'the disk is read-only. Use a Claude folder on a disk you can write to, then try again.',
+  EBUSY: 'another program is using it. Close that program, then try again.',
+  ENOSPC: 'the disk is full. Free some space, then try again.',
+  ENOTDIR: 'a folder it needs is really a file. Check that your Claude folder is the right one, then try again.',
+};
+SAVE_FAILS.EACCES = SAVE_FAILS.EPERM;
+export const friendly = (e) => (SAVE_FAILS[e?.code] ? CANT_SAVE + SAVE_FAILS[e.code] : hideHome(e?.message || 'Something went wrong.'));
