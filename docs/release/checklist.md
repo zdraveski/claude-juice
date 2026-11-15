@@ -9,8 +9,9 @@ its child, restore) on Windows, macOS and Linux with Node 24 and 26 on every pus
 The plugin store serves whatever is newest on `main` (the marketplace entry is `"source": "./"`), to new installs at
 once and under whatever version number `main` says. So:
 
-- `main` is protected: a change reaches it only through a pull request whose 7 GitHub checks pass (3 systems × Node 24 and 26, plus `customizer`, the browser checks), docs included.
+- `main` is protected by the ruleset `main` (id 26291212): a change reaches it only through a pull request whose 7 GitHub checks pass (3 systems × Node 24 and 26, plus `customizer`, the browser checks), docs included.
   Work on a branch; GitHub runs the tests on every branch.
+- When the test matrix changes, change the ruleset's required checks in the same pull request: a required check that no longer runs blocks every merge.
 - Code reaches `main` only at a release: merge the pull request with the version raised and its CHANGELOG entry in one go
   (then tag it, step 1 below).
 - Docs-only pull requests (README, CHANGELOG) can be merged between releases; code can't.
@@ -45,7 +46,8 @@ Use a normal session, not auto mode: auto mode approves on its own, so permissio
    time ("resets Sat 7:20 PM", or "resets next Wed 2:19 PM" right after a reset) in your time zone, matching Anthropic's usage page. In a narrow window Weekly may say "resets 3d 5h".
 7. **Restore.** `/juice restore`. Pass: your old status line is back, and `juice-statusline.mjs` and `juice-backup.json` are gone.
 8. **Update.** After publishing a version bump, `/plugin update`. Pass: the old version's folder gets `.orphaned_at`, and the
-   line keeps drawing with the new version (`/juice doctor` names it).
+   line keeps drawing with the new version (`/juice doctor` names it). From 1.3.x: the `refreshInterval` of 1 that juice
+   wrote in `settings.json` is 60 after the first refresh, and a number you typed there yourself is left alone.
 9. **Turn off and uninstall.** Turn juice off in `/plugin`. Pass: the line reads "juice is turned off…". Uninstall.
    Pass: "juice is not installed…".
 10. **No flashing windows (Windows).** Add the badge `git branch --show-current`, then work for 2 minutes.
@@ -53,6 +55,11 @@ Use a normal session, not auto mode: auto mode approves on its own, so permissio
 11. **Fable numbers.** On a Max account, the Fable battery matches Anthropic's usage page.
 12. **Desktop app.** Open a Code tab in the Claude desktop app. Write down whether the status line shows there at all.
     It showed at 1.0.0 but not on 2026-11-08 (Windows). If the answer changes, update "Where juice shows" in the README.
+13. **Motion.** After a fresh `/juice setup`, the batteries stand still and `settings.json` has `refreshInterval` 60.
+    `/juice set motion=on`. Pass: the batteries climb within 10 seconds, with no restart. `/juice set motion=off`. Pass: they stand still again.
+14. **Token.** Start Claude Code with `CLAUDE_CONFIG_DIR` set to an empty folder, sign in, then `/juice setup`.
+    Pass: it asks before juice reads anything. Answer no. Pass: after Claude's first reply, `juice-cache/fable.json` does not exist.
+    On a Mac, answering yes brings the Keychain prompt.
 
 ## 3. On a Mac
 
