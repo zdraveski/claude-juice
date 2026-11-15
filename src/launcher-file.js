@@ -19,6 +19,10 @@ export const launcherTarget = (text) => {
   return pinned ? `pinned:${pinned}` : market ? `market:${market}` : null;
 };
 
+// The marketplace of a plugin-store copy (<market>/juice/<version>), or null for a checkout. Read from the path's own
+// segments, because a symlinked or junctioned plugins folder shows the real place, with no /plugins/cache/ in it.
+export const marketOf = (root) => /\/plugins\/cache\/([^/]+)\//.exec(root)?.[1] ?? /([^/]+)\/juice\/(?:\d+\.\d+[^/]*|[0-9a-f]{12})$/.exec(root)?.[1] ?? null;
+
 // The launcher for this copy of juice: installed from Claude Code's plugin store, it follows updates there;
 // anywhere else (a checkout), it pins that folder.
 export function launcherFor(pluginRoot) {
@@ -27,8 +31,9 @@ export function launcherFor(pluginRoot) {
   if (!template.includes(pin) || !template.includes(market)) throw new Error("juice's launcher template is damaged. Reinstall the plugin.");
   const root = fwd(pluginRoot).replace(/\/+$/, ''); // one spelling, so the same folder always gives the same launcher
   // A replacer function stops $' and $& in the path being expanded.
-  return root.includes('/plugins/cache/')
-    ? template.replace(market, () => `const MARKET = ${JSON.stringify(root.split('/plugins/cache/')[1].split('/')[0])};`)
+  const name = marketOf(root);
+  return name
+    ? template.replace(market, () => `const MARKET = ${JSON.stringify(name)};`)
     : template.replace(pin, () => `const PINNED = ${JSON.stringify(root)};`);
 }
 

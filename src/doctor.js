@@ -14,8 +14,9 @@ import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
 import { fableCacheState, fetchedCounts } from './readings.js';
 import { recall } from './lastseen.js';
-import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes, refreshFor, refreshWords, constant, readText } from './setup.js';
+import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes, refreshFor, refreshWords, constant, readText, fwd } from './setup.js';
 import { hideHome } from './paths.js';
+import { marketOf } from './launcher-file.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
 
 const ok = (s) => `✓ ${s}`, bad = (s) => `! ${s}`, info = (s) => `· ${s}`;
@@ -33,10 +34,9 @@ export function ago(ms) {
 }
 
 
-export function doctor(p, { env, platform, now, cwd, version }) {
+export function doctor(p, { env, platform, now, cwd, version, node = process.versions.node }) {
   const out = [];
   const t = now.getTime();
-  const node = process.versions.node;
   // Older Node still draws the line; juice just isn't tested there, so say so instead of refusing.
   out.push(Number(node.split('.')[0]) >= 24 ? ok(`juice ${version}, Node ${node}, ${OS[platform] ?? platform}`)
     : bad(`Node ${node} isn't supported: juice needs Node 24 or newer. Update it from nodejs.org.`));
@@ -44,7 +44,7 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   // 1. Is juice the status line, and can that line find Node and juice?
   let settings = null;
   try { settings = readClaudeSettings(p); } catch {
-    out.push(bad("Claude Code's settings file (settings.json in your Claude folder) has a mistake in it, so Claude Code can't read it. Ask Claude to fix it, then run /juice setup."));
+    out.push(bad("juice can't read your Claude Code settings file (settings.json in your Claude folder). It has a mistake, or comments or a comma after the last item: Claude Code may read it fine, but juice can't. Ask Claude to fix it, then run /juice setup."));
   }
   const line = settings?.statusLine;
   const here = isJuice(line) && runsLauncher(p, line.command, platform);
@@ -73,7 +73,12 @@ export function doctor(p, { env, platform, now, cwd, version }) {
     else {
       const target = resolveTarget(p.config, pinned, market);
       const runs = !target ? null : pinned ? readJson(join(pinned, 'package.json'))?.version : basename(dirname(dirname(target)));
-      if (!target) out.push(bad("The status line can't find juice any more. Install it again, then run /juice setup."));
+      // Only the marketplace name differs: setup rewrites the launcher, so no reinstall is needed.
+      const other = !target && market && resolveTarget(p.config, null, null);
+      const moved = other && basename(dirname(dirname(dirname(dirname(other)))));
+      if (pinned && marketOf(fwd(pinned))) out.push(bad(`The status line is stuck on one juice folder (${pinned}) and won't follow updates. Run /juice setup.`));
+      if (moved) out.push(bad(`The status line looks for juice under "${market}", but it is installed under "${moved}". Run /juice setup.`));
+      else if (!target) out.push(bad("The status line can't find juice any more. Install it again, then run /juice setup."));
       else out.push(ok(`The status line runs juice${runs ? ` ${runs}` : ''}${pinned ? ' from a folder on this computer' : ''}`));
       if (runs && runs !== version) out.push(bad(`These /juice commands are juice ${version} but the status line runs ${runs}. Restarting Claude Code usually lines them up.`));
     }
@@ -111,11 +116,10 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   } else {
     const f = readJson(p.fableFile);
     if (fableCacheState(f, t).backedOff) {
-      // Behind a company proxy (HTTPS_PROXY), Node's fetch reaches Anthropic only from 22.21 and 24.0 on.
-      const [maj, min] = node.split('.').map(Number);
-      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && !(maj >= 24 || (maj === 22 && min >= 21));
+      // Behind a company proxy (HTTPS_PROXY), Node's fetch reaches Anthropic only from Node 24 on.
+      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && Number(node.split('.')[0]) < 24;
       out.push(bad(`Fable battery: the last check failed; juice tries again in ${Math.ceil((f.backoffUntil - t) / 60000)} min. ${proxyBlocks
-        ? `You're behind a company proxy, which juice can only get through with Node 24 or newer, or 22.21 or newer on Node 22 (this is ${node}): install the newest from nodejs.org.`
+        ? `You're behind a company proxy, which juice can only get through with Node 24 or newer (this is ${node}): install the newest from nodejs.org.`
         : 'If it keeps failing, type /login to sign in to Claude Code again.'}`));
     } else out.push(info(fetchedCounts(f?.fetchedAt, now) ? `Fable battery: last checked ${ago(t - f.fetchedAt)}`
       : f?.fetchedAt ? 'Fable battery: not checked in the last hour; juice asks again soon.'

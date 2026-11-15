@@ -194,6 +194,33 @@ test('doctor: badges are counted, unapproved ones flagged, commands never printe
   assert.doesNotMatch(text, /curl|token=abc/);
 });
 
+test('doctor: a settings.json with comments is juice that cannot read it, not Claude Code', async () => {
+  const d = config();
+  writeFileSync(join(d, 'settings.json'), '{\n  // my notes\n  "theme": "dark",\n}');
+  const text = check(d);
+  assert.match(text, /^! juice can't read your Claude Code settings file/m);
+  assert.match(text, /Claude Code may read it fine/);
+  assert.doesNotMatch(text, /so Claude Code can't read it/);
+});
+
+test('doctor: a launcher stuck on one plugin folder, and a marketplace that was renamed', async () => {
+  const d = config();
+  await run(d, ['setup']);
+  const stuck = 'D:/shared/claude-plugins/cache/m/juice/1.3.1';
+  writeFileSync(join(d, 'juice-statusline.mjs'), `const PINNED = "${stuck}";`);
+  assert.match(check(d), /^! The status line is stuck on one juice folder .*won't follow updates\. Run \/juice setup\.$/m);
+  // A checkout pinned on purpose is fine.
+  writeFileSync(join(d, 'juice-statusline.mjs'), 'const PINNED = "/home/a/code/juice";');
+  assert.doesNotMatch(check(d), /stuck on one/);
+  // The launcher looks in marketplace "old", but juice now lives under "new": setup fixes that, a reinstall does not need to.
+  writeFileSync(join(d, 'juice-statusline.mjs'), 'const MARKET = "old";');
+  mkdirSync(join(d, 'plugins', 'cache', 'new', 'juice', '1.0.0', 'bin'), { recursive: true });
+  writeFileSync(join(d, 'plugins', 'cache', 'new', 'juice', '1.0.0', 'bin', 'juice-statusline.js'), '');
+  const text = check(d);
+  assert.match(text, /^! The status line looks for juice under "old", but it is installed under "new"\. Run \/juice setup\.$/m);
+  assert.doesNotMatch(text, /Install it again/);
+});
+
 test('doctor: Fable off, failing, and checked', () => {
   const d = config();
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ fable: 'off' }));
@@ -205,10 +232,11 @@ test('doctor: Fable off, failing, and checked', () => {
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 10 * 60000 }));
   assert.match(check(d), /^! Fable battery: the last check failed; juice tries again in 10 min\. If it keeps failing, type \/login/m);
   // Behind a company proxy the advice depends on whether this Node can use it.
-  const behindProxy = check(d, { env: { HTTPS_PROXY: 'http://proxy:8080' } });
-  const [maj, min] = process.versions.node.split('.').map(Number);
-  const nodeCan = maj >= 24 || (maj === 22 && min >= 21);
-  assert.match(behindProxy, nodeCan ? /type \/login/ : /company proxy, which juice can only get through with Node 24 or newer, or 22\.21 or newer on Node 22/);
+  const proxy = { env: { HTTPS_PROXY: 'http://proxy:8080' } };
+  assert.match(check(d, { ...proxy, node: '24.1.0' }), /type \/login/);
+  const old = check(d, { ...proxy, node: '22.21.0' });
+  assert.match(old, /company proxy, which juice can only get through with Node 24 or newer \(this is 22\.21\.0\)/);
+  assert.doesNotMatch(old, /22\.21 or newer/, 'juice needs Node 24 everywhere');
   // Stamped by a clock that was ahead: juice ignores these, and so does the doctor.
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 30 * 86400000 }));
   assert.doesNotMatch(check(d), /last check failed/);
