@@ -174,11 +174,13 @@ const colorWord = (c) => (typeof c === 'string' ? c
 // Keychain on a Mac), which only they should decide, with /juice set, never a pasted command or a shared link.
 const COMMAND_KEYS = ['layout', 'show', 'order', 'cost', 'colors', 'ends', 'battery', 'terminal', 'refills', 'motion'];
 
-// terminal=auto goes in only when the person chose Automatic on the page: the public page starts at auto,
-// and pasting a look from it must not undo the "/juice set terminal=light" they chose earlier.
-export function toCommand(s, { terminalChosen = false } = {}) {
+// terminal=auto and motion=off go in only when the person chose them on the page: the public page starts there,
+// and pasting a look from it must not undo the "/juice set terminal=light" or "motion=on" they chose earlier.
+const UNLESS_CHOSEN = { terminal: 'auto', motion: 'off' };
+export function toCommand(s, { terminalChosen = false, motionChosen = false } = {}) {
   const v = { ...s, show: s.show.join(','), colors: colorWord(s.colors) };
-  return '/juice set ' + COMMAND_KEYS.filter((k) => k !== 'terminal' || v.terminal !== 'auto' || terminalChosen).map((k) => `${k}=${v[k]}`).join(' ');
+  const chosen = { terminal: terminalChosen, motion: motionChosen };
+  return '/juice set ' + COMMAND_KEYS.filter((k) => v[k] !== UNLESS_CHOSEN[k] || chosen[k]).map((k) => `${k}=${v[k]}`).join(' ');
 }
 
 // Badges run shell commands and fable reads the login, so neither travels in a link.

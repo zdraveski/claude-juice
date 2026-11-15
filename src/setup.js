@@ -79,11 +79,18 @@ export function overrides(p, settings, cwd, platform) {
 
 export class NeedsConfirm extends Error {}
 
+// Valid or not, juice can't tell: a settings.json left owned by root by "sudo claude", say. Not a file with a mistake.
+export class Unreadable extends Error {}
+
 // A missing or empty file counts as {}; anything unreadable, unparseable or not an object aborts before we write anything.
 // readJson strips the BOM PowerShell 5.1 writes.
 export function readClaudeSettings(p) {
   const text = readText(p.claudeSettings);
-  if (text === null ? !existsSync(p.claudeSettings) : !text.replace(/^﻿/, '').trim()) return {};
+  if (text === null) {
+    if (!existsSync(p.claudeSettings)) return {};
+    throw new Unreadable("juice can't read your Claude Code settings file (settings.json in your Claude folder), so it changed nothing. Make sure it is yours and you can read it (Claude can help), then run /juice setup again.");
+  }
+  if (!text.replace(/^﻿/, '').trim()) return {};
   const v = readJson(p.claudeSettings);
   if (v === null || typeof v !== 'object' || Array.isArray(v)) {
     throw new Error("Your Claude Code settings file (settings.json in your Claude folder) has a mistake in it, so juice changed nothing. Ask Claude to fix it, then run /juice setup again.");

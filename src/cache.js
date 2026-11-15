@@ -12,11 +12,13 @@ export const HOT_WRITE = { maxWaitMs: 30 };
 
 // Deletes the files in dir that `ok` picks and nobody has touched for keepMs. Claude Code can stop a status line
 // run between writing a temp copy and renaming it into place, so stray .tmp files are swept from time to time.
+// Dated far ahead counts as old too: the clock was wrong when they were written, and waiting would take that long.
+const touchedWithin =(st, ms) => Math.abs(Date.now() - st.mtimeMs) < ms;
 export function removeOld(dir, ok, keepMs) {
   try {
     for (const f of readdirSync(dir)) {
       if (!ok(f)) continue;
-      try { if (Date.now() - statSync(join(dir, f)).mtimeMs > keepMs) unlinkSync(join(dir, f)); } catch {}
+      try { if (!touchedWithin(statSync(join(dir, f)), keepMs)) unlinkSync(join(dir, f)); } catch {}
     }
   } catch {}
 }
@@ -62,7 +64,7 @@ export function takeLock(p, name, now, maxAgeMs = 30000) {
     }
     const st = statSync(file, { throwIfNoEntry: false });
     if (!st) continue; // just removed by the window replacing it: try to create it again
-    if (st.size === 0 && Date.now() - st.mtimeMs < maxAgeMs) return false; // created a moment ago, its time not written yet
+    if (st.size === 0 && touchedWithin(st, maxAgeMs)) return false; // created a moment ago, its time not written yet
     const l = readJson(file), t = l?.at ?? l;
     const age = now.getTime() - t;
     // A time just ahead is another window that read the clock a moment later; far ahead, the clock was wrong, so ignored.

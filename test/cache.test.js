@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readdirSync, mkdirSync, statSync, unlinkSync, utimesSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readdirSync, mkdirSync, statSync, unlinkSync, utimesSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { paths } from '../src/paths.js';
-import { readJson, writeJsonAtomic, takeLock, holdLock, HOT_WRITE } from '../src/cache.js';
+import { readJson, writeJsonAtomic, takeLock, holdLock, removeOld, HOT_WRITE } from '../src/cache.js';
 import { loadSettings, saveSettings } from '../src/settings.js';
 import { DEFAULTS } from '../src/schema.js';
 import { NOW, at } from './helpers.js';
@@ -118,6 +118,18 @@ test('an empty lock is one being written: left alone while young, replaced once 
   assert.equal(takeLock(p, 'u', NOW), false);
   utimesSync(f, new Date(0), new Date(0)); // left empty by a window that crashed long ago
   assert.equal(takeLock(p, 'u', NOW), true);
+});
+
+// A clock hours ahead, then put right, leaves files dated in the future: they must not stay stuck for those hours.
+test('a lock or leftover dated hours ahead by a wrong clock is not stuck until the clock catches up', () => {
+  const p = paths({ CLAUDE_CONFIG_DIR: tmp() }), f = join(p.cacheDir, 'u.lock'), left = join(p.cacheDir, 'u.lock.1.steal');
+  mkdirSync(p.cacheDir, { recursive: true });
+  const ahead = new Date(Date.now() + 3 * 3600000);
+  writeFileSync(f, ''); utimesSync(f, ahead, ahead); // a run stopped before writing its time, while the clock was ahead
+  assert.equal(takeLock(p, 'u', new Date()), true);
+  writeFileSync(left, ''); utimesSync(left, ahead, ahead);
+  removeOld(p.cacheDir, (n) => n.endsWith('.steal'), 30000);
+  assert.equal(existsSync(left), false);
 });
 
 test('holdLock keeps a lock closed for as long as asked, then lets go', () => {

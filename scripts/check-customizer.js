@@ -212,11 +212,16 @@ test('the Fable row reads as sentences, says the page cannot turn on reading the
   await page.click('[data-view=plan] [data-v=pro]');
   assert.equal(await row(), `The separate weekly limit for Fable · The preview hides it on Pro.${tail}`);
   assert.doesNotMatch(await row(), /Only Max|Preview only/);
+  // Pro may have Fable, which the preview only hides; API keys have no Fable limit, so nothing to turn on.
+  await page.click('[data-view=plan] [data-v=payg]');
+  assert.equal(await row(), 'The separate weekly limit for Fable · API keys have no Fable limit');
 });
 
-test('the Motion choice reaches the copied command', async () => {
+test('the Motion choice reaches the copied command, once the person makes it', async () => {
   const { page } = await open();
-  assert.match(await cmd(page), / motion=off$/);
+  assert.doesNotMatch(await cmd(page), /motion=/, 'a page left at Still keeps the motion they set before');
   await page.click('[data-key=motion][data-v=on]');
   assert.match(await cmd(page), / motion=on$/);
+  await page.click('[data-key=motion][data-v=off]');
+  assert.match(await cmd(page), / motion=off$/);
 });

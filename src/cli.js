@@ -10,7 +10,7 @@ import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
 import { refreshFable } from './fable.js';
 import { refreshBadges, addBadge, listBadges, removeBadge, unapprovedBadges } from './badges.js';
-import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm } from './setup.js';
+import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm, Unreadable } from './setup.js';
 
 const ROOT = new URL('..', import.meta.url);
 const USAGE = 'Usage: juice set <key=value>... | get | looks | setup | restore | customize | doctor | badges add|list|remove | refresh-fable | refresh-badges <key>';
@@ -40,8 +40,9 @@ export async function main(argv, io) {
             const n = matchRefresh(p, { platform: io.platform });
             if (n) io.out(`juice now refreshes ${refreshWords(n)}.`);
           } catch (e) {
-            // An error code means the file couldn't be saved; without one, its JSON couldn't be read.
+            // An error code means the file couldn't be saved; without one, it couldn't be read, or its JSON is broken.
             io.out(e?.code ? `Warning: motion is saved, but the refresh time stays as it is. ${friendly(e)}`
+              : e instanceof Unreadable ? "Warning: motion is saved, but juice can't read your Claude Code settings file (settings.json), so the refresh time stays as it is. Make sure it is yours and you can read it, then run /juice setup."
               : 'Warning: motion is saved, but your Claude Code settings file (settings.json) has a mistake in it, so the refresh time stays as it is. Ask Claude to fix it, then run /juice setup.');
           }
         }
@@ -143,8 +144,10 @@ export async function main(argv, io) {
 // Plain words for a file that can't be saved, not a raw error with the full path (and the person's name) in it.
 const CANT_SAVE = "juice couldn't save a file in your Claude folder because ";
 const SAVE_FAILS = {
-  // Windows gives EPERM for a file another program holds open, too.
-  EPERM: 'it is read-only or open in another program. Make it writable or close that program (Claude can help), then try again.',
+  // Windows gives EPERM for a file another program holds open, too; elsewhere an open file never stops a save, its owner can.
+  EPERM: process.platform === 'win32'
+    ? 'it is read-only or open in another program. Make it writable or close that program (Claude can help), then try again.'
+    : 'it is read-only or belongs to another user. Make it yours and writable (Claude can help), then try again.',
   EROFS: 'the disk is read-only. Use a Claude folder on a disk you can write to, then try again.',
   EBUSY: 'another program is using it. Close that program, then try again.',
   ENOSPC: 'the disk is full. Free some space, then try again.',

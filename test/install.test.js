@@ -48,7 +48,8 @@ test('installed from the plugin store and turned off in /plugin, the launcher sa
   const s = JSON.parse(readFileSync(join(d, 'settings.json'), 'utf8'));
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, enabledPlugins: { 'juice@mkt': false } }));
   const off = node([p.launcherFile], d, busyText);
-  assert.match(off.stdout, /juice is turned off/);
+  // /juice restore only works once juice is on again, so the message says it in that order.
+  assert.equal(off.stdout.trim(), 'juice is turned off. Turn it on in /plugin. Then /juice restore can bring back your old line.');
   assert.ok(off.stdout.trim().length <= 100, 'a status line is cut at the window edge, so the whole message must fit');
   assert.doesNotMatch(off.stdout, /Session/);
 });

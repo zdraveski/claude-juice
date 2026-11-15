@@ -191,8 +191,9 @@ test('refresh-badges sweeps old cache files only', async () => {
   mkdirSync(join(p.cacheDir, 'badges'), { recursive: true });
   const old = new Date(Date.now() - 8 * 86400000);
   const mk = (f, aged) => { const x = join(p.cacheDir, f); writeFileSync(x, '1'); if (aged) utimesSync(x, old, old); return x; };
-  const gone = [mk('badges/old.json', 1), mk('badges-abc.lock', 1), mk('x.json.1.tmp', 1)];
-  const kept = [mk('badges/new.json', 0), mk('fable.json', 1), mk('lastseen.json', 1), mk('badges-new.lock', 0)];
+  // A session's last stale-lock marker is never swept by takeLock, whose sweep only runs for that session's lock.
+  const gone = [mk('badges/old.json', 1), mk('badges-abc.lock', 1), mk('x.json.1.tmp', 1), mk('badges-abc.lock.1700000000000.5.steal', 1)];
+  const kept = [mk('badges/new.json', 0), mk('fable.json', 1), mk('lastseen.json', 1), mk('badges-new.lock', 0), mk('badges-new.lock.1.steal', 0)];
   await refreshBadges({ p, settings: { badges: [] }, key: 'k', stdinText: '', runImpl: async () => ({ ok: true, stdout: '' }) });
   gone.forEach((f) => assert.equal(existsSync(f), false, f));
   kept.forEach((f) => assert.equal(existsSync(f), true, f));

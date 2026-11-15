@@ -119,10 +119,11 @@ export async function refreshBadges({ p, settings, key, stdinText, runImpl = run
   sweep(p);
 }
 
-// Deletes only badge caches, badge locks and leftover temp files that nobody has touched for a week.
+// Deletes only badge caches, badge locks, their stale-lock markers and leftover temp files nobody has touched for a week.
+// takeLock clears a session's old markers only while that session runs, so an ended session's last one is cleared here.
 function sweep(p) {
   removeOld(join(p.cacheDir, 'badges'), (f) => /\.json$|\.tmp$/.test(f), KEEP_MS);
-  removeOld(p.cacheDir, (f) => /^badges-.*\.lock$|\.tmp$/.test(f), KEEP_MS);
+  removeOld(p.cacheDir, (f) => /^badges-.*\.(lock|steal)$|\.tmp$/.test(f), KEEP_MS);
 }
 
 export function addBadge(p, command) {

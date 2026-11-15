@@ -22,7 +22,9 @@ async function run(dir, argv) {
   return { code, out: out.join('\n'), err: err.join('\n'), opened };
 }
 const json = (f) => JSON.parse(readFileSync(f, 'utf8'));
-const OLD = { statusLine: { type: 'command', command: 'node old.js' }, theme: 'dark' };
+// Windows says EPERM for a file another program holds open; elsewhere an open file never stops a save, the owner does.
+const LOCKED = process.platform === 'win32' ? 'open in another program' : 'belongs to another user';
+const OLD ={ statusLine: { type: 'command', command: 'node old.js' }, theme: 'dark' };
 // The command setup writes for config dir d: plain node on Windows; on macOS and Linux, node with its folder put in front of PATH.
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const launcherCommand = (d) => new RegExp(`^(?:PATH="[^"]*:\\$PATH" )?node "${escapeRe(d.replaceAll('\\', '/'))}/juice-statusline\\.mjs"$`);
@@ -92,6 +94,21 @@ test('set motion with a broken settings.json saves motion, warns, and leaves the
   assert.equal(json(join(d, 'juice.json')).motion, 'on');
   assert.match(r.out, /Warning: motion is saved, but your Claude Code settings file/);
   assert.equal(readFileSync(join(d, 'settings.json'), 'utf8'), '{"statusLine":');
+});
+
+// A folder stands in for a settings.json juice may not read (one left owned by root by "sudo claude", say).
+test('a settings.json juice cannot read is called unreadable, never a file with a mistake in it', async () => {
+  const d = env();
+  mkdirSync(join(d, 'settings.json'));
+  const setup = await run(d, ['setup']);
+  assert.equal(setup.code, 1);
+  assert.match(setup.err, /^juice can't read your Claude Code settings file/);
+  const set = await run(d, ['set', 'motion=on']);
+  assert.equal(set.code, 0);
+  assert.match(set.out, /Warning: motion is saved, but juice can't read your Claude Code settings file/);
+  const doctor = await run(d, ['doctor']);
+  assert.match(doctor.out, /juice can't read your Claude Code settings file/);
+  for (const r of [setup, set, doctor]) assert.doesNotMatch(r.out + r.err, /mistake/);
 });
 
 test('set motion with a settings.json juice cannot save says why, not that the file has a mistake', { skip: process.platform !== 'win32' && 'elsewhere only a locked folder stops the save, and that stops juice.json too' }, async () => {
@@ -438,7 +455,7 @@ test('a read-only settings file gets plain words, not a raw EPERM with the path 
     if (process.platform !== 'win32' && process.getuid?.() === 0) return t.skip('root can write anywhere');
     const r = await run(d, ['setup']);
     assert.equal(r.code, 1);
-    assert.match(r.err, /^juice couldn't save a file in your Claude folder because it is read-only or open in another program\./);
+    assert.match(r.err, new RegExp(`^juice couldn't save a file in your Claude folder because it is read-only or ${LOCKED}\\.`));
     assert.doesNotMatch(r.err, /EPERM|EACCES/);
   } finally { lock(false); }
   assert.deepEqual(json(f), OLD, 'left exactly as it was');
@@ -582,8 +599,8 @@ test('a file juice cannot save reaches the person as one plain sentence, never a
     assert.match(text, /^juice couldn't save a file/, code);
     assert.doesNotMatch(text, /sam|\.json/, code);
   }
-  // Windows says EPERM for a file another program holds open, too.
-  assert.match(friendly({ code: 'EPERM' }), /because it is read-only or open in another program\. /);
+  assert.match(friendly({ code: 'EPERM' }), new RegExp(`because it is read-only or ${LOCKED}\\. `));
+  assert.equal(friendly({ code: 'EACCES' }), friendly({ code: 'EPERM' }));
   const other = friendly(new Error(`EISDIR: illegal operation on a directory, open '${homedir()}/.claude/juice.json'`));
   assert.doesNotMatch(other, new RegExp(homedir().replaceAll('\\', '\\\\')));
   assert.match(other, /EISDIR/);

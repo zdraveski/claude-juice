@@ -113,7 +113,7 @@ const segHtml = (key, opts, label) => `<div class="seg" role="group" aria-label=
 
 function buildShow() {
   const fixedRow = (k) => `<div class="row"><span class="grip none"></span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}</div></div><button class="sw" type="button" role="switch" data-show="${k}" aria-labelledby="lbl-${k}"></button></div>`;
-  const batRow = (k, i) => `<div class="row" draggable="true" data-bat="${k}"><span class="grip" aria-hidden="true">⋮⋮</span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}<em data-noton="${k}"></em>${k === 'fable' ? ". This page can't turn on reading your login: type /juice set fable=on." : ''}</div></div>`
+  const batRow = (k, i) => `<div class="row" draggable="true" data-bat="${k}"><span class="grip" aria-hidden="true">⋮⋮</span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}<em data-noton="${k}"></em>${k === 'fable' ? '<span id="fabletail"></span>' : ''}</div></div>`
     + `<button class="mv" type="button" data-move="${k}" data-dir="-1" aria-label="Move ${SHOW[k][0]} up" ${i === 0 ? 'disabled' : ''}>▲</button><button class="mv" type="button" data-move="${k}" data-dir="1" aria-label="Move ${SHOW[k][0]} down" ${i === BATTERIES.length - 1 ? 'disabled' : ''}>▼</button>`
     + `<button class="sw" type="button" role="switch" data-show="${k}" aria-labelledby="lbl-${k}"></button></div>`;
   $('show').innerHTML = fixedRow('model') + fixedRow('effort') + order.map(batRow).join('')
@@ -158,6 +158,9 @@ function update() {
     b.setAttribute('aria-checked', s.show.includes(k)); b.disabled = BATTERIES.includes(k) && !offered(k);
   });
   document.querySelectorAll('[data-noton]').forEach((el) => { const why = (NOT_ON[el.dataset.noton] || {})[view.plan]; el.textContent = why ? ` · ${why}` : ''; });
+  // Pro may have Fable, which the preview only hides; API keys have no Fable limit, so there is nothing to turn on.
+  const tail = $('fabletail');
+  if (tail) tail.textContent = view.plan === 'payg' ? '' : ". This page can't turn on reading your login: type /juice set fable=on.";
   document.querySelectorAll('[data-preset]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.preset === (typeof s.colors === 'string' ? s.colors : 'custom')));
   document.querySelectorAll('[data-chips]').forEach((el) => { const set = el.dataset.chips === 'custom' ? customs[view.term] : PRESETS[el.dataset.chips][view.term]; el.innerHTML = set.map((c) => `<i style="background:${c}"></i>`).join(''); });
   document.querySelectorAll('[data-key]').forEach((b) => b.setAttribute('aria-pressed', s[b.dataset.key] === b.dataset.v));
@@ -175,7 +178,7 @@ function update() {
     el.textContent = r < 3 ? `Hard to read here (${r.toFixed(1)}:1)` : `Easy to read (${r.toFixed(1)}:1)`;
     el.classList.toggle('bad', r < 3);
   });
-  $('cmd').textContent = toCommand(s, { terminalChosen: !!view.terminalChosen });
+  $('cmd').textContent = toCommand(s, { terminalChosen: !!view.terminalChosen, motionChosen: !!view.motionChosen });
   $('json').textContent = JSON.stringify(s, null, 2);
   history.replaceState(null, '', '#c=' + encodeLink(s));
   try { localStorage.setItem(SAVED, JSON.stringify(s)); } catch {} // remembered for the next visit
@@ -203,6 +206,7 @@ document.addEventListener('click', (e) => {
     else { customs = presetArrs(t.dataset.preset); s = { ...s, colors: t.dataset.preset }; }
   } else if (t.dataset.key) {
     s = { ...s, [t.dataset.key]: t.dataset.v };
+    if (t.dataset.key === 'motion') view.motionChosen = true; // from now on the command says motion=, even Still
     if (t.dataset.key === 'terminal') {
       view.terminalChosen = true; // from now on the command says terminal=, even Automatic
       if (t.dataset.v !== 'auto') view.term = t.dataset.v; // preview what was just chosen

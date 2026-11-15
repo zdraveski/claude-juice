@@ -137,9 +137,11 @@ test('applySet colours', () => {
 
 test('toCommand', () => {
   // The public page starts at Automatic: pasting a look from it keeps the person's own terminal colour.
-  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget order=yours cost=auto colors=claude ends=auto battery=glossy refills=always motion=off');
-  const mine = applySet({ ...DEFAULTS, fable: 'on', terminal: 'light' }, toCommand(DEFAULTS).split(' ').slice(2)).settings;
-  assert.deepEqual([mine.fable, mine.terminal], ['on', 'light'], 'neither their fable nor their terminal choice is undone');
+  // Still, too: it starts at Still, and pasting must not undo the "/juice set motion=on" they chose earlier.
+  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget order=yours cost=auto colors=claude ends=auto battery=glossy refills=always');
+  const mine = applySet({ ...DEFAULTS, fable: 'on', terminal: 'light', motion: 'on' }, toCommand(DEFAULTS).split(' ').slice(2)).settings;
+  assert.deepEqual([mine.fable, mine.terminal, mine.motion], ['on', 'light', 'on'], 'neither their fable, terminal nor motion choice is undone');
+  assert.match(toCommand(DEFAULTS, { motionChosen: true }), / motion=off$/, 'choosing Still on the page does say so');
   // Choosing Automatic on the page does say so, and undoes Light.
   const chosen = applySet({ ...DEFAULTS, terminal: 'light' }, toCommand(DEFAULTS, { terminalChosen: true }).split(' ').slice(2)).settings;
   assert.equal(chosen.terminal, 'auto');

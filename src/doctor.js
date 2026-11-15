@@ -14,7 +14,7 @@ import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
 import { fableCacheState, fetchedCounts } from './readings.js';
 import { recall } from './lastseen.js';
-import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes, refreshFor, refreshWords, constant, readText, fwd } from './setup.js';
+import { isJuice, runsLauncher, overrides, readClaudeSettings, Unreadable, refreshes, refreshFor, refreshWords, constant, readText, fwd } from './setup.js';
 import { hideHome } from './paths.js';
 import { marketOf } from './launcher-file.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
@@ -43,8 +43,9 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
 
   // 1. Is juice the status line, and can that line find Node and juice?
   let settings = null;
-  try { settings = readClaudeSettings(p); } catch {
-    out.push(bad("juice can't read your Claude Code settings file (settings.json in your Claude folder). It has a mistake, or comments or a comma after the last item: Claude Code may read it fine, but juice can't. Ask Claude to fix it, then run /juice setup."));
+  try { settings = readClaudeSettings(p); } catch (e) {
+    out.push(bad(e instanceof Unreadable ? "juice can't read your Claude Code settings file (settings.json in your Claude folder). Make sure it is yours and you can read it (Claude can help), then run /juice setup."
+      : "juice can't read your Claude Code settings file (settings.json in your Claude folder). It has a mistake, or comments or a comma after the last item: Claude Code may read it fine, but juice can't. Ask Claude to fix it, then run /juice setup."));
   }
   const line = settings?.statusLine;
   const here = isJuice(line) && runsLauncher(p, line.command, platform);
