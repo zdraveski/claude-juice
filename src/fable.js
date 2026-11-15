@@ -2,7 +2,7 @@ import { execFileSync as realExec } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readJson, writeJsonAtomic, removeOld } from './cache.js';
+import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
 import { BACKOFF_MS } from './readings.js';
 
 // Claude Code's own name for the Keychain entry: with CLAUDE_CONFIG_DIR (or its storage override) set, each
@@ -43,7 +43,8 @@ export async function fetchFable(token, fetchImpl, version, timeoutMs = 5000) {
     if (!res.ok) return null;
     const body = await res.json();
     const e = Array.isArray(body?.limits) && body.limits.find((l) => l?.kind === 'weekly_scoped' && /fable/i.test(l.scope?.model?.display_name)); // same loose match as data.js, so "Fable 5.1" still counts
-    const reading = (used, at) => (Number.isFinite(used) && !Number.isNaN(Date.parse(at)) ? { used, resetsAt: at } : null);
+    // Stored as the date juice understood, not as sent: the cache is read on every draw, so it must stay small.
+    const reading = (used, at) => (Number.isFinite(used) && typeof at === 'string' && at.length <= 40 && !Number.isNaN(Date.parse(at)) ? { used, resetsAt: new Date(at).toISOString() } : null);
     // The same answer carries Session and Weekly, which keep idle and new windows current.
     const fable = e ? reading(e.percent, e.resets_at) : null;
     const session = reading(body?.five_hour?.utilization, body?.five_hour?.resets_at);
@@ -66,7 +67,9 @@ export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fe
     const { used, resetsAt, session, week, fetchedAt } = readJson(file) ?? {};
     const keep = fetchedAt === undefined ? {} : { used, resetsAt, session, week, fetchedAt };
     writeJsonAtomic(file, { ...keep, backoffUntil: t + BACKOFF_MS });
-  } catch {} finally {
+  } catch {
+    holdLock(p, 'fable', now, BACKOFF_MS); // the backoff could not be saved, so the lock carries it
+  } finally {
     // Runs about every 5 minutes, so stray temp files go even for people without badges (whose refresher sweeps too).
     // An hour old at least: another window may be writing one right now.
     removeOld(p.cacheDir, (f) => f.endsWith('.tmp'), 3600000);

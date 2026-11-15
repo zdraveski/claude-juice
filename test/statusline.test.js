@@ -1,10 +1,11 @@
 import { fixture, strip, NOW, at } from './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, linkSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
 import { runStatusLine } from '../src/statusline.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
 import { badgeKey, approve } from '../src/badges.js';
@@ -94,6 +95,34 @@ test('configured badge with no cache spawns a refresh and stashes stdin', async 
   const key = badgeKey(JSON.parse(busy));
   assert.deepEqual(calls, [['refresh-badges', key]]);
   assert.equal(readFileSync(join(dir, 'juice-cache', 'badges', `${key}.stdin.json`), 'utf8'), busy);
+});
+
+test('the stashed stdin is replaced, never written through a link planted at its name', async () => {
+  const { dir, run } = setup('darwin', (p) => ({ badges: [approve(p, 'echo hi')] }));
+  const victim = join(dir, 'victim.txt');
+  writeFileSync(victim, 'mine');
+  const badgeDir = join(dir, 'juice-cache', 'badges');
+  mkdirSync(badgeDir, { recursive: true });
+  linkSync(victim, join(badgeDir, `${badgeKey(JSON.parse(busy))}.stdin.json`)); // a hard link needs no admin rights on Windows
+  await run(busy);
+  assert.equal(readFileSync(victim, 'utf8'), 'mine');
+});
+
+test('the stashed stdin is private to the person', { skip: process.platform === 'win32' && 'Windows has no owner-only file mode' }, async () => {
+  const { dir, run } = setup('darwin', (p) => ({ badges: [approve(p, 'echo hi')] }));
+  await run(busy);
+  assert.equal(statSync(join(dir, 'juice-cache', 'badges', `${badgeKey(JSON.parse(busy))}.stdin.json`)).mode & 0o777, 0o600);
+});
+
+test('a stdin pipe that never closes still ends in a drawn line', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'juice-hang-'));
+  const c = spawn(process.execPath, [fileURLToPath(new URL('../bin/juice-statusline.js', import.meta.url))], { env: { ...process.env, CLAUDE_CONFIG_DIR: dir }, stdio: ['pipe', 'pipe', 'ignore'] });
+  let out = '';
+  c.stdout.on('data', (d) => { out += d; });
+  c.stdin.write('{"model":{"display_name":"Opus 5.5"}}'); // and never end it
+  const code = await new Promise((res) => { const t = setTimeout(() => { c.kill(); res('hung'); }, 6000); c.on('exit', (x) => { clearTimeout(t); res(x); }); });
+  assert.equal(code, 0);
+  assert.match(out, /Opus 5\.5/);
 });
 
 test('a badge from a copied or hand-edited juice.json never runs: it has no approval from this computer', async () => {

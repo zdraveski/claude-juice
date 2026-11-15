@@ -4,13 +4,15 @@ import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { cut, ESCAPES } from './render/ansi.js';
-import { readJson, writeJsonAtomic, removeOld } from './cache.js';
+import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { sanitize } from './schema.js';
 
 const TIMEOUT_MS = 2000;
 // How long a badge's output counts as current; Claude Code redraws on every tool call, so this caps how often commands run.
 const FRESH_MS = 30000;
+// How long a failing command's old text stays, and how long an unsaveable cache holds the refresher back: ten missed refreshes.
+const GRACE_MS = 10 * FRESH_MS;
 const WIDTH = 40;
 const MAX_OUT = 4096;
 const KEEP_MS = 7 * 86400000;
@@ -35,7 +37,8 @@ const textFor = (c, command) => (Array.isArray(c?.commands) && Array.isArray(c.t
 export function readBadges(p, key, now, commands) {
   const c = readJson(file(p, key));
   const age = now.getTime() - c?.at;
-  return { texts: commands.map((cmd) => textFor(c, cmd) ?? ''), stale: !(age >= 0 && age <= FRESH_MS) };
+  // Cleaned again: the cache is a file anyone could have edited, and the terminal obeys what it is sent.
+  return { texts: commands.map((cmd) => { const t = textFor(c, cmd); return typeof t === 'string' ? cleanBadge(t) : ''; }), stale: !(age >= 0 && age <= FRESH_MS) };
 }
 
 // Kills the shell and anything it started, and frees the pipe so it can't keep us alive.
@@ -80,7 +83,7 @@ function readSecret(p) {
 function secret(p, create) {
   const s = readSecret(p);
   if (s || !create) return s;
-  mkdirSync(p.cacheDir, { recursive: true });
+  mkdirSync(p.cacheDir, { recursive: true, mode: 0o700 });
   const tmp = `${secretFile(p)}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
   writeFileSync(tmp, randomBytes(32).toString('hex'), { mode: 0o600 });
   renameSync(tmp, secretFile(p));
@@ -96,24 +99,29 @@ export function approved(p, badges) {
   return key ? badges.filter((b) => b.sig === sign(key, b.command)) : [];
 }
 
-export async function refreshBadges({ p, settings, key, stdinText, runImpl = run }) {
+export async function refreshBadges({ p, settings, key, stdinText, runImpl = run, now = Date.now() }) {
   try {
     const prev = readJson(file(p, key));
     const commands = approved(p, settings.badges).map((b) => b.command);
-    const texts = await Promise.all(commands.map(async (command) => {
+    // The old text of a failing command is kept only briefly after its last success: an old branch name is not current.
+    const okAtFor = (c) => prev?.okAt?.[prev.commands?.indexOf(c)];
+    const keep = (c) => (now - okAtFor(c) <= GRACE_MS ? [textFor(prev, c) ?? '', okAtFor(c)] : ['', undefined]);
+    const results = await Promise.all(commands.map(async (command) => {
       try {
         const r = await runImpl(command, { input: stdinText, timeoutMs: TIMEOUT_MS });
-        return r.ok ? cleanBadge(r.stdout) : (textFor(prev, command) ?? '');
-      } catch { return textFor(prev, command) ?? ''; }
+        return r.ok ? [cleanBadge(r.stdout), now] : keep(command);
+      } catch { return keep(command); }
     }));
-    writeJsonAtomic(file(p, key), { texts, commands, at: Date.now() });
+    try { writeJsonAtomic(file(p, key), { texts: results.map((r) => r[0]), commands, okAt: results.map((r) => r[1] ?? null), at: now }); } catch {
+      holdLock(p, `badges-${key}`, now, GRACE_MS); // not saved, so every draw would run the commands again
+    }
   } catch {}
   sweep(p);
 }
 
 // Deletes only badge caches, badge locks and leftover temp files that nobody has touched for a week.
 function sweep(p) {
-  removeOld(join(p.cacheDir, 'badges'), (f) => f.endsWith('.json'), KEEP_MS);
+  removeOld(join(p.cacheDir, 'badges'), (f) => /\.json$|\.tmp$/.test(f), KEEP_MS);
   removeOld(p.cacheDir, (f) => /^badges-.*\.lock$|\.tmp$/.test(f), KEEP_MS);
 }
 

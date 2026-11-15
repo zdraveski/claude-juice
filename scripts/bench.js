@@ -1,8 +1,8 @@
 // Median wall time of interleaved runs: Node doing nothing, juice, and juice through the launcher.
 // The budget is what juice adds on top of Node starting, so the same number holds on fast and slow machines.
-// --compare also times claude-dashboard when installed (it runs against your real ~/.claude).
+// --compare also times claude-dashboard when installed (found in your ~/.claude plugins, but run in the temp config folder).
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,7 +27,9 @@ const time = (args, env) => {
 const median = (a) => { const s = [...a].sort((x, y) => x - y); return (s[(s.length - 1) >> 1] + s[s.length >> 1]) / 2; };
 
 // The real path Claude Code runs: the launcher, installed into a temp config dir only.
-const env = { ...process.env, CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-bench-')) };
+const dir = mkdtempSync(join(tmpdir(), 'juice-bench-'));
+process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
+const env = { ...process.env, CLAUDE_CONFIG_DIR: dir };
 const p = paths(env);
 install(p, { pluginRoot: root });
 
@@ -56,5 +58,5 @@ const dash = join(homedir(), '.claude', 'plugins', 'cache', 'claude-dashboard');
 if (process.argv.includes('--compare') && existsSync(dash)) {
   const dirs = readdirSync(dash).flatMap((m) => readdirSync(join(dash, m)).map((v) => ({ v, f: join(dash, m, v, 'dist', 'index.js') })));
   const newest = dirs.filter((d) => existsSync(d.f)).sort((a, b) => a.v.localeCompare(b.v, undefined, { numeric: true })).pop();
-  if (newest) console.log(`claude-dashboard ${newest.v}: ${median(Array.from({ length: ROUNDS }, () => time([newest.f], process.env))).toFixed(0)} ms`);
+  if (newest) console.log(`claude-dashboard ${newest.v}: ${median(Array.from({ length: ROUNDS }, () => time([newest.f], env))).toFixed(0)} ms`);
 }

@@ -1,9 +1,9 @@
 // The per-refresh pipeline: stdin text in, status line text out. Never throws, never waits on a refresher.
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { paths, hideHome } from './paths.js';
-import { readJson, takeLock, writeJsonAtomic, HOT_WRITE } from './cache.js';
+import { readJson, takeLock, writeAtomic, writeJsonAtomic, HOT_WRITE } from './cache.js';
 import { loadSettings } from './settings.js';
 import { fableEnabled } from './schema.js';
 import { detectTerminal, readClaudeTheme } from './terminal.js';
@@ -50,8 +50,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     }
     if (badges?.stale && takeLock(p, `badges-${key}`, now, 2500)) {
       quiet(() => {
-        mkdirSync(join(p.cacheDir, 'badges'), { recursive: true });
-        writeFileSync(join(p.cacheDir, 'badges', `${key}.stdin.json`), stdinText); // raw text: the refresher pipes it to each command
+        writeAtomic(join(p.cacheDir, 'badges', `${key}.stdin.json`), stdinText, HOT_WRITE); // raw text: the refresher pipes it to each command
         spawnDetached(['refresh-badges', key]);
       });
     }
