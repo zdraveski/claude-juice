@@ -179,6 +179,11 @@ test('doctor: a setting juice doesn\'t know says how to fix it, and choosing it 
   assert.doesNotMatch(check(d), /juice settings:/);
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ show: [] }));
   assert.match(check(d), /Type \/juice show all the batteries to bring them back/);
+  // The advice follows the warning, never a value of the person's own that happens to hold the same word.
+  for (const v of ['allowed', 'unreadable']) {
+    writeFileSync(join(d, 'juice.json'), JSON.stringify({ layout: v }));
+    assert.match(check(d), /^! juice settings: layout: .*Choosing that setting again/m, v);
+  }
   // An unreadable file is never overwritten by set, so the advice is to fix or delete it.
   writeFileSync(join(d, 'juice.json'), '{bad');
   assert.match(check(d), /^! juice settings: juice\.json is unreadable, using defaults\. Fix or delete juice\.json/m);

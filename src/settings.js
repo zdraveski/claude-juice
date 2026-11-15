@@ -22,7 +22,7 @@ export function loadSettings(p) {
 export function saveSettings(p, changes) {
   const raw = readJson(p.settingsFile), w = raw === null && why(p.settingsFile);
   if (w === 'locked') {
-    throw new Error("juice can't read your juice settings file (juice.json in your Claude folder), so it changed nothing. Make sure it and your Claude folder are yours and you can read them (Claude can help), then try again.");
+    throw new Error("juice can't read your juice settings file (juice.json in your Claude folder), so juice changed nothing. Make sure it and your Claude folder are yours and you can read them (Claude can help), then try again.");
   }
   if (w === 'broken') {
     throw new Error("Your juice settings file (juice.json in your Claude folder) can't be read, so juice changed nothing. Fix or delete it (Claude can do it for you), then try again.");

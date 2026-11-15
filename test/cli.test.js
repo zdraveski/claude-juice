@@ -5,6 +5,7 @@ import { syncBuiltinESMExports } from 'node:module';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, statSync, chmodSync, rmSync, utimesSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { main, friendly } from '../src/cli.js';
 import { isJuice } from '../src/setup.js';
 import { CUSTOMIZER_URL, LOOKS } from '../src/schema.js';
@@ -230,15 +231,15 @@ async function checkedOnce(d, name) {
 }
 
 test('a launcher or juice dated far ahead by a wrong clock gets the once-per-update check, once', async (t) => {
-  const YEAR = 365 * 86400000, installed = statSync(new URL('../bin/launcher.js', import.meta.url)).mtimeMs;
-  const utimes = fs.utimesSync, even = (x) => new Date(Math.floor(+x / 2000) * 2000);
+  const YEAR = 365 * 86400000, template = new URL('../bin/launcher.js', import.meta.url), installed = statSync(template).mtimeMs;
+  const utimes = fs.utimesSync, stat = fs.statSync, even = (x) => new Date(Math.floor(+x / 2000) * 2000);
   // clock: a year before juice was installed, not before today, which an old checkout or ZIP could predate.
-  // old: a launcher juice rewrites (written at the real time, which is still before juice's date).
+  // ahead: juice dated a year ahead of the real clock, which then dates a launcher juice rewrites (old) before it.
   // coarse: a disk that keeps only even seconds (FAT; WSL's /mnt/c keeps whole ones).
   for (const c of [
     { name: 'launcher ahead', written: Date.now() + YEAR },
     { name: 'juice and launcher ahead', written: installed + 7200000, clock: installed - YEAR },
-    { name: 'juice ahead, launcher rewritten', written: installed + 7200000, clock: installed - YEAR, old: true },
+    { name: 'juice ahead, launcher rewritten', written: Date.now(), ahead: true, old: true },
     { name: 'juice ahead, coarse disk', written: installed + 7200000, clock: installed - YEAR, coarse: true },
   ]) {
     const d = env(), launcher = join(d, 'juice-statusline.mjs');
@@ -246,10 +247,18 @@ test('a launcher or juice dated far ahead by a wrong clock gets the once-per-upd
     if (c.old) writeFileSync(launcher, '// an old launcher\n');
     utimesSync(launcher, new Date(c.written), new Date(c.written));
     if (c.clock) t.mock.timers.enable({ apis: ['Date'], now: c.clock });
-    if (c.coarse) { t.mock.method(fs, 'utimesSync', (file, a, m) => utimes(file, even(a), even(m))); syncBuiltinESMExports(); }
+    if (c.coarse) t.mock.method(fs, 'utimesSync', (file, a, m) => utimes(file, even(a), even(m)));
+    if (c.ahead) {
+      t.mock.method(fs, 'statSync', (file, ...rest) => {
+        const s = stat(file, ...rest);
+        if (String(file) === fileURLToPath(template)) s.mtimeMs += YEAR;
+        return s;
+      });
+    }
+    syncBuiltinESMExports();
     try { await checkedOnce(d, c.name); } finally {
       if (c.clock) t.mock.timers.reset();
-      if (c.coarse) { t.mock.restoreAll(); syncBuiltinESMExports(); }
+      t.mock.restoreAll(); syncBuiltinESMExports();
     }
   }
 });
@@ -259,13 +268,34 @@ test('a launcher another user owns still gets the once-per-update check, once', 
   const d = env(), launcher = join(d, 'juice-statusline.mjs');
   await run(d, ['setup']);
   utimesSync(launcher, new Date(0), new Date(0)); // written before the update
-  const theirs = statSync(launcher).ino, utimes = fs.utimesSync;
+  // bigint: Windows file ids pass 2^53, so as plain numbers two files could compare equal.
+  const ino = (f) => statSync(f, { bigint: true }).ino, theirs = ino(launcher), utimes = fs.utimesSync;
   t.mock.method(fs, 'utimesSync', (file, ...rest) => {
-    if (statSync(file).ino === theirs) throw Object.assign(new Error('not the owner'), { code: 'EPERM' });
+    if (ino(file) === theirs) throw Object.assign(new Error('not the owner'), { code: 'EPERM' });
     return utimes(file, ...rest);
   });
   syncBuiltinESMExports();
   try { await checkedOnce(d, 'theirs'); } finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
+});
+
+// /juice restore in another window can delete the launcher while a refresh checks it: it stays deleted.
+test('a launcher deleted during the once-per-update check is not written back', async (t) => {
+  const d = env(), launcher = join(d, 'juice-statusline.mjs');
+  await run(d, ['setup']);
+  utimesSync(launcher, new Date(0), new Date(0));
+  const utimes = fs.utimesSync;
+  let restored = false;
+  t.mock.method(fs, 'utimesSync', (file, ...rest) => {
+    if (restored || !String(file).endsWith('juice-statusline.mjs')) return utimes(file, ...rest);
+    restored = true; rmSync(file);
+    throw Object.assign(new Error('no such file'), { code: 'ENOENT' });
+  });
+  syncBuiltinESMExports();
+  const { runStatusLine } = await import('../src/statusline.js');
+  try { await runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} }); }
+  finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
+  assert.ok(restored, 'the check ran');
+  assert.ok(!existsSync(launcher), 'not written back');
 });
 
 // Switching between a checkout and the plugin store only rewrites the launcher; setup must still say so.
