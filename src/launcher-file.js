@@ -44,7 +44,9 @@ export function launcherFor(pluginRoot) {
 // True when this refresh was that once-per-update check, so the caller can do its own once-per-update work.
 export function upgradeLauncher(p, pluginRoot) {
   try {
-    if (statSync(p.launcherFile).mtimeMs >= statSync(TEMPLATE).mtimeMs) return false;
+    const t = statSync(p.launcherFile).mtimeMs;
+    // Dated far ahead, the clock was wrong when it was written; waiting for the template to pass it could take years.
+    if (t >= statSync(TEMPLATE).mtimeMs && t < Date.now() + 60000) return false;
     const want = launcherFor(pluginRoot), have = readFileSync(p.launcherFile, 'utf8'), target = launcherTarget(have);
     // A launcher setup pointed at another copy of juice stays pointed there: running a checkout to test it must
     // not take the place of the installed juice.

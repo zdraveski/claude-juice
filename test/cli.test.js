@@ -22,9 +22,10 @@ async function run(dir, argv) {
   return { code, out: out.join('\n'), err: err.join('\n'), opened };
 }
 const json = (f) => JSON.parse(readFileSync(f, 'utf8'));
-// Windows says EPERM for a file another program holds open; elsewhere an open file never stops a save, the owner does.
-const LOCKED = process.platform === 'win32' ? 'open in another program' : 'belongs to another user';
-const OLD ={ statusLine: { type: 'command', command: 'node old.js' }, theme: 'dark' };
+// Windows says EPERM for a file another program holds open. Elsewhere a save replaces the file, so only its folder's
+// owner or mode can stop it.
+const LOCKED = process.platform === 'win32' ? 'it is read-only or open in another program' : 'a folder it goes in is read-only or belongs to another user';
+const OLD = { statusLine: { type: 'command', command: 'node old.js' }, theme: 'dark' };
 // The command setup writes for config dir d: plain node on Windows; on macOS and Linux, node with its folder put in front of PATH.
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const launcherCommand = (d) => new RegExp(`^(?:PATH="[^"]*:\\$PATH" )?node "${escapeRe(d.replaceAll('\\', '/'))}/juice-statusline\\.mjs"$`);
@@ -108,7 +109,32 @@ test('a settings.json juice cannot read is called unreadable, never a file with 
   assert.match(set.out, /Warning: motion is saved, but juice can't read your Claude Code settings file/);
   const doctor = await run(d, ['doctor']);
   assert.match(doctor.out, /juice can't read your Claude Code settings file/);
-  for (const r of [setup, set, doctor]) assert.doesNotMatch(r.out + r.err, /mistake/);
+  // Restore says so too, and "try again" means the command they just ran, not setup (that would reinstall juice).
+  const restore = await run(d, ['restore']);
+  assert.equal(restore.code, 1);
+  for (const r of [setup, restore]) assert.match(r.err, /^juice can't read your Claude Code settings file.*then try again\.$/);
+  for (const r of [setup, set, doctor, restore]) assert.doesNotMatch(r.out + r.err, /mistake/);
+});
+
+test('a settings.json with a mistake in it says try again, not run setup, so restore is not sent to setup', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), '{ "statusLine": ');
+  const restore = await run(d, ['restore']);
+  assert.equal(restore.code, 1);
+  assert.match(restore.err, /has a mistake in it.*then try again\.$/);
+});
+
+test('a Claude folder juice cannot enter is called unreadable, not a folder with no status line', {
+  skip: (process.platform === 'win32' && 'chmod cannot lock a folder on Windows') || (process.getuid?.() === 0 && 'root can read anything'),
+}, async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD));
+  chmodSync(d, 0o000);
+  try {
+    const doctor = await run(d, ['doctor']);
+    assert.match(doctor.out, /juice can't read your Claude Code settings file/);
+    assert.doesNotMatch(doctor.out, /No status line is set/);
+  } finally { chmodSync(d, 0o700); }
 });
 
 test('set motion with a settings.json juice cannot save says why, not that the file has a mistake', { skip: process.platform !== 'win32' && 'elsewhere only a locked folder stops the save, and that stops juice.json too' }, async () => {
@@ -161,6 +187,18 @@ test('after an update, a refresh moves the 1 juice wrote to 60 once, and nothing
   writeFileSync(f, '{"statusLine":'); stale();
   assert.equal(typeof await draw(), 'string');
   assert.equal(readFileSync(f, 'utf8'), '{"statusLine":', 'a broken file is never written');
+});
+
+test('a launcher dated far ahead by a wrong clock still gets the once-per-update check', async () => {
+  const d = env(), f = join(d, 'settings.json'), launcher = join(d, 'juice-statusline.mjs');
+  await run(d, ['setup']);
+  writeFileSync(f, JSON.stringify({ statusLine: { ...json(f).statusLine, refreshInterval: 1 } }));
+  const ahead = new Date(Date.now() + 365 * 86400000);
+  utimesSync(launcher, ahead, ahead);
+  const { runStatusLine } = await import('../src/statusline.js');
+  await runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
+  assert.equal(json(f).statusLine.refreshInterval, 60);
+  assert.ok(statSync(launcher).mtimeMs <= Date.now(), 'marked checked at the real time, so the next refresh skips it');
 });
 
 // Switching between a checkout and the plugin store only rewrites the launcher; setup must still say so.
@@ -455,7 +493,7 @@ test('a read-only settings file gets plain words, not a raw EPERM with the path 
     if (process.platform !== 'win32' && process.getuid?.() === 0) return t.skip('root can write anywhere');
     const r = await run(d, ['setup']);
     assert.equal(r.code, 1);
-    assert.match(r.err, new RegExp(`^juice couldn't save a file in your Claude folder because it is read-only or ${LOCKED}\\.`));
+    assert.match(r.err, new RegExp(`^juice couldn't save a file in your Claude folder because ${LOCKED}\\.`));
     assert.doesNotMatch(r.err, /EPERM|EACCES/);
   } finally { lock(false); }
   assert.deepEqual(json(f), OLD, 'left exactly as it was');
@@ -599,7 +637,7 @@ test('a file juice cannot save reaches the person as one plain sentence, never a
     assert.match(text, /^juice couldn't save a file/, code);
     assert.doesNotMatch(text, /sam|\.json/, code);
   }
-  assert.match(friendly({ code: 'EPERM' }), new RegExp(`because it is read-only or ${LOCKED}\\. `));
+  assert.match(friendly({ code: 'EPERM' }), new RegExp(`because ${LOCKED}\\. `));
   assert.equal(friendly({ code: 'EACCES' }), friendly({ code: 'EPERM' }));
   const other = friendly(new Error(`EISDIR: illegal operation on a directory, open '${homedir()}/.claude/juice.json'`));
   assert.doesNotMatch(other, new RegExp(homedir().replaceAll('\\', '\\\\')));

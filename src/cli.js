@@ -144,10 +144,11 @@ export async function main(argv, io) {
 // Plain words for a file that can't be saved, not a raw error with the full path (and the person's name) in it.
 const CANT_SAVE = "juice couldn't save a file in your Claude folder because ";
 const SAVE_FAILS = {
-  // Windows gives EPERM for a file another program holds open, too; elsewhere an open file never stops a save, its owner can.
+  // Windows gives EPERM for a file another program holds open, too. Elsewhere a save replaces the file, so only its
+  // folder's owner or mode can stop it.
   EPERM: process.platform === 'win32'
     ? 'it is read-only or open in another program. Make it writable or close that program (Claude can help), then try again.'
-    : 'it is read-only or belongs to another user. Make it yours and writable (Claude can help), then try again.',
+    : 'a folder it goes in is read-only or belongs to another user. Make it yours and writable (Claude can help), then try again.',
   EROFS: 'the disk is read-only. Use a Claude folder on a disk you can write to, then try again.',
   EBUSY: 'another program is using it. Close that program, then try again.',
   ENOSPC: 'the disk is full. Free some space, then try again.',
