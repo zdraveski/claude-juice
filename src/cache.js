@@ -46,6 +46,11 @@ export function writeAtomic(file, text, { maxWaitMs = 2500, modeFrom } = {}) {
   }
 }
 
+// Keeps a lock closed for holdMs, for a refresher that could not save its result: without this, every draw would run it again.
+export function holdLock(p, name, now, holdMs) {
+  try { writeJsonAtomic(join(p.cacheDir, `${name}.lock`), { at: +now, holdMs }, HOT_WRITE); } catch {}
+}
+
 // Taken by creating the file, which only one window can do; a stale one is removed and taken again once.
 export function takeLock(p, name, now, maxAgeMs = 30000) {
   const file = join(p.cacheDir, `${name}.lock`);
@@ -53,9 +58,9 @@ export function takeLock(p, name, now, maxAgeMs = 30000) {
   for (let i = 0; i < 2; i++) {
     try { writeFileSync(file, String(now.getTime()), { flag: 'wx', mode: 0o600 }); return true; } catch (e) {
       if (e.code !== 'EEXIST') return false; // no lock recorded, so no refresher
-      const t = readJson(file);
+      const l = readJson(file), t = l?.at ?? l;
       const age = now.getTime() - t;
-      if (typeof t === 'number' && age >= 0 && age < maxAgeMs) return false; // a lock from the future (clock was ahead) is ignored
+      if (typeof t === 'number' && age >= 0 && age < (l?.holdMs ?? maxAgeMs)) return false; // a lock from the future (clock was ahead) is ignored
       try { unlinkSync(file); } catch { return false; }
     }
   }

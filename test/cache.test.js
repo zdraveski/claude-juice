@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { paths } from '../src/paths.js';
-import { readJson, writeJsonAtomic, takeLock, HOT_WRITE } from '../src/cache.js';
+import { readJson, writeJsonAtomic, takeLock, holdLock, HOT_WRITE } from '../src/cache.js';
 import { loadSettings, saveSettings } from '../src/settings.js';
 import { DEFAULTS } from '../src/schema.js';
 import { NOW, at } from './helpers.js';
@@ -90,6 +90,14 @@ test('takeLock gives the lock to one of many windows drawing at the same moment'
     c.on('close', () => res(out));
   })));
   assert.equal(wins.filter((w) => w === 'true').length, 1, wins.join());
+});
+
+test('holdLock keeps a lock closed for as long as asked, then lets go', () => {
+  const p = paths({ CLAUDE_CONFIG_DIR: tmp() });
+  holdLock(p, 'u', NOW, 900000);
+  assert.equal(takeLock(p, 'u', at(600)), false);
+  assert.equal(takeLock(p, 'u', at(601), 2500), false, 'the hold wins over the caller\'s shorter wait');
+  assert.equal(takeLock(p, 'u', at(901)), true);
 });
 
 test('takeLock replaces an unreadable lock', () => {
