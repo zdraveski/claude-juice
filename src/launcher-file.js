@@ -45,15 +45,22 @@ export function launcherFor(pluginRoot) {
 export function upgradeLauncher(p, pluginRoot) {
   try {
     const t = statSync(p.launcherFile).mtimeMs, tpl = statSync(TEMPLATE).mtimeMs;
-    // A wrong clock can date either file ahead. Marked checked at the later of the two clocks, so the check runs once
-    // instead of waiting years for the clock, or running on every refresh. ceil: a Date drops tpl's fraction of a ms.
-    const at = Math.ceil(Math.max(tpl, Date.now()));
+    // A clock set ahead can date either file ahead. Marked checked at the later of the two dates, so the check runs once
+    // instead of waiting years for the clock, or running on every refresh. Rounded up to an even second: some disks
+    // keep no less (FAT 2 s, WSL's /mnt/c 1 s), and a date rounded down would fall before juice's own.
+    // shortcut: a clock that was slow at an update dates juice before the launcher, so that update's check is skipped;
+    // marking the launcher with juice's date instead would flip-flop between two copies of juice sharing a folder.
+    const at = Math.ceil(Math.max(tpl, Date.now()) / 2000) * 2000;
     if (t >= tpl && t < at + 60000) return false;
     const want = launcherFor(pluginRoot), have = readFileSync(p.launcherFile, 'utf8'), target = launcherTarget(have);
     // A launcher setup pointed at another copy of juice stays pointed there: running a checkout to test it must
     // not take the place of the installed juice.
-    if (have !== want && (!target || target === launcherTarget(want))) writeAtomic(p.launcherFile, want, HOT_WRITE);
-    else utimesSync(p.launcherFile, new Date(at), new Date(at));
+    const text = target && target !== launcherTarget(want) ? have : want;
+    if (have !== text) writeAtomic(p.launcherFile, text, HOT_WRITE);
+    // Marked after a rewrite too, whose date is the clock's. Only a file's owner may set its times: a launcher another
+    // user owns (setup run with sudo) is replaced by one of ours first.
+    const mark = () => utimesSync(p.launcherFile, new Date(at), new Date(at));
+    try { mark(); } catch { writeAtomic(p.launcherFile, text, HOT_WRITE); mark(); }
     return true;
   } catch { return false; }
 }

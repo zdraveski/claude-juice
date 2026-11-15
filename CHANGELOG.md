@@ -25,7 +25,7 @@ Fixed:
 - The status line no longer hangs if Claude Code never finishes sending to it, and a file juice can't write no longer holds up every refresh for seconds.
 - On Mac and Linux, juice's cache folders, which hold the copy of Claude Code's data that badges read, can only be read by you. Folders from an older juice change on the first refresh after the update.
 - A wrong `/juice set` value lists the values that work, and an error saving a file is a plain sentence. Other errors hide your home folder. A `settings.json` juice isn't allowed to read is no longer called missing or one with a mistake in it.
-- A clock that was set ahead when you installed juice or ran `/juice setup` no longer skips, or repeats on every refresh, the changes juice makes once after an update, like moving the every-second refresh to once a minute.
+- A clock that was set ahead when you installed or updated juice or ran `/juice setup` no longer skips, or repeats on every refresh, the changes juice makes once after an update, like moving the every-second refresh to once a minute.
 - `/juice doctor` says Node 24 or newer everywhere, says it's juice (not Claude Code) that can't read a `settings.json` with comments, and says `/juice setup` fixes a changed marketplace name.
 - 100% used with no reset time says "used up", not "almost empty".
 - A cost under a cent shows "<$0.01", and big costs get thousands separators.
@@ -45,6 +45,7 @@ Known limits:
 - A Claude folder whose path holds `$`, a backtick, `%` or `"` can't use juice; setup says so.
 - The once-per-update refresh move isn't tried again if `settings.json` was busy (`/juice doctor` says to type `/juice setup`). It rewrites `settings.json` whole, so a Claude Code change in the same instant could be lost.
 - A `settings.json` that is a link to a missing file becomes a normal file when juice writes it.
+- A clock that was slow when juice updated (before it synced, or with a dead clock battery) skips the changes juice makes once after that update. The next update makes them.
 - A test version folder (like `1.4.0-beta`) counts the same as the release.
 - WSL and Windows sharing one `settings.json` each write their own command.
 - `/juice` can change any setting without a permission prompt, `fable=on` included.

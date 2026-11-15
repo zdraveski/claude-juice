@@ -89,8 +89,10 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
   // 2. juice's own settings, and whether drawing works with them.
   const { settings: mine, warnings } = loadSettings(p);
   // An unreadable juice.json is never overwritten (it may hold badges), so only a bad value is fixed by changing a setting.
-  warnings.forEach((w) => out.push(bad(`juice settings: ${w.replace(/\.$/, '')}. ${/unreadable/.test(w)
-    ? 'Fix or delete juice.json in your Claude folder (Claude can do it for you).' : 'Choosing that setting again with /juice replaces it (a newer juice may know it: then updating juice fixes it too).'}`)));
+  warnings.forEach((w) => out.push(bad(`juice settings: ${w.replace(/\.$/, '')}. ${/allowed/.test(w)
+    ? 'Make sure it and your Claude folder are yours and you can read them (Claude can help).'
+    : /unreadable/.test(w) ? 'Fix or delete juice.json in your Claude folder (Claude can do it for you).'
+    : 'Choosing that setting again with /juice replaces it (a newer juice may know it: then updating juice fixes it too).'}`)));
   if (!mine.show.length) out.push(bad(NOTHING_SHOWN));
   const term = detectTerminal({ env, settings: mine, claudeTheme: () => readClaudeTheme(p.claudeSettings) });
   try {

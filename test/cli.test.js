@@ -157,7 +157,11 @@ test('a Claude folder juice cannot enter is called unreadable, not a folder with
     const doctor = await run(d, ['doctor']);
     assert.match(doctor.out, /juice can't read your Claude Code settings file/);
     assert.doesNotMatch(doctor.out, /No status line is set/);
-    assert.match(doctor.out, /juice settings: juice\.json is unreadable/, 'not silently drawn with the defaults');
+    // Not "fix or delete": juice can't tell whether juice.json is there, and deleting it would lose settings and badges.
+    assert.match(doctor.out, /juice settings: juice isn't allowed to read juice\.json, using defaults\. Make sure it and your Claude folder are yours/, 'not silently drawn with the defaults');
+    const set = await run(d, ['set', 'layout=bar']);
+    assert.match(set.err, /^juice can't read your juice settings file[^\n]*Make sure it and your Claude folder are yours/);
+    for (const r of [doctor, set]) assert.doesNotMatch(r.out + r.err, /delete/);
   } finally { chmodSync(d, 0o700); }
 });
 
@@ -213,27 +217,55 @@ test('after an update, a refresh moves the 1 juice wrote to 60 once, and nothing
   assert.equal(readFileSync(f, 'utf8'), '{"statusLine":', 'a broken file is never written');
 });
 
-test('a launcher or juice dated far ahead by a wrong clock gets the once-per-update check, once', async (t) => {
+// Two refreshes after an update, the first with refreshInterval put back to 1: the check moves it to 60 once.
+async function checkedOnce(d, name) {
   const { runStatusLine } = await import('../src/statusline.js');
+  const f = join(d, 'settings.json');
+  const every = (n) => writeFileSync(f, JSON.stringify({ statusLine: { ...json(f).statusLine, refreshInterval: n } }));
+  const draw = () => runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
+  every(1); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 60, `${name}: checked`);
+  every(1); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 1, `${name}: only once`);
+}
+
+test('a launcher or juice dated far ahead by a wrong clock gets the once-per-update check, once', async (t) => {
   const YEAR = 365 * 86400000, installed = statSync(new URL('../bin/launcher.js', import.meta.url)).mtimeMs;
-  // [case, when the launcher was written, the clock now (null: the real one)]
-  for (const [name, written, clock] of [
-    ['launcher ahead', Date.now() + YEAR, null],
-    ['juice and launcher ahead (installed and set up under the wrong clock)', installed + 7200000, Date.now() - YEAR],
+  const utimes = fs.utimesSync, even = (x) => new Date(Math.floor(+x / 2000) * 2000);
+  // clock: a year before juice was installed, not before today, which an old checkout or ZIP could predate.
+  // old: a launcher juice rewrites (written at the real time, which is still before juice's date).
+  // coarse: a disk that keeps only even seconds (FAT; WSL's /mnt/c keeps whole ones).
+  for (const c of [
+    { name: 'launcher ahead', written: Date.now() + YEAR },
+    { name: 'juice and launcher ahead', written: installed + 7200000, clock: installed - YEAR },
+    { name: 'juice ahead, launcher rewritten', written: installed + 7200000, clock: installed - YEAR, old: true },
+    { name: 'juice ahead, coarse disk', written: installed + 7200000, clock: installed - YEAR, coarse: true },
   ]) {
-    const d = env(), f = join(d, 'settings.json'), launcher = join(d, 'juice-statusline.mjs');
+    const d = env(), launcher = join(d, 'juice-statusline.mjs');
     await run(d, ['setup']);
-    const every = (n) => writeFileSync(f, JSON.stringify({ statusLine: { ...json(f).statusLine, refreshInterval: n } }));
-    utimesSync(launcher, new Date(written), new Date(written));
-    if (clock) t.mock.timers.enable({ apis: ['Date'], now: clock });
-    const draw = () => runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
-    try {
-      every(1); await draw();
-      assert.equal(json(f).statusLine.refreshInterval, 60, `${name}: checked`);
-      every(1); await draw();
-      assert.equal(json(f).statusLine.refreshInterval, 1, `${name}: only once`);
-    } finally { if (clock) t.mock.timers.reset(); }
+    if (c.old) writeFileSync(launcher, '// an old launcher\n');
+    utimesSync(launcher, new Date(c.written), new Date(c.written));
+    if (c.clock) t.mock.timers.enable({ apis: ['Date'], now: c.clock });
+    if (c.coarse) { t.mock.method(fs, 'utimesSync', (file, a, m) => utimes(file, even(a), even(m))); syncBuiltinESMExports(); }
+    try { await checkedOnce(d, c.name); } finally {
+      if (c.clock) t.mock.timers.reset();
+      if (c.coarse) { t.mock.restoreAll(); syncBuiltinESMExports(); }
+    }
   }
+});
+
+// Only a file's owner may set its times, so a launcher left by setup run with sudo can't be marked checked.
+test('a launcher another user owns still gets the once-per-update check, once', async (t) => {
+  const d = env(), launcher = join(d, 'juice-statusline.mjs');
+  await run(d, ['setup']);
+  utimesSync(launcher, new Date(0), new Date(0)); // written before the update
+  const theirs = statSync(launcher).ino, utimes = fs.utimesSync;
+  t.mock.method(fs, 'utimesSync', (file, ...rest) => {
+    if (statSync(file).ino === theirs) throw Object.assign(new Error('not the owner'), { code: 'EPERM' });
+    return utimes(file, ...rest);
+  });
+  syncBuiltinESMExports();
+  try { await checkedOnce(d, 'theirs'); } finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
 });
 
 // Switching between a checkout and the plugin store only rewrites the launcher; setup must still say so.
