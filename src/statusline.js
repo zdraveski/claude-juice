@@ -11,7 +11,7 @@ import { remember } from './lastseen.js';
 import { normalize } from './data.js';
 import { fableCacheState } from './readings.js';
 import { render } from './render/index.js';
-import { strip } from './render/ansi.js';
+import { strip, dim } from './render/ansi.js';
 import { upgradeLauncher } from './launcher-file.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -67,7 +67,10 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
       message: hideHome(String(e?.message ?? e), env, platform).replace(/(?:file:\/*)?(?:[A-Za-z]:|~)?[\\/](?:[^\\/\s'"`]+[\\/])+/g, '').slice(0, 300),
       where: /([\w.-]+\.js):(\d+)/.exec(String(e?.stack).split('\n').slice(1).join('\n'))?.slice(1).join(':') ?? null,
     }, HOT_WRITE));
-    const name = stdin?.model?.display_name;
-    return typeof name === 'string' ? strip(name) : '';
+    // A bare model name looks like "no data yet", so say where to look; the next run that works drops it.
+    // Plain under NO_COLOR (no-color.org: any non-empty value), as terminal.js reads it.
+    const hint = env?.NO_COLOR ? 'juice: /juice doctor' : dim('juice: /juice doctor');
+    const name = typeof stdin?.model?.display_name === 'string' ? strip(stdin.model.display_name) : '';
+    return name ? `${name} ${hint}` : hint;
   }
 }

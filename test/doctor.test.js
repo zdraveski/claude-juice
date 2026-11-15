@@ -92,7 +92,7 @@ test('doctor: shows the status line\'s last problem with juice\'s file and line,
   const broken = { getTime() { throw new Error('clock broke'); } };
   const stdinText = JSON.stringify({ model: { display_name: 'Opus 5.5' }, rate_limits: { five_hour: { used_percentage: 10, resets_at: Math.floor(NOW / 1000) + 3600 } } });
   const text = await runStatusLine({ stdinText, env: { CLAUDE_CONFIG_DIR: d }, now: broken, platform: 'linux', spawnDetached() {} });
-  assert.equal(text, 'Opus 5.5');
+  assert.equal(text, 'Opus 5.5 \x1b[2mjuice: /juice doctor\x1b[22m');
   const err = JSON.parse(readFileSync(join(d, 'juice-cache', 'last-error.json'), 'utf8'));
   assert.match(err.where, /^[\w.-]+\.js:\d+$/);
   const report = check(d, { now: new Date(err.at + 5 * 60000) });

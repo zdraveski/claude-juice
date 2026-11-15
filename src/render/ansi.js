@@ -9,6 +9,7 @@ export const mix = (a, b, t) => { const y = rgbOf(b); return '#' + rgbOf(a).map(
 export const fg = (h, s) => (s ? `${E}38;2;${rgbOf(h).join(';')}m${s}${E}39m` : '');
 export const bg = (h, s) => `${E}48;2;${rgbOf(h).join(';')}m${s}${E}49m`;
 export const bold = (s) => `${E}1m${s}${E}22m`;
+export const dim = (s) => `${E}2m${s}${E}22m`;
 // Every escape sequence (CSI, OSC ending in BEL or ESC \, other ESC x) and control character except \n,
 // including C1 controls (\x80-\x9f), which some terminals treat as escapes and git allows in branch names.
 export const ESCAPES = /\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\|$)|\x1b[^[\]]?|[\x00-\x09\x0b-\x1f\x7f-\x9f]/g;

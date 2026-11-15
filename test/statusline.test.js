@@ -39,7 +39,22 @@ test('model name alone renders', async () => {
 
 test('internal error falls back to the model name', async () => {
   const out = await runStatusLine({ stdinText: '{"model":{"display_name":"Opus 5.5"}}', env: null, now: NOW, platform: 'win32', spawnDetached() {} });
-  assert.equal(out, 'Opus 5.5');
+  assert.equal(strip(out), 'Opus 5.5 juice: /juice doctor');
+});
+
+const brokenStdin = (model) => JSON.stringify({ ...(model && { model: { display_name: model } }), rate_limits: { five_hour: { used_percentage: 10, resets_at: Math.floor(NOW / 1000) + 3600 } } });
+const broken = { getTime() { throw new Error('clock broke'); } };
+const drawBroken = (env, s) => runStatusLine({ stdinText: s, env: { CLAUDE_CONFIG_DIR: setup().dir, ...env }, now: broken, platform: 'linux', spawnDetached() {} });
+
+test('a broken run says where to look: dim, or plain without colour', async () => {
+  assert.equal(await drawBroken({}, brokenStdin('Opus 5.5')), 'Opus 5.5 \x1b[2mjuice: /juice doctor\x1b[22m');
+  assert.equal(await drawBroken({ NO_COLOR: '1' }, brokenStdin('Opus 5.5')), 'Opus 5.5 juice: /juice doctor');
+  assert.equal(await drawBroken({ NO_COLOR: '1' }, brokenStdin()), 'juice: /juice doctor');
+});
+
+test('a run that works shows no hint, even with empty stdin', async () => {
+  const { run } = setup();
+  for (const s of ['', '{}', 'not json', busy]) assert.doesNotMatch(strip(await run(s)), /juice doctor/);
 });
 
 test('the real line stands still unless motion is on', async () => {
