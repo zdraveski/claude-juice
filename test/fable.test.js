@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, utimesSync, exists
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paths } from '../src/paths.js';
-import { readJson, writeJsonAtomic } from '../src/cache.js';
+import { readJson, writeJsonAtomic, takeLock } from '../src/cache.js';
 import { readToken, fetchFable, refreshFable, keychainService } from '../src/fable.js';
 import { fableCacheState } from '../src/readings.js';
 import { createHash } from 'node:crypto';
@@ -30,11 +30,13 @@ const cacheFile = (p) => join(p.cacheDir, 'fable.json');
 const noExec = () => { throw new Error('should not run'); };
 
 test('fableEnabled', () => {
-  assert.equal(fableEnabled('auto', 'darwin'), false);
-  assert.equal(fableEnabled('auto', 'win32'), true);
-  assert.equal(fableEnabled('auto', 'linux'), true);
-  assert.equal(fableEnabled('on', 'darwin'), true);
-  assert.equal(fableEnabled('off', 'win32'), false);
+  // auto stays on only for someone who already has a reading (1.3.x turned it on without asking); a new install asks first.
+  assert.equal(fableEnabled('auto', 'win32', true), true);
+  assert.equal(fableEnabled('auto', 'linux', true), true);
+  assert.equal(fableEnabled('auto', 'win32', false), false);
+  assert.equal(fableEnabled('auto', 'darwin', true), false);
+  assert.equal(fableEnabled('on', 'darwin', false), true);
+  assert.equal(fableEnabled('off', 'linux', true), false);
 });
 
 test('readToken: file on win32, null on problems', () => {
@@ -69,7 +71,7 @@ test('readToken darwin uses security with exact args', () => {
 test('fetchFable sends the exact request and picks the Fable entry', async () => {
   let seen;
   const f = async (url, opts) => { seen = { url, opts }; return { ok: true, json: async () => body() }; };
-  assert.deepEqual(await fetchFable(TOKEN, f, '0.1.0'), { used: 41, resetsAt: '2026-11-01T00:00:00Z' });
+  assert.deepEqual(await fetchFable(TOKEN, f, '0.1.0'), { used: 41, resetsAt: '2026-11-01T00:00:00.000Z' });
   assert.equal(seen.url, 'https://api.anthropic.com/api/oauth/usage');
   assert.equal(seen.opts.method ?? 'GET', 'GET');
   assert.equal(seen.opts.redirect, 'error');
@@ -98,8 +100,8 @@ test('fetchFable returns null on bad responses', async () => {
 test('fetchFable also reads Session and Weekly, and works with no Fable entry', async () => {
   const five_hour = { utilization: 15, resets_at: '2026-10-28T16:39:59.96Z' };
   const seven_day = { utilization: 95, resets_at: '2026-11-01T00:00:00Z' };
-  const session = { used: 15, resetsAt: five_hour.resets_at }, week = { used: 95, resetsAt: seven_day.resets_at };
-  assert.deepEqual(await fetchFable(TOKEN, okFetch({ ...body(), five_hour, seven_day }), 'v'), { used: 41, resetsAt: '2026-11-01T00:00:00Z', session, week });
+  const session = { used: 15, resetsAt: '2026-10-28T16:39:59.960Z' }, week = { used: 95, resetsAt: '2026-11-01T00:00:00.000Z' };
+  assert.deepEqual(await fetchFable(TOKEN, okFetch({ ...body(), five_hour, seven_day }), 'v'), { used: 41, resetsAt: '2026-11-01T00:00:00.000Z', session, week });
   assert.deepEqual(await fetchFable(TOKEN, okFetch({ five_hour, seven_day }), 'v'), { session, week });
   assert.deepEqual(await fetchFable(TOKEN, okFetch({ five_hour: { utilization: 'x', resets_at: 'y' } }), 'v'), null);
 });
@@ -110,6 +112,22 @@ test('refreshFable failure keeps Session and Weekly too', async () => {
   writeJsonAtomic(cacheFile(p), old);
   await refreshFable({ p, platform: 'win32', execFileSync: noExec, now: NOW, version: 'v', fetchImpl: async () => ({ ok: false }) });
   assert.deepEqual(readJson(cacheFile(p)), { ...old, backoffUntil: NOW + 900000 });
+});
+
+test('fetchFable stores the date it understood, and refuses an absurdly long one', async () => {
+  const r = await fetchFable(TOKEN, okFetch(body(41, '2026-11-01 00:00:00Z')), 'v');
+  assert.equal(r.resetsAt, '2026-11-01T00:00:00.000Z');
+  const long = `2026-11-01T00:00:00Z${' '.repeat(100000)}`;
+  assert.equal(await fetchFable(TOKEN, okFetch(body(41, long)), 'v'), null);
+});
+
+test('a cache that cannot be written still holds the refresher back for the backoff', async () => {
+  const p = setup();
+  mkdirSync(cacheFile(p), { recursive: true }); // a folder where the file should be: every write fails
+  const args = { p, platform: 'win32', execFileSync: noExec, now: NOW, version: 'v' };
+  assert.equal(await refreshFable({ ...args, fetchImpl: async () => ({ ok: false }) }), false);
+  assert.equal(takeLock(p, 'fable', new Date(NOW + 60000)), false, 'a minute later, no second refresher');
+  assert.equal(takeLock(p, 'fable', new Date(NOW + 900001)), true, 'after the backoff it may try again');
 });
 
 test('fetchFable aborts a hanging request', async () => {
@@ -123,7 +141,7 @@ test('refreshFable success writes cache without the token', async () => {
   const p = setup();
   assert.equal(await refreshFable({ p, platform: 'win32', fetchImpl: okFetch(), execFileSync: noExec, now: NOW, version: '0.1.0' }), true);
   const raw = readFileSync(cacheFile(p), 'utf8');
-  assert.deepEqual(JSON.parse(raw), { used: 41, resetsAt: '2026-11-01T00:00:00Z', fetchedAt: NOW });
+  assert.deepEqual(JSON.parse(raw), { used: 41, resetsAt: '2026-11-01T00:00:00.000Z', fetchedAt: NOW });
   assert.ok(!raw.includes(TOKEN));
 });
 

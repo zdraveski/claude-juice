@@ -36,10 +36,24 @@ test('doctor: after setup everything looks fine and names the juice the line run
   const d = config();
   await run(d, ['setup']);
   const r = await run(d, ['doctor']);
-  assert.match(r.text, /^✓ juice is your status line, refreshing every second$/m);
+  assert.match(r.text, /^✓ juice is your status line, refreshing once a minute$/m);
   assert.match(r.text, new RegExp(`^✓ The status line runs juice ${version.replaceAll('.', '\\.')} from a folder on this computer$`, 'm'));
   assert.match(r.text, /^✓ Drawing works/m);
   assert.match(r.text, /Everything looks fine\.$/);
+});
+
+test('doctor: suggests the refresh motion wants, never one chosen by hand', async () => {
+  const d = config();
+  await run(d, ['setup']);
+  const s = JSON.parse(readFileSync(join(d, 'settings.json'), 'utf8'));
+  const at = (motion, refreshInterval) => {
+    writeFileSync(join(d, 'juice.json'), JSON.stringify({ motion }));
+    writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval } }));
+    return check(d);
+  };
+  assert.match(at('off', 1), /Run \/juice setup to refresh once a minute/);
+  assert.match(at('on', 60), /Run \/juice setup to refresh every second, so the effort level and batteries climb/);
+  for (const [m, r] of [['on', 1], ['off', 60], ['on', 600]]) assert.doesNotMatch(at(m, r), /Run \/juice setup to refresh/, `${m} ${r}`);
 });
 
 test('doctor: another status line is named but its command (which can hold a key) never printed', async () => {
@@ -78,7 +92,7 @@ test('doctor: shows the status line\'s last problem with juice\'s file and line,
   const broken = { getTime() { throw new Error('clock broke'); } };
   const stdinText = JSON.stringify({ model: { display_name: 'Opus 5.5' }, rate_limits: { five_hour: { used_percentage: 10, resets_at: Math.floor(NOW / 1000) + 3600 } } });
   const text = await runStatusLine({ stdinText, env: { CLAUDE_CONFIG_DIR: d }, now: broken, platform: 'linux', spawnDetached() {} });
-  assert.equal(text, 'Opus 5.5');
+  assert.equal(text, 'Opus 5.5 \x1b[2mjuice: /juice doctor\x1b[22m');
   const err = JSON.parse(readFileSync(join(d, 'juice-cache', 'last-error.json'), 'utf8'));
   assert.match(err.where, /^[\w.-]+\.js:\d+$/);
   const report = check(d, { now: new Date(err.at + 5 * 60000) });
@@ -138,17 +152,15 @@ test('doctor: the real refresh time, and a Node that setup pinned but is gone', 
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 600 } }));
   assert.match(check(d), /^✓ juice is your status line, refreshing every 600 seconds$/m);
   assert.doesNotMatch(check(d), /Run \/juice setup to refresh/, 'a time chosen by hand is left alone');
-  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 60 } }));
-  assert.match(check(d), /^✓ juice is your status line, refreshing once a minute\n· Run \/juice setup to refresh every second/m, "juice's old 60");
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 30 } }));
-  assert.match(check(d), /^✓ juice is your status line, refreshing every 30 seconds\n· Run \/juice setup to refresh every second/m, "1.3.0's 30");
+  assert.match(check(d), /^✓ juice is your status line, refreshing every 30 seconds\n· Run \/juice setup to refresh once a minute/m, "1.3.0's 30");
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 'abc' } }));
   assert.match(check(d), /doesn't refresh on its own/);
   // The doctor says run setup, so setup must fix it: a hand-typed "60" or -5 is replaced, never "nothing changed".
   for (const odd of ['60', -5]) {
     writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: odd } }));
-    assert.match((await run(d, ['setup'])).text, /refreshes every second/, String(odd));
-    assert.match(check(d), /^✓ juice is your status line, refreshing every second$/m, String(odd));
+    assert.match((await run(d, ['setup'])).text, /refreshes once a minute/, String(odd));
+    assert.match(check(d), /^✓ juice is your status line, refreshing once a minute$/m, String(odd));
   }
   const launcher = s.statusLine.command.replace(/^.*\s(?="[^"]*"\s*$)/, '').trim();
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, command: `PATH="/gone/nvm/v20/bin:$PATH" node ${launcher}` } }));
@@ -167,6 +179,11 @@ test('doctor: a setting juice doesn\'t know says how to fix it, and choosing it 
   assert.doesNotMatch(check(d), /juice settings:/);
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ show: [] }));
   assert.match(check(d), /Type \/juice show all the batteries to bring them back/);
+  // The advice follows the warning, never a value of the person's own that happens to hold the same word.
+  for (const v of ['allowed', 'unreadable']) {
+    writeFileSync(join(d, 'juice.json'), JSON.stringify({ layout: v }));
+    assert.match(check(d), /^! juice settings: layout: .*Choosing that setting again/m, v);
+  }
   // An unreadable file is never overwritten by set, so the advice is to fix or delete it.
   writeFileSync(join(d, 'juice.json'), '{bad');
   assert.match(check(d), /^! juice settings: juice\.json is unreadable, using defaults\. Fix or delete juice\.json/m);
@@ -182,20 +199,49 @@ test('doctor: badges are counted, unapproved ones flagged, commands never printe
   assert.doesNotMatch(text, /curl|token=abc/);
 });
 
+test('doctor: a settings.json with comments is juice that cannot read it, not Claude Code', async () => {
+  const d = config();
+  writeFileSync(join(d, 'settings.json'), '{\n  // my notes\n  "theme": "dark",\n}');
+  const text = check(d);
+  assert.match(text, /^! juice can't read your Claude Code settings file/m);
+  assert.match(text, /Claude Code may read it fine/);
+  assert.doesNotMatch(text, /so Claude Code can't read it/);
+});
+
+test('doctor: a launcher stuck on one plugin folder, and a marketplace that was renamed', async () => {
+  const d = config();
+  await run(d, ['setup']);
+  const stuck = 'D:/shared/claude-plugins/cache/m/juice/1.3.1';
+  writeFileSync(join(d, 'juice-statusline.mjs'), `const PINNED = "${stuck}";`);
+  assert.match(check(d), /^! The status line is stuck on one juice folder .*won't follow updates\. Run \/juice setup\.$/m);
+  // A checkout pinned on purpose is fine.
+  writeFileSync(join(d, 'juice-statusline.mjs'), 'const PINNED = "/home/a/code/juice";');
+  assert.doesNotMatch(check(d), /stuck on one/);
+  // The launcher looks in marketplace "old", but juice now lives under "new": setup fixes that, a reinstall does not need to.
+  writeFileSync(join(d, 'juice-statusline.mjs'), 'const MARKET = "old";');
+  mkdirSync(join(d, 'plugins', 'cache', 'new', 'juice', '1.0.0', 'bin'), { recursive: true });
+  writeFileSync(join(d, 'plugins', 'cache', 'new', 'juice', '1.0.0', 'bin', 'juice-statusline.js'), '');
+  const text = check(d);
+  assert.match(text, /^! The status line looks for juice under "old", but it is installed under "new"\. Run \/juice setup\.$/m);
+  assert.doesNotMatch(text, /Install it again/);
+});
+
 test('doctor: Fable off, failing, and checked', () => {
   const d = config();
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ fable: 'off' }));
   assert.match(check(d), /Fable battery: turned off\./);
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ fable: 'auto' }));
   assert.match(check(d, { platform: 'darwin' }), /off on a Mac until you type \/juice set fable=on/);
+  assert.match(check(d), /^· Fable battery: off until you turn it on with \/juice set fable=on, which lets juice read your Claude login\.$/m);
   mkdirSync(join(d, 'juice-cache'), { recursive: true });
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 10 * 60000 }));
   assert.match(check(d), /^! Fable battery: the last check failed; juice tries again in 10 min\. If it keeps failing, type \/login/m);
   // Behind a company proxy the advice depends on whether this Node can use it.
-  const behindProxy = check(d, { env: { HTTPS_PROXY: 'http://proxy:8080' } });
-  const [maj, min] = process.versions.node.split('.').map(Number);
-  const nodeCan = maj >= 24 || (maj === 22 && min >= 21);
-  assert.match(behindProxy, nodeCan ? /type \/login/ : /company proxy, which juice can only get through with Node 24 or newer, or 22\.21 or newer on Node 22/);
+  const proxy = { env: { HTTPS_PROXY: 'http://proxy:8080' } };
+  assert.match(check(d, { ...proxy, node: '24.1.0' }), /type \/login/);
+  const old = check(d, { ...proxy, node: '22.21.0' });
+  assert.match(old, /company proxy, which juice can only get through with Node 24 or newer \(this is 22\.21\.0\)/);
+  assert.doesNotMatch(old, /22\.21 or newer/, 'juice needs Node 24 everywhere');
   // Stamped by a clock that was ahead: juice ignores these, and so does the doctor.
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 30 * 86400000 }));
   assert.doesNotMatch(check(d), /last check failed/);

@@ -13,8 +13,13 @@ const spawnDetached = (args) => spawn(process.execPath, [juice, ...args], { deta
 
 let out = '';
 try {
-  let stdinText = '';
-  try { process.stdin.setEncoding('utf8'); for await (const c of process.stdin) stdinText += c; } catch {}
+  // A pipe that never closes must not hang the status line: draw with what arrived after 2 s, or at 1 MB.
+  const stdinText = await new Promise((resolve) => {
+    let text = '';
+    const done = () => { clearTimeout(timer); resolve(text); };
+    const timer = setTimeout(done, 2000);
+    process.stdin.setEncoding('utf8').on('data', (c) => { text += c; if (text.length > 1e6) done(); }).on('end', done).on('error', done);
+  });
   out = await runStatusLine({ stdinText, env: process.env, now: new Date(), platform: process.platform, spawnDetached });
 } finally {
   process.stdout.write(out + '\n', () => process.exit(0));

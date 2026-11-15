@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { paths } from '../src/paths.js';
 import { runStatusLine } from '../src/statusline.js';
 import { fixture } from './helpers.js';
+import { writeJsonAtomic, takeLock } from '../src/cache.js';
 
 const busyText = JSON.stringify(fixture('busy'));
 import { strip, at, NOW } from './helpers.js';
@@ -49,6 +50,50 @@ test('a failed run keeps the previous text', async () => {
   await refreshBadges({ p, settings, key: 'k', stdinText: '', runImpl: ok('one') });
   await refreshBadges({ p, settings, key: 'k', stdinText: '', runImpl: async (c) => (c === 'a' ? { ok: false, stdout: '' } : { ok: true, stdout: 'two' }) });
   assert.deepEqual(readBadges(p, 'k', new Date(), ['a', 'b']).texts, ['one', 'two']);
+});
+
+test('a failed run keeps the old text only for a few minutes, then shows nothing until it works', async () => {
+  const p = tmp();
+  const settings = { badges: [approve(p, 'a')] };
+  const fail = async () => ({ ok: false, stdout: '' });
+  const t0 = NOW.getTime();
+  await refreshBadges({ p, settings, key: 'k', stdinText: '', runImpl: ok('main'), now: t0 });
+  await refreshBadges({ p, settings, key: 'k', stdinText: '', runImpl: fail, now: t0 + 60000 });
+  assert.deepEqual(readBadges(p, 'k', at(60), ['a']).texts, ['main'], 'one bad run is no reason to blank it');
+  await refreshBadges({ p, settings, key: 'k', stdinText: '', runImpl: fail, now: t0 + 61000 });
+  await refreshBadges({ p, settings, key: 'k', stdinText: '', runImpl: fail, now: t0 + 6 * 60000 });
+  assert.deepEqual(readBadges(p, 'k', at(360), ['a']).texts, [''], 'six minutes of failures: the old branch name is not current any more');
+  await refreshBadges({ p, settings, key: 'k', stdinText: '', runImpl: ok('dev'), now: t0 + 7 * 60000 });
+  assert.deepEqual(readBadges(p, 'k', at(420), ['a']).texts, ['dev']);
+});
+
+test('badge text read back from the cache is cleaned again, so a tampered file cannot reach the terminal', () => {
+  const p = tmp();
+  writeJsonAtomic(join(p.cacheDir, 'badges', 'k.json'), { texts: ['\x1b]52;c;AAAA\x07hi', '\x1b[2Jok', 'x'.repeat(200), 7], commands: ['a', 'b', 'c', 'd'], at: NOW.getTime() });
+  const { texts } = readBadges(p, 'k', NOW, ['a', 'b', 'c', 'd']);
+  assert.deepEqual(texts.slice(0, 2), ['hi', 'ok']);
+  assert.equal(strip(texts[2]).length, 40);
+  assert.equal(texts[3], '');
+});
+
+test('a badge cache that cannot be written holds the refresher back for minutes, not seconds', async () => {
+  const p = tmp();
+  mkdirSync(join(p.cacheDir, 'badges', 'k.json'), { recursive: true }); // a folder where the file should be
+  const t0 = NOW.getTime();
+  await refreshBadges({ p, settings: { badges: [approve(p, 'a')] }, key: 'k', stdinText: '', runImpl: ok('x'), now: t0 });
+  assert.equal(takeLock(p, 'badges-k', new Date(t0 + 3000), 2500), false);
+  assert.equal(takeLock(p, 'badges-k', new Date(t0 + 301000), 2500), true);
+});
+
+test('the sweep removes old temp files in the badge folder too, and keeps new ones', async () => {
+  const p = tmp();
+  const dir = join(p.cacheDir, 'badges');
+  mkdirSync(dir, { recursive: true });
+  for (const f of ['old.json.1.a.tmp', 'new.json.1.b.tmp']) writeFileSync(join(dir, f), '');
+  utimesSync(join(dir, 'old.json.1.a.tmp'), 1, 1);
+  await refreshBadges({ p, settings: { badges: [] }, key: 'k', stdinText: '' });
+  assert.ok(!existsSync(join(dir, 'old.json.1.a.tmp')));
+  assert.ok(existsSync(join(dir, 'new.json.1.b.tmp')));
 });
 
 test('after a removal, texts follow their command, not their position', async () => {
@@ -146,9 +191,14 @@ test('refresh-badges sweeps old cache files only', async () => {
   mkdirSync(join(p.cacheDir, 'badges'), { recursive: true });
   const old = new Date(Date.now() - 8 * 86400000);
   const mk = (f, aged) => { const x = join(p.cacheDir, f); writeFileSync(x, '1'); if (aged) utimesSync(x, old, old); return x; };
-  const gone = [mk('badges/old.json', 1), mk('badges-abc.lock', 1), mk('x.json.1.tmp', 1)];
-  const kept = [mk('badges/new.json', 0), mk('fable.json', 1), mk('lastseen.json', 1), mk('badges-new.lock', 0)];
+  // A session's last stale-lock marker is never swept by takeLock, whose sweep only runs for that session's lock.
+  const gone = [mk('badges/old.json', 1), mk('badges-abc.lock', 1), mk('x.json.1.tmp', 1), mk('badges-abc.lock.1700000000000.5.steal', 1)];
+  const kept = [mk('badges/new.json', 0), mk('fable.json', 1), mk('lastseen.json', 1), mk('badges-new.lock', 0), mk('badges-new.lock.1.steal', 0)];
   await refreshBadges({ p, settings: { badges: [] }, key: 'k', stdinText: '', runImpl: async () => ({ ok: true, stdout: '' }) });
   gone.forEach((f) => assert.equal(existsSync(f), false, f));
   kept.forEach((f) => assert.equal(existsSync(f), true, f));
+});
+
+test('badge text loses bidi overrides and zero-width marks', () => {
+  assert.equal(cleanBadge('a\u202eb\u200bc'), 'abc');
 });

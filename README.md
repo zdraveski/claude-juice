@@ -44,9 +44,11 @@ You need Node 24 or newer. To check, type `node --version` in a terminal; if you
 
 If Claude Code still doesn't know `/juice`, restart it and type `/juice setup` again. juice saves your old status line first, if you had one, so `/juice restore` can always bring it back.
 
+Setup asks you once whether juice may read your Claude login for the Fable battery. Saying no keeps everything else working. [More in Privacy](#privacy).
+
 The very first time, the batteries fill in after Claude's first reply; until then only the model and effort level show. After that, a new chat shows Session and Weekly straight away, and Memory after the first reply.
 
-The only thing juice itself sends anywhere is a usage request to `api.anthropic.com`, while the Fable battery is on (on a Mac it starts off). It fills the Fable battery and keeps Session and Weekly up to date. [More in Privacy](#privacy).
+The only thing juice itself sends anywhere is a usage request to `api.anthropic.com`, and only while the Fable battery is on. It fills the Fable battery and keeps Session and Weekly up to date.
 
 juice works on Windows, macOS and Linux (tested by hand on Windows, automatically on all three). On a Mac or Linux, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) if something looks off.
 
@@ -87,7 +89,9 @@ If you use the VS Code chat panel or the desktop app, open a terminal and type `
 | Weekly | Your weekly limit. |
 | Budget | Only with a company spending limit: how much of it is used. Amber with ! at 85%, red with !! at 90%. |
 
-Next to the batteries you also see the model's name and its effort level: a little staircase that climbs from 1 step (low) to 5 steps (max), with the word beside it. On your status line the staircase climbs up to your level, one step every 2 seconds, holds there, then starts again; the word always says the level (when a narrow window hides the word, the staircase stands still). The batteries' pictures climb the same way, in four steps from a quarter of the way up to the real amount, and everything starts again together every 12 seconds; the number and words beside them never move, and a red battery stands still. juice refreshes every second (twice a step, so no step is skipped) so it keeps moving while Claude Code is idle. Each open Claude Code window runs juice that often; to make it lighter, set a slower `refreshInterval` in Claude Code's settings yourself, such as 10 or 20 seconds, and `/juice setup` keeps it (but not 30 or 60, which older juice wrote, so setup changes them).
+Next to the batteries you also see the model's name and its effort level: a little staircase from 1 step (low) to 5 steps (max), with the word beside it. By default the staircase and the batteries stand still at their true level, and juice refreshes once a minute, so the numbers and reset times stay current while Claude Code is idle at almost no cost.
+
+To make them move, type `/juice set motion=on`. The staircase then climbs up to your level, one step every 2 seconds, holds there, then starts again; the word always says the level (when a narrow window hides the word, the staircase stands still). The batteries' pictures climb the same way, in four steps from a quarter of the way up to the real amount, and everything starts again together every 12 seconds; the number and words beside them never move, and a red battery stands still. With motion on, juice refreshes every second (twice a step, so no step is skipped). That costs about a sixth of a CPU core per open Claude Code window. A `refreshInterval` you set yourself in Claude Code's settings, such as 10 or 20 seconds, is kept either way (but not 1, 30 or 60, which juice writes itself).
 
 The rounded battery ends in the pictures show on their own in VS Code. Other terminals get plain ends, because some fonts draw the rounded ones as boxes; if yours can draw them, type `/juice use round ends`.
 
@@ -176,6 +180,7 @@ Or type `/juice` and then say what you want, in your own words. For example:
 - `/juice show the reset times only when something needs attention`
 - `/juice make it a panel`
 - `/juice my terminal is light` (if the text is hard to read on a light background)
+- `/juice set motion=on` (the effort level and batteries climb; juice then refreshes every second, about a sixth of a CPU core per open window)
 - `/juice customize` (opens the live customizer with your current settings)
 
 ### Battery style
@@ -218,7 +223,8 @@ In a narrow window juice makes room step by step: first badges, reset times, the
 Badges are small optional extras that show the output of a command you choose. They update about every 30 seconds while you work.
 
 - Add one with `/juice badges add`. juice shows you the command before it adds it.
-- See yours, numbered, with `/juice badges list`.
+- See yours, numbered, with `/juice badges list`. It shows the first word of each command; `/juice badges list --show` shows the whole command and asks first.
+- Don't put passwords or API keys in a badge command. juice runs it as typed, and the chat can see it.
 - Remove the first one with `/juice badges remove 1` (it asks first).
 - Only the first line of the output shows, up to 40 characters.
 - A command that takes longer than 2 seconds is stopped and keeps its last text.
@@ -230,14 +236,14 @@ juice only runs badges you added yourself on this computer: each one is approved
 
 ## If something looks wrong
 
-Type `/juice doctor` first. It checks, in plain words, your Node version, whether juice is your status line, which juice it runs, whether a project setting hides it, whether your juice settings and badges are usable, whether drawing works with them, when juice last saw your limits, how the Fable battery is doing and the last problem the status line hit, and says what to do about each. It never shows your badge commands or another status line's command, and your home folder reads `~`, so it doesn't show your user name. If you ask for help, [open a bug report](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) and include what it says.
+Type `/juice doctor` first (when juice itself hits a problem, the line says `juice: /juice doctor` until the next run that works). It checks, in plain words, your Node version, whether juice is your status line, which juice it runs, whether a project setting hides it, whether your juice settings and badges are usable, whether drawing works with them, when juice last saw your limits, how the Fable battery is doing and the last problem the status line hit, and says what to do about each. It never shows your badge commands or another status line's command, and your home folder reads `~`, so it doesn't show your user name. If you ask for help, [open a bug report](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) and include what it says.
 
 - **The status line is empty.** Type `/juice setup` again; it repairs the line and says if a project setting or `disableAllHooks` is hiding it. If it is still empty, check that Node is installed (type `node --version` in a terminal; you need 24 or newer, from nodejs.org), then restart Claude Code.
 - **The text is hard to read on a light background.** Type `/juice my terminal is light`.
 - **You see boxes or question marks instead of round battery ends.** Type `/juice use plain ends`.
 - **You want round battery ends outside VS Code.** Type `/juice use round ends`.
-- **The Fable battery doesn't show at work, behind a company proxy.** There it needs Node 24 or newer (or 22.21 or newer on Node 22).
-- **It says "juice is turned off" or "juice is not installed".** Turn juice back on, or install it again, in `/plugin`. Then `/juice setup` uses it, or `/juice restore` gives you your old status line back.
+- **The Fable battery doesn't show at work, behind a company proxy.** There it needs Node 24 or newer, like the rest of juice.
+- **It says "juice is turned off" or "juice is not installed".** Turn juice back on, or install it again, in `/plugin`. Then `/juice setup` uses it, or `/juice restore` gives you your old status line back. If you don't want juice back, delete the `statusLine` entry in `~/.claude/settings.json`; your old one is in `~/.claude/juice-backup.json`.
 
 ## Update, undo and uninstall
 
@@ -255,9 +261,11 @@ After uninstalling, juice's own files are still in your Claude folder (`~/.claud
 ## Privacy
 
 - The Fable battery needs your Claude login token, the key Claude Code keeps on your computer to sign you in. juice reads it from `~/.claude/.credentials.json`.
-- The Fable battery is on by default on Windows and Linux. On a Mac it stays off until you type `/juice set fable=on`, and macOS will then ask once for permission to read it from the Keychain (the Mac's password store). This is new on the Mac: if macOS asks more than once, or the battery doesn't appear within a few minutes, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) what `/juice doctor` says. Share links and the customizer's command never turn it on or off; only you do.
+- juice asks before it reads the token, on every system: `/juice setup` asks once, and `/juice set fable=on` or `/juice set fable=off` changes your answer later. If you used juice before 1.4.0 on Windows or Linux and already have a Fable battery, it stays on. On a Mac, macOS also asks once for permission to read the token from the Keychain (the Mac's password store). This is new on the Mac: if macOS asks more than once, or the battery doesn't appear within a few minutes, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) what `/juice doctor` says. Share links and the customizer's command never turn it on or off; only you do.
 - juice sends that token only to `api.anthropic.com`, to read your usage, about every 5 minutes. It never stores or logs it.
-- The same usage reading also keeps Session and Weekly up to date in every window, including idle ones and brand-new chats. With the Fable battery off (as it is on a Mac until you turn it on), those two come only from Claude Code itself, so an idle window can show older numbers.
+- If `HTTPS_PROXY` is set, the proxy it names carries juice's connection to Anthropic, as it does for Claude Code.
+- The usage address juice reads (`api.anthropic.com/api/oauth/usage`) is not a documented API and may stop working.
+- The same usage reading also keeps Session and Weekly up to date in every window, including idle ones and brand-new chats. With the Fable battery off, those two come only from Claude Code itself, so an idle window can show older numbers.
 - To switch the Fable battery off, run `/juice set fable=off`.
 - Badges only run commands you added yourself with `/juice badges add`, after juice shows you the command.
 - Check it yourself: the token is read and sent in [src/fable.js](src/fable.js); badges run in [src/badges.js](src/badges.js).

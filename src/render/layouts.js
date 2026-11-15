@@ -7,7 +7,7 @@ import { ramp, chip, battery, batteryPct, batterySeg, batteryLow, form, isForm, 
 const lbl = (ctx, t) => fg(ctx.P.mute, t);
 const num = (ctx, t, level) => fg(level === 'ok' ? ctx.P.text : tone(ctx, level), t);
 const join = (parts, gap = '   ') => parts.filter(Boolean).join(gap);
-const money = (n) => `$${n.toFixed(2)}`;
+const money = (n) => (n < 0.01 ? '<$0.01' : `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 
 const badges = (data, ctx) => (ctx.fit.badges ? '' : data.badges.filter(Boolean).map((b) => fg(ctx.P.sub, b)).join(' '));
 

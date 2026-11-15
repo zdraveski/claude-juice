@@ -16,11 +16,16 @@ export const SHOW_IDS = Object.freeze(['model', 'effort', 'memory', 'session', '
 export const NOTHING_SHOWN = 'Your juice settings choose nothing to show, so the line stays empty. Type /juice show all the batteries to bring them back.';
 export const CUSTOMIZER_URL = 'https://zdraveski.github.io/claude-juice/web/';
 // Lives here, not in fable.js, so the status line can check it without loading child_process.
-export const fableEnabled = (setting, platform) => setting === 'on' || (setting === 'auto' && platform !== 'darwin');
+// auto reads the login only for someone who already has a reading (fable.json exists, even damaged): 1.3.x turned it on
+// without asking, and taking the battery away on update would look broken. Everyone else is asked first by /juice setup.
+export const fableEnabled = (setting, platform, hasReading) =>
+  setting === 'on' || (setting === 'auto' && platform !== 'darwin' && hasReading);
 
 export const DEFAULTS = Object.freeze({
   layout: 'bar', show: SHOW_IDS, order: 'yours', cost: 'auto', colors: 'claude',
   ends: 'auto', battery: 'glossy', terminal: 'auto', refills: 'always', fable: 'auto', badges: [],
+  // Off: the line stands at its true fill and refreshes once a minute. On: it climbs, refreshing every second.
+  motion: 'off',
 });
 
 // A look sets these seven in one go; battery, terminal, fable and badges stay the person's own.
@@ -46,7 +51,7 @@ export const LOOKS = Object.freeze([
 export const COLOR_KEYS = ['plentyLeft', 'goingFast', 'almostEmpty', 'accent'];
 const HEX = /^#[0-9a-f]{6}$/i;
 const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
-const oneOf = (ids) => (v) => (ids.includes(v) ? v : undefined);
+const oneOf = (ids) => Object.assign((v) => (ids.includes(v) ? v : undefined), { ids });
 
 const palette = (p) => (isObj(p) && COLOR_KEYS.every((k) => typeof p[k] === 'string' && HEX.test(p[k]))
   ? Object.fromEntries(COLOR_KEYS.map((k) => [k, p[k]])) : undefined);
@@ -61,6 +66,7 @@ const CHECK = {
   terminal: oneOf(['auto', 'dark', 'light']),
   refills: oneOf(['always', 'warnings']),
   fable: oneOf(['auto', 'on', 'off']),
+  motion: oneOf(['on', 'off']),
   show(v) {
     if (!Array.isArray(v)) return undefined;
     const ids = [...new Set(v.filter((id) => SHOW_IDS.includes(id)))];
@@ -75,10 +81,13 @@ const CHECK = {
 };
 
 const show = (v) => (typeof v === 'string' ? `'${v}'` : JSON.stringify(v));
+// The right values, from the same table that checks them (show has its own, longer warning).
+const valid = (key) => key === 'colors' ? `Use one of: ${PRESET_IDS.join(', ')}. Or your own: dark:a,b,c,d/light:a,b,c,d, each a hex colour like #22c55e (${COLOR_KEYS.join(', ')} in that order).`
+  : CHECK[key].ids ? `Use one of: ${CHECK[key].ids.join(', ')}.` : '';
 // A misspelt battery name is dropped, but never silently: "sesion" would otherwise just make Session vanish.
 const unknownShow = (v) => (Array.isArray(v) ? v.filter((id) => !SHOW_IDS.includes(id)) : []);
 // A value from a newer juice looks invalid to an older one.
-const NEWER = ". If it's new, update juice: type /plugin, update juice, restart Claude Code.";
+const NEWER = " If it's new, update juice: type /plugin, update juice, restart Claude Code.";
 const showWarning = (bad, then = 'so it was left out') => `show: ${bad.map(show).join(', ')} isn't a battery name (they are ${SHOW_IDS.join(', ')}; Weekly is "week"), ${then}`;
 
 export function sanitize(x, { allowBadges }) {
@@ -88,7 +97,7 @@ export function sanitize(x, { allowBadges }) {
   for (const k of Object.keys(CHECK)) {
     if (!(k in src)) continue;
     const v = CHECK[k](src[k]);
-    if (v === undefined) warnings.push(`${k}: ${show(src[k])} isn't valid, using ${show(DEFAULTS[k])}`);
+    if (v === undefined) warnings.push(`${k}: ${show(src[k])} isn't valid, using ${show(DEFAULTS[k])}${k === 'show' ? '' : `. ${valid(k)}`}`);
     else settings[k] = v;
     if (k === 'show' && v !== undefined && unknownShow(src.show).length) warnings.push(showWarning(unknownShow(src.show)));
   }
@@ -131,7 +140,7 @@ export function applySet(settings, pairs) {
     if (key === 'look') {
       const l = LOOKS.find((x) => x.id === text);
       if (l) Object.entries(l.set).forEach(([k, v]) => put(k, v));
-      else warnings.push(`look: '${text}' isn't a look`);
+      else warnings.push(`look: '${text}' isn't a look. Use one of: ${LOOKS.map((x) => x.id).join(', ')}.`);
       continue;
     }
     if (!Object.hasOwn(CHECK, key)) { warnings.push(`${pair}: not a setting`); continue; }
@@ -139,7 +148,7 @@ export function applySet(settings, pairs) {
     const v = CHECK[key](parsed);
     if (v === undefined) {
       // Plain words, not JSON: "sesion,weekly" gets the list of right names (Weekly is "week").
-      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${text}' isn't valid, keeping ${show(next[key])}${key === 'colors' && text.includes(':') ? '' : NEWER}`);
+      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${text}' isn't valid, keeping ${show(next[key])}. ${valid(key)}${key === 'colors' && text.includes(':') ? '' : NEWER}`);
       continue;
     }
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));
@@ -163,13 +172,15 @@ const colorWord = (c) => (typeof c === 'string' ? c
 
 // Everything the customizer has a control for. Not fable: switching it on reads the person's login (from the
 // Keychain on a Mac), which only they should decide, with /juice set, never a pasted command or a shared link.
-const COMMAND_KEYS = ['layout', 'show', 'order', 'cost', 'colors', 'ends', 'battery', 'terminal', 'refills'];
+const COMMAND_KEYS = ['layout', 'show', 'order', 'cost', 'colors', 'ends', 'battery', 'terminal', 'refills', 'motion'];
 
-// terminal=auto goes in only when the person chose Automatic on the page: the public page starts at auto,
-// and pasting a look from it must not undo the "/juice set terminal=light" they chose earlier.
-export function toCommand(s, { terminalChosen = false } = {}) {
+// terminal=auto and motion=off go in only when the person chose them on the page: the public page starts there,
+// and pasting a look from it must not undo the "/juice set terminal=light" or "motion=on" they chose earlier.
+const UNLESS_CHOSEN = { terminal: 'auto', motion: 'off' };
+export function toCommand(s, { terminalChosen = false, motionChosen = false } = {}) {
   const v = { ...s, show: s.show.join(','), colors: colorWord(s.colors) };
-  return '/juice set ' + COMMAND_KEYS.filter((k) => k !== 'terminal' || v.terminal !== 'auto' || terminalChosen).map((k) => `${k}=${v[k]}`).join(' ');
+  const chosen = { terminal: terminalChosen, motion: motionChosen };
+  return '/juice set ' + COMMAND_KEYS.filter((k) => v[k] !== UNLESS_CHOSEN[k] || chosen[k]).map((k) => `${k}=${v[k]}`).join(' ');
 }
 
 // Badges run shell commands and fable reads the login, so neither travels in a link.

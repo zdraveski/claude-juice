@@ -114,3 +114,8 @@ test('memoryNote and tables', () => {
   assert.equal(LABELS.fable[1], 'Fable weekly');
   assert.deepEqual(EFFORT.xhigh, [4, 'extra high']);
 });
+
+test('limitNote: a limit that is 100% used with no reset time says it is used up', () => {
+  assert.equal(limitNote({ used: 100, level: 'crit' }, NOW).text, 'used up');
+  assert.equal(limitNote({ used: 95, level: 'crit' }, NOW).text, 'almost empty');
+});

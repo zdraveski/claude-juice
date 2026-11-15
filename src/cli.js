@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { paths } from './paths.js';
+import { paths, hideHome } from './paths.js';
 import { readJson } from './cache.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { applySet, encodeLink, fableEnabled, CUSTOMIZER_URL, LOOKS, NOTHING_SHOWN } from './schema.js';
@@ -10,7 +10,7 @@ import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
 import { refreshFable } from './fable.js';
 import { refreshBadges, addBadge, listBadges, removeBadge, unapprovedBadges } from './badges.js';
-import { install, restore, fwd, NeedsConfirm } from './setup.js';
+import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm, Unreadable } from './setup.js';
 
 const ROOT = new URL('..', import.meta.url);
 const USAGE = 'Usage: juice set <key=value>... | get | looks | setup | restore | customize | doctor | badges add|list|remove | refresh-fable | refresh-badges <key>';
@@ -35,6 +35,17 @@ export async function main(argv, io) {
         const changed = write.filter((k) => moved.includes(k) || Object.hasOwn(file, k));
         if (write.length) saveSettings(p, Object.fromEntries(write.map((k) => [k, settings[k]])));
         io.out(changed.length ? `Changed: ${changed.join(', ')}` : 'Nothing changed.');
+        if (chosen.includes('motion')) {
+          try {
+            const n = matchRefresh(p, { platform: io.platform });
+            if (n) io.out(`juice now refreshes ${refreshWords(n)}.`);
+          } catch (e) {
+            // An error code means the file couldn't be saved; without one, it couldn't be read, or its JSON is broken.
+            io.out(e?.code ? `Warning: motion is saved, but the refresh time stays as it is. ${friendly(e)}`
+              : e instanceof Unreadable ? "Warning: motion is saved, but juice can't read your Claude Code settings file (settings.json), so the refresh time stays as it is. Make sure it is yours and you can read it, then try again."
+              : 'Warning: motion is saved, but your Claude Code settings file (settings.json) has a mistake in it, so the refresh time stays as it is. Ask Claude to fix it, then try again.');
+          }
+        }
         // The file's warnings were read before this write: drop the ones about values just replaced.
         [...loaded.warnings.filter((w) => !write.some((k) => w.startsWith(`${k}:`))), ...warnings].forEach((w) => io.out(`Warning: ${w}`));
         if (!settings.show.length) io.out(`Warning: ${NOTHING_SHOWN}`);
@@ -43,7 +54,9 @@ export async function main(argv, io) {
       case 'get': {
         const { settings: { badges, ...rest }, warnings } = loadSettings(p);
         // The /juice skill runs get before every change, so badge commands (which can hold keys) never go in here.
-        io.out(JSON.stringify({ ...rest, badges: badges.length }, null, 2));
+        // fableOn tells the skill whether to ask before setup reads the login.
+        const fableOn = fableEnabled(rest.fable, io.platform, existsSync(p.fableFile));
+        io.out(JSON.stringify({ ...rest, fableOn, badges: badges.length }, null, 2));
         warnings.forEach((w) => io.out(`Warning: ${w}`)); // an unreadable juice.json must not pass for the defaults
         return 0;
       }
@@ -78,7 +91,7 @@ export async function main(argv, io) {
         const yes = all.at(-1) === '--yes', rest = yes ? all.slice(0, -1) : all;
         if (sub === 'add') {
           const command = rest.join(' ');
-          if (!command) { io.err('Give the command to add, for example: badges add "rtk gain" --yes'); return 1; }
+          if (!command) { io.err('Give the command to add, for example: badges add "git branch --show-current" --yes'); return 1; }
           if (!yes) { io.out(`This badge would run: ${command}`); io.out('Run again with --yes to add it.'); return 2; }
           addBadge(p, command);
           io.out(`Added badge: ${command}`);
@@ -86,7 +99,9 @@ export async function main(argv, io) {
         }
         if (sub === 'list') {
           const l = listBadges(p), off = unapprovedBadges(p);
-          io.out(l.length ? l.map((c, i) => `${i + 1}. ${c}${off.includes(i + 1) ? ' (not approved on this computer, so it never runs: remove it, then add it again to use it)' : ''}`).join('\n') : 'No badges.');
+          // The /juice skill runs list without asking, and a command can hold a key: only its first word, unless --show.
+          const name = (c) => (all.includes('--show') || !/\s/.test(c.trim()) ? c : `${c.trim().split(/\s+/)[0]} …`);
+          io.out(l.length ? l.map((c, i) => `${i + 1}. ${name(c)}${off.includes(i + 1) ? ' (not approved on this computer, so it never runs: remove it, then add it again to use it)' : ''}`).join('\n') : 'No badges.');
           loadSettings(p).warnings.forEach((w) => io.out(`Warning: ${w}`));
           return 0;
         }
@@ -104,7 +119,7 @@ export async function main(argv, io) {
       }
       case 'refresh-fable': {
         const { settings } = loadSettings(p);
-        if (fableEnabled(settings.fable, io.platform)) {
+        if (fableEnabled(settings.fable, io.platform, existsSync(p.fableFile))) {
           await refreshFable({ p, platform: io.platform, env: io.env, now: io.now, version: version() });
         }
         return 0;
@@ -121,10 +136,23 @@ export async function main(argv, io) {
     }
   } catch (e) {
     if (e instanceof NeedsConfirm) { io.out(e.message); return 2; }
-    // A read-only file or folder: plain words, not an EPERM with the full path (and the person's name) in it.
-    const locked = e?.code === 'EPERM' || e?.code === 'EACCES';
-    io.err(locked ? "juice couldn't save a file in your Claude folder because it is read-only. Make it writable (Claude can do it for you), then try again."
-      : e?.message || 'Something went wrong.');
+    io.err(friendly(e));
     return 1;
   }
 }
+
+// Plain words for a file that can't be saved, not a raw error with the full path (and the person's name) in it.
+const CANT_SAVE = "juice couldn't save a file in your Claude folder because ";
+const SAVE_FAILS = {
+  // Windows gives EPERM for a file another program holds open, too. Elsewhere a save replaces the file, so a folder's
+  // owner or mode stops it (EACCES), and so does a locked file (EPERM: the Finder's Locked box, chattr +i).
+  EPERM: process.platform === 'win32'
+    ? 'it is read-only or open in another program. Make it writable or close that program (Claude can help), then try again.'
+    : 'it or a folder it goes in is read-only, locked or belongs to another user. Make them yours and writable (Claude can help), then try again.',
+  EROFS: 'the disk is read-only. Use a Claude folder on a disk you can write to, then try again.',
+  EBUSY: 'another program is using it. Close that program, then try again.',
+  ENOSPC: 'the disk is full. Free some space, then try again.',
+  ENOTDIR: 'a folder it needs is really a file. Check that your Claude folder is the right one, then try again.',
+};
+SAVE_FAILS.EACCES = SAVE_FAILS.EPERM;
+export const friendly = (e) => (SAVE_FAILS[e?.code] ? CANT_SAVE + SAVE_FAILS[e.code] : hideHome(e?.message || 'Something went wrong.'));

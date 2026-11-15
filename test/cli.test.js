@@ -1,9 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, statSync, chmodSync, rmSync, utimesSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { tmpdir, homedir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
-import { main } from '../src/cli.js';
+import { fileURLToPath } from 'node:url';
+import { main, friendly } from '../src/cli.js';
 import { isJuice } from '../src/setup.js';
 import { CUSTOMIZER_URL, LOOKS } from '../src/schema.js';
 
@@ -22,6 +25,9 @@ async function run(dir, argv) {
   return { code, out: out.join('\n'), err: err.join('\n'), opened };
 }
 const json = (f) => JSON.parse(readFileSync(f, 'utf8'));
+// Windows says EPERM for a file another program holds open. Elsewhere a save replaces the file, so a folder's owner or
+// mode stops it (EACCES), and so does a locked file (EPERM: the Finder's Locked box, chattr +i).
+const LOCKED = process.platform === 'win32' ? 'it is read-only or open in another program' : 'it or a folder it goes in is read-only, locked or belongs to another user';
 const OLD = { statusLine: { type: 'command', command: 'node old.js' }, theme: 'dark' };
 // The command setup writes for config dir d: plain node on Windows; on macOS and Linux, node with its folder put in front of PATH.
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -57,25 +63,239 @@ test('setup backs up, keeps other keys, and a second setup keeps the backup', as
 });
 
 // The countdowns go stale while Claude Code is idle unless it re-runs the status line on a timer.
-test('setup asks for a refresh every second, adds it to an older juice install, and moves the old 60 and 30', async () => {
+test('setup writes the refresh motion wants: once a minute when still, every second when climbing', async () => {
   const d = env();
+  const sl = () => json(join(d, 'settings.json')).statusLine;
   writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD));
   await run(d, ['setup']);
-  assert.equal(json(join(d, 'settings.json')).statusLine.refreshInterval, 1);
-  const older = json(join(d, 'settings.json'));
-  delete older.statusLine.refreshInterval;
-  writeFileSync(join(d, 'settings.json'), JSON.stringify(older));
-  const r = await run(d, ['setup']);
-  assert.equal(r.code, 0);
-  assert.equal(json(join(d, 'settings.json')).statusLine.refreshInterval, 1);
+  assert.equal(sl().refreshInterval, 60);
   assert.deepEqual(json(join(d, 'juice-backup.json')).statusLine, OLD.statusLine, 'the saved old line is untouched');
   assert.match((await run(d, ['setup'])).out, /already your status line\. Nothing changed\./);
-  // 60 and 30 are what juice wrote before; setup moves them, so the pictures climb while idle.
-  for (const old of [60, 30]) {
-    writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...older, statusLine: { ...older.statusLine, refreshInterval: old } }));
-    assert.match((await run(d, ['setup'])).out, /refreshes every second/, String(old));
-    assert.equal(json(join(d, 'settings.json')).statusLine.refreshInterval, 1, String(old));
+  // 1 and 30 are what juice wrote before (1.3.1 and 1.3.0), and a missing time is an install from before 0.3.
+  for (const old of [1, 30, undefined]) {
+    writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...OLD, statusLine: { ...sl(), refreshInterval: old } }));
+    assert.match((await run(d, ['setup'])).out, /juice now refreshes once a minute/, String(old));
+    assert.equal(sl().refreshInterval, 60, String(old));
   }
+  assert.match((await run(d, ['set', 'motion=on'])).out, /Changed: motion\njuice now refreshes every second/);
+  assert.equal(sl().refreshInterval, 1);
+  assert.match((await run(d, ['setup'])).out, /already your status line\. Nothing changed\./);
+  await run(d, ['set', 'motion=off']);
+  assert.equal(sl().refreshInterval, 60);
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...OLD, statusLine: { ...sl(), refreshInterval: 45 } }));
+  for (const m of ['on', 'off']) {
+    await run(d, ['set', `motion=${m}`]);
+    await run(d, ['setup']);
+    assert.equal(sl().refreshInterval, 45, 'a time chosen by hand stays');
+  }
+});
+
+test('set motion with a broken settings.json saves motion, warns, and leaves the file alone', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), '{"statusLine":');
+  const r = await run(d, ['set', 'motion=on']);
+  assert.equal(r.code, 0);
+  assert.equal(json(join(d, 'juice.json')).motion, 'on');
+  assert.match(r.out, /Warning: motion is saved, but your Claude Code settings file/);
+  assert.equal(readFileSync(join(d, 'settings.json'), 'utf8'), '{"statusLine":');
+});
+
+// A folder stands in for a settings.json juice may not read (one left owned by root by "sudo claude", say).
+test('a settings.json juice cannot read is called unreadable, never a file with a mistake in it', async () => {
+  const d = env();
+  mkdirSync(join(d, 'settings.json'));
+  const setup = await run(d, ['setup']);
+  assert.equal(setup.code, 1);
+  assert.match(setup.err, /^juice can't read your Claude Code settings file/);
+  const set = await run(d, ['set', 'motion=on']);
+  assert.equal(set.code, 0);
+  assert.match(set.out, /Warning: motion is saved, but juice can't read your Claude Code settings file[^\n]*then try again\./);
+  const doctor = await run(d, ['doctor']);
+  assert.match(doctor.out, /juice can't read your Claude Code settings file/);
+  // Restore says so too, and "try again" means the command they just ran, not setup (that would reinstall juice).
+  const restore = await run(d, ['restore']);
+  assert.equal(restore.code, 1);
+  for (const r of [setup, restore]) assert.match(r.err, /^juice can't read your Claude Code settings file.*then try again\.$/);
+  for (const r of [setup, set, doctor, restore]) assert.doesNotMatch(r.out + r.err, /mistake/);
+  for (const r of [set, restore]) assert.doesNotMatch(r.out + r.err, /\/juice setup/);
+});
+
+test('a settings.json with a mistake in it says try again, not run setup, so restore and set are not sent to setup', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), '{ "statusLine": ');
+  const restore = await run(d, ['restore']);
+  assert.equal(restore.code, 1);
+  assert.match(restore.err, /has a mistake in it.*then try again\.$/);
+  const set = await run(d, ['set', 'motion=on']);
+  assert.match(set.out, /has a mistake in it[^\n]*then try again\./);
+  assert.doesNotMatch(set.out, /\/juice setup/);
+});
+
+// Claude Code can save settings.json at any moment; a second read could catch it mid-save (Windows: EBUSY).
+test('settings.json is read once, so a save between two reads is not called a mistake', async (t) => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD));
+  const { readClaudeSettings } = await import('../src/setup.js');
+  const { paths } = await import('../src/paths.js');
+  const real = fs.readFileSync;
+  let reads = 0;
+  t.mock.method(fs, 'readFileSync', function (file, ...rest) {
+    if (String(file).endsWith('settings.json') && ++reads > 1) throw Object.assign(new Error('busy'), { code: 'EBUSY' });
+    return real.call(this, file, ...rest);
+  });
+  syncBuiltinESMExports(); // named imports of node:fs follow the mock only after this
+  try { assert.deepEqual(readClaudeSettings(paths({ CLAUDE_CONFIG_DIR: d })), OLD); }
+  finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
+});
+
+test('a Claude folder juice cannot enter is called unreadable, not a folder with no status line', {
+  skip: (process.platform === 'win32' && 'chmod cannot lock a folder on Windows') || (process.getuid?.() === 0 && 'root can read anything'),
+}, async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD));
+  chmodSync(d, 0o000);
+  try {
+    const doctor = await run(d, ['doctor']);
+    assert.match(doctor.out, /juice can't read your Claude Code settings file/);
+    assert.doesNotMatch(doctor.out, /No status line is set/);
+    // Not "fix or delete": juice can't tell whether juice.json is there, and deleting it would lose settings and badges.
+    assert.match(doctor.out, /juice settings: juice isn't allowed to read juice\.json, using defaults\. Make sure it and your Claude folder are yours/, 'not silently drawn with the defaults');
+    const set = await run(d, ['set', 'layout=bar']);
+    assert.match(set.err, /^juice can't read your juice settings file[^\n]*Make sure it and your Claude folder are yours/);
+    for (const r of [doctor, set]) assert.doesNotMatch(r.out + r.err, /delete/);
+  } finally { chmodSync(d, 0o700); }
+});
+
+test('set motion with a settings.json juice cannot save says why, not that the file has a mistake', { skip: process.platform !== 'win32' && 'elsewhere only a locked folder stops the save, and that stops juice.json too' }, async () => {
+  const d = env(), f = join(d, 'settings.json');
+  await run(d, ['setup']);
+  chmodSync(f, 0o444);
+  try {
+    const r = await run(d, ['set', 'motion=on']);
+    assert.equal(r.code, 0);
+    assert.equal(json(join(d, 'juice.json')).motion, 'on');
+    assert.match(r.out, /Warning: motion is saved, but the refresh time stays as it is\. juice couldn't save a file in your Claude folder because it is read-only or open in another program\./);
+    assert.doesNotMatch(r.out, /mistake/);
+  } finally { chmodSync(f, 0o644); }
+});
+
+// Before 1.4.0 the folders took the default permissions, and nothing makes a folder again once it exists.
+test('after an update, a refresh makes the cache folders private', { skip: process.platform === 'win32' && 'Windows has no owner-only folder mode' }, async () => {
+  const d = env(), cache = join(d, 'juice-cache'), badges = join(cache, 'badges');
+  await run(d, ['setup']);
+  mkdirSync(badges, { recursive: true });
+  chmodSync(cache, 0o755); chmodSync(badges, 0o755);
+  utimesSync(join(d, 'juice-statusline.mjs'), new Date(0), new Date(0));
+  const { runStatusLine } = await import('../src/statusline.js');
+  await runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
+  assert.equal(statSync(cache).mode & 0o777, 0o700);
+  assert.equal(statSync(badges).mode & 0o777, 0o700);
+});
+
+// 1.3.x people won't run setup again, so the first refresh after the update moves the every-second juice wrote.
+test('after an update, a refresh moves the 1 juice wrote to 60 once, and nothing else in settings.json', async () => {
+  const d = env(), f = join(d, 'settings.json'), launcher = join(d, 'juice-statusline.mjs');
+  await run(d, ['setup']);
+  const s = { ...json(f), theme: 'dark', permissions: { allow: ['Bash(ls)'] }, hooks: { Stop: [] }, env: { A: '1' } };
+  const put = (o) => writeFileSync(f, JSON.stringify({ ...s, statusLine: { ...s.statusLine, ...o } }));
+  const stale = () => utimesSync(launcher, new Date(0), new Date(0));
+  const { runStatusLine } = await import('../src/statusline.js');
+  const { matchRefresh } = await import('../src/setup.js');
+  const { paths } = await import('../src/paths.js');
+  const draw = () => runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
+  put({ refreshInterval: 1 }); stale(); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 60);
+  assert.deepEqual({ ...json(f), statusLine: null }, { ...s, statusLine: null }, 'every other key comes back as it was');
+  assert.equal(matchRefresh(paths({ CLAUDE_CONFIG_DIR: d }), { platform: 'linux' }), null, 'a second window changes nothing');
+  put({ refreshInterval: 1 }); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 1, 'only once per update');
+  put({ refreshInterval: 45 }); stale(); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 45, 'a time chosen by hand stays');
+  put({ command: 'node "/elsewhere/.claude/juice-statusline.mjs"', refreshInterval: 1 }); stale(); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 1, "another folder's juice is not ours to change");
+  writeFileSync(f, '{"statusLine":'); stale();
+  assert.equal(typeof await draw(), 'string');
+  assert.equal(readFileSync(f, 'utf8'), '{"statusLine":', 'a broken file is never written');
+});
+
+// Two refreshes after an update, the first with refreshInterval put back to 1: the check moves it to 60 once.
+async function checkedOnce(d, name) {
+  const { runStatusLine } = await import('../src/statusline.js');
+  const f = join(d, 'settings.json');
+  const every = (n) => writeFileSync(f, JSON.stringify({ statusLine: { ...json(f).statusLine, refreshInterval: n } }));
+  const draw = () => runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
+  every(1); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 60, `${name}: checked`);
+  every(1); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 1, `${name}: only once`);
+}
+
+test('a launcher or juice dated far ahead by a wrong clock gets the once-per-update check, once', async (t) => {
+  const YEAR = 365 * 86400000, template = new URL('../bin/launcher.js', import.meta.url), installed = statSync(template).mtimeMs;
+  const utimes = fs.utimesSync, stat = fs.statSync, even = (x) => new Date(Math.floor(+x / 2000) * 2000);
+  // clock: a year before juice was installed, not before today, which an old checkout or ZIP could predate.
+  // ahead: juice dated a year ahead of the real clock, which then dates a launcher juice rewrites (old) before it.
+  // coarse: a disk that keeps only even seconds (FAT; WSL's /mnt/c keeps whole ones).
+  for (const c of [
+    { name: 'launcher ahead', written: Date.now() + YEAR },
+    { name: 'juice and launcher ahead', written: installed + 7200000, clock: installed - YEAR },
+    { name: 'juice ahead, launcher rewritten', written: Date.now(), ahead: true, old: true },
+    { name: 'juice ahead, coarse disk', written: installed + 7200000, clock: installed - YEAR, coarse: true },
+  ]) {
+    const d = env(), launcher = join(d, 'juice-statusline.mjs');
+    await run(d, ['setup']);
+    if (c.old) writeFileSync(launcher, '// an old launcher\n');
+    utimesSync(launcher, new Date(c.written), new Date(c.written));
+    if (c.clock) t.mock.timers.enable({ apis: ['Date'], now: c.clock });
+    if (c.coarse) t.mock.method(fs, 'utimesSync', (file, a, m) => utimes(file, even(a), even(m)));
+    if (c.ahead) {
+      t.mock.method(fs, 'statSync', (file, ...rest) => {
+        const s = stat(file, ...rest);
+        if (String(file) === fileURLToPath(template)) s.mtimeMs += YEAR;
+        return s;
+      });
+    }
+    syncBuiltinESMExports();
+    try { await checkedOnce(d, c.name); } finally {
+      if (c.clock) t.mock.timers.reset();
+      t.mock.restoreAll(); syncBuiltinESMExports();
+    }
+  }
+});
+
+// Only a file's owner may set its times, so a launcher left by setup run with sudo can't be marked checked.
+test('a launcher another user owns still gets the once-per-update check, once', async (t) => {
+  const d = env(), launcher = join(d, 'juice-statusline.mjs');
+  await run(d, ['setup']);
+  utimesSync(launcher, new Date(0), new Date(0)); // written before the update
+  // bigint: Windows file ids pass 2^53, so as plain numbers two files could compare equal.
+  const ino = (f) => statSync(f, { bigint: true }).ino, theirs = ino(launcher), utimes = fs.utimesSync;
+  t.mock.method(fs, 'utimesSync', (file, ...rest) => {
+    if (ino(file) === theirs) throw Object.assign(new Error('not the owner'), { code: 'EPERM' });
+    return utimes(file, ...rest);
+  });
+  syncBuiltinESMExports();
+  try { await checkedOnce(d, 'theirs'); } finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
+});
+
+// /juice restore in another window can delete the launcher while a refresh checks it: it stays deleted.
+test('a launcher deleted during the once-per-update check is not written back', async (t) => {
+  const d = env(), launcher = join(d, 'juice-statusline.mjs');
+  await run(d, ['setup']);
+  utimesSync(launcher, new Date(0), new Date(0));
+  const utimes = fs.utimesSync;
+  let restored = false;
+  t.mock.method(fs, 'utimesSync', (file, ...rest) => {
+    if (restored || !String(file).endsWith('juice-statusline.mjs')) return utimes(file, ...rest);
+    restored = true; rmSync(file);
+    throw Object.assign(new Error('no such file'), { code: 'ENOENT' });
+  });
+  syncBuiltinESMExports();
+  const { runStatusLine } = await import('../src/statusline.js');
+  try { await runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} }); }
+  finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
+  assert.ok(restored, 'the check ran');
+  assert.ok(!existsSync(launcher), 'not written back');
 });
 
 // Switching between a checkout and the plugin store only rewrites the launcher; setup must still say so.
@@ -94,7 +314,7 @@ test('setup says when it points the launcher at another copy of juice', async ()
   writeFileSync(join(d, 'juice-statusline.mjs'), 'await import("old")');
   const s = json(join(d, 'settings.json'));
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: undefined } }));
-  assert.match((await run(d, ['setup'])).out, /refreshes every second.*\nIts launcher file was missing or from an older juice, so juice put it back\./);
+  assert.match((await run(d, ['setup'])).out, /refreshes once a minute.*\nIts launcher file was missing or from an older juice, so juice put it back\./);
 });
 
 test('rare setups: an empty settings.json, a relative config folder, a " in its path, a refresh under a second', async () => {
@@ -114,7 +334,7 @@ test('rare setups: an empty settings.json, a relative config folder, a " in its 
   }
   const s = json(join(d, 'settings.json'));
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 0.5 } }));
-  assert.match((await run(d, ['setup'])).out, /refreshes every second/, 'Claude Code ignores anything under one second');
+  assert.match((await run(d, ['setup'])).out, /refreshes once a minute/, 'Claude Code ignores anything under one second');
 });
 
 test('a settings.json juice cannot read is never replaced', { skip: process.platform === 'win32' && 'Windows has no owner-only file mode' }, async () => {
@@ -370,7 +590,7 @@ test('a read-only settings file gets plain words, not a raw EPERM with the path 
     if (process.platform !== 'win32' && process.getuid?.() === 0) return t.skip('root can write anywhere');
     const r = await run(d, ['setup']);
     assert.equal(r.code, 1);
-    assert.match(r.err, /^juice couldn't save a file in your Claude folder because it is read-only\./);
+    assert.match(r.err, new RegExp(`^juice couldn't save a file in your Claude folder because ${LOCKED}\\.`));
     assert.doesNotMatch(r.err, /EPERM|EACCES/);
   } finally { lock(false); }
   assert.deepEqual(json(f), OLD, 'left exactly as it was');
@@ -469,11 +689,11 @@ test('badges add needs --yes, then add/list/remove', async () => {
   assert.match(r.out, /Run again with --yes to add it\./);
   assert.equal(existsSync(join(d, 'juice.json')), false);
   assert.equal((await run(d, ['badges', 'add', 'rtk gain', '--yes'])).code, 0);
-  assert.match((await run(d, ['badges', 'list'])).out, /1\. rtk gain/);
+  assert.match((await run(d, ['badges', 'list', '--show'])).out, /1. rtk gain/);
   const ask = await run(d, ['badges', 'remove', '1']);
   assert.equal(ask.code, 2);
   assert.match(ask.out, /This would remove badge 1: rtk gain/);
-  assert.match((await run(d, ['badges', 'list'])).out, /1\. rtk gain/, 'asking removed nothing');
+  assert.match((await run(d, ['badges', 'list', '--show'])).out, /1\. rtk gain/, 'asking removed nothing');
   assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 0);
   assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 1);
 });
@@ -491,7 +711,7 @@ test('a --yes inside the badge command belongs to the command; only a final --ye
   assert.equal(ask.code, 2, 'not the go-ahead');
   assert.match(ask.out, /This badge would run: npx --yes ccusage/);
   assert.equal((await run(d, ['badges', 'add', 'npx', '--yes', 'ccusage', '--yes'])).code, 0);
-  assert.equal((await run(d, ['badges', 'list'])).out, '1. npx --yes ccusage');
+  assert.equal((await run(d, ['badges', 'list', '--show'])).out, '1. npx --yes ccusage');
 });
 
 test('badges remove takes --yes before or after the number', async () => {
@@ -499,16 +719,54 @@ test('badges remove takes --yes before or after the number', async () => {
   await run(d, ['badges', 'add', 'echo A', '--yes']);
   await run(d, ['badges', 'add', 'echo B', '--yes']);
   assert.equal((await run(d, ['badges', 'remove', '--yes', '2'])).code, 0);
-  assert.equal((await run(d, ['badges', 'list'])).out, '1. echo A');
+  assert.equal((await run(d, ['badges', 'list', '--show'])).out, '1. echo A');
+});
+
+test('badges add with no command gives an example that works in every shell', async () => {
+  const r = await run(env(), ['badges', 'add']);
+  assert.match(r.err, /badges add "git branch --show-current" --yes/);
+  assert.doesNotMatch(r.err, /rtk/);
+});
+
+test('a file juice cannot save reaches the person as one plain sentence, never a raw error with their path', async () => {
+  for (const code of ['EPERM', 'EACCES', 'EROFS', 'EBUSY', 'ENOSPC', 'ENOTDIR']) {
+    const text = friendly(Object.assign(new Error(`${code}: nope, open '/home/sam/.claude/juice.json'`), { code }));
+    assert.match(text, /^juice couldn't save a file/, code);
+    assert.doesNotMatch(text, /sam|\.json/, code);
+  }
+  assert.match(friendly({ code: 'EPERM' }), new RegExp(`because ${LOCKED}\\. `));
+  assert.equal(friendly({ code: 'EACCES' }), friendly({ code: 'EPERM' }));
+  const other = friendly(new Error(`EISDIR: illegal operation on a directory, open '${homedir()}/.claude/juice.json'`));
+  assert.doesNotMatch(other, new RegExp(homedir().replaceAll('\\', '\\\\')));
+  assert.match(other, /EISDIR/);
+  assert.equal(friendly({}), 'Something went wrong.');
+});
+
+test('badges list keeps keys out of the chat: first word only, whole commands with --show', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'curl -H "Authorization: sk-secret-123" https://x.test', '--yes']);
+  await run(d, ['badges', 'add', 'uptime', '--yes']);
+  const hidden = (await run(d, ['badges', 'list'])).out;
+  assert.equal(hidden, '1. curl …\n2. uptime');
+  assert.doesNotMatch(hidden, /sk-secret/);
+  assert.match((await run(d, ['badges', 'list', '--show'])).out, /1\. curl -H "Authorization: sk-secret-123" https:\/\/x\.test\n2\. uptime/);
 });
 
 test('badges list says which badges this computer never approved, so they never run', async () => {
   const d = env();
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ badges: [{ command: 'echo copied' }] }));
   await run(d, ['badges', 'add', 'echo mine', '--yes']);
-  const out = (await run(d, ['badges', 'list'])).out;
+  const out = (await run(d, ['badges', 'list', '--show'])).out;
   assert.match(out, /1\. echo copied \(not approved on this computer/);
   assert.match(out, /2\. echo mine$/m);
+});
+
+test('get says whether the Fable battery is on', async () => {
+  const d = env();
+  assert.match((await run(d, ['get'])).out, /"fableOn": false/);
+  mkdirSync(join(d, 'juice-cache'));
+  writeFileSync(join(d, 'juice-cache', 'fable.json'), '{}');
+  assert.match((await run(d, ['get'])).out, /"fableOn": true/);
 });
 
 test('get and badges list warn when juice.json cannot be read, instead of passing for the defaults', async () => {
@@ -524,7 +782,7 @@ test('the /juice flow for removing one of two badges removes only that one', asy
   await run(d, ['badges', 'add', 'echo B', '--yes']);
   await run(d, ['badges', 'remove', '1']); // first run: shows what it would do
   await run(d, ['badges', 'remove', '1', '--yes']); // re-run after the user agrees
-  assert.equal((await run(d, ['badges', 'list'])).out, '1. echo B');
+  assert.equal((await run(d, ['badges', 'list', '--show'])).out, '1. echo B');
 });
 
 test('an unreadable juice.json is never overwritten with defaults', async () => {

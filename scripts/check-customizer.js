@@ -158,3 +158,70 @@ test('light terminal, and no sideways scrolling on a phone', async () => {
   assert.ok(await page.locator('#win.light').count(), 'still light: the real line would be');
   assert.equal(await page.getAttribute('[data-view=term] [data-v=light]', 'aria-pressed'), 'true');
 });
+
+test('a screen reader hears the live preview as words, and they follow every redraw', async () => {
+  const { page } = await open();
+  assert.equal(await page.getAttribute('#out', 'role'), 'img');
+  const name = () => page.getAttribute('#out', 'aria-label');
+  assert.match(await name(), /Memory 64%.*Session 47%.*resets in 2h 10m/);
+  assert.doesNotMatch(await name(), /[▀▂▃▅▊■│◆]/u);
+  const before = await name();
+  await page.click('[data-view=state] [data-v=trouble]');
+  assert.notEqual(await name(), before);
+});
+
+test('each Copy button says what it copies', async () => {
+  const { page } = await open();
+  const names = await page.$$eval('[data-copy]', (bs) => bs.map((b) => b.getAttribute('aria-label')));
+  assert.equal(names.length, 5);
+  assert.ok(names.every((n) => /^Copy /.test(n || '')), String(names));
+  assert.equal(new Set(names).size, 5, 'no two alike');
+});
+
+test('no sideways scrolling at 320 px wide', async () => {
+  const { page } = await open(320);
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+});
+
+test('a Content-Security-Policy is set, and the page still works under it', async () => {
+  const { page, errors } = await open();
+  assert.match(await page.getAttribute('meta[http-equiv=Content-Security-Policy]', 'content'), /default-src 'none'/);
+  await page.click('[data-look=quiet]');
+  assert.match(await cmd(page), /colors=calm/);
+  assert.deepEqual(errors, []);
+});
+
+test('the fake window title is easy to read in both terminals', async () => {
+  const { page } = await open();
+  const ratio = () => page.evaluate(() => {
+    const lum = (c) => { const [r, g, b] = c.match(/\d+/g).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const el = document.getElementById('wintitle'), a = lum(getComputedStyle(el).color), b = lum(getComputedStyle(el.parentElement).backgroundColor);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  });
+  assert.ok(await ratio() >= 4.5, 'dark');
+  await page.click('[data-view=term] [data-v=light]');
+  assert.ok(await ratio() >= 4.5, 'light');
+});
+
+// The switch does add fable to show=; what the page can't do is let juice read the login.
+test('the Fable row reads as sentences, says the page cannot turn on reading the login, and names no plan as the only one', async () => {
+  const { page } = await open();
+  const row = () => page.textContent('[data-bat=fable] .d');
+  const tail = " This page can't turn on reading your login: type /juice set fable=on.";
+  assert.equal(await row(), `The separate weekly limit for Fable.${tail}`);
+  await page.click('[data-view=plan] [data-v=pro]');
+  assert.equal(await row(), `The separate weekly limit for Fable · The preview hides it on Pro.${tail}`);
+  assert.doesNotMatch(await row(), /Only Max|Preview only/);
+  // Pro may have Fable, which the preview only hides; API keys have no Fable limit, so nothing to turn on.
+  await page.click('[data-view=plan] [data-v=payg]');
+  assert.equal(await row(), 'The separate weekly limit for Fable · API keys have no Fable limit');
+});
+
+test('the Motion choice reaches the copied command, once the person makes it', async () => {
+  const { page } = await open();
+  assert.doesNotMatch(await cmd(page), /motion=/, 'a page left at Still keeps the motion they set before');
+  await page.click('[data-key=motion][data-v=on]');
+  assert.match(await cmd(page), / motion=on$/);
+  await page.click('[data-key=motion][data-v=off]');
+  assert.match(await cmd(page), / motion=off$/);
+});

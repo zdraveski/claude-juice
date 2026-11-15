@@ -25,7 +25,7 @@ const SHOW = {
   week: ['Weekly', 'Your weekly limit'],
   fable: ['Fable weekly', 'The separate weekly limit for Fable'],
 };
-const NOT_ON = { session: { payg: 'API keys have no session limit' }, week: { payg: 'API keys have no weekly limit' }, fable: { payg: 'API keys have no Fable limit', pro: 'Only Max plans have this limit' } };
+const NOT_ON = { session: { payg: 'API keys have no session limit' }, week: { payg: 'API keys have no weekly limit' }, fable: { payg: 'API keys have no Fable limit', pro: 'The preview hides it on Pro' } };
 const DETAILS = [
   ['order', 'Battery order', 'Keep the order above, or let the batteries move as things change', [['yours', 'As above'], ['urgent', 'Needs you first'], ['fullest', 'Fullest first']]],
   // The preview shows Automatic as rounded, so say plainly where it really is rounded.
@@ -33,6 +33,7 @@ const DETAILS = [
   ['battery', 'Battery style', 'How the batteries are drawn, or a shape instead. Classic is the old flat look', [['glossy', 'Glossy'], ['classic', 'Classic'], ['outline', 'Outline'], ['hot', 'Hot tip'], ['liquid', 'Liquid edge'], ['pace', 'Pace glow'],
     ['pie', 'Pie'], ['sand', 'Sand'], ['slider', 'Slider'], ['race', 'Pace race'], ['lives', 'Lives'], ['dots', 'Dots'], ['chevrons', 'Chevrons'], ['ruler', 'Ruler']]],
   ['refills', 'Reset times', 'Always show them, or only when something needs attention', [['always', 'Always'], ['warnings', 'Only when needed']]],
+  ['motion', 'Motion', 'Still is free. Climbing redraws every second, about a sixth of a CPU core per open window', [['off', 'Still'], ['on', 'Climbing']]],
   // Without this the copied command can't fix dark colours on a light terminal: the Dark/Light switch above only changes the preview.
   ['terminal', 'Terminal colour', 'Automatic follows Claude Code’s theme. Pick Light if the text is hard to read on a light background', [['auto', 'Automatic'], ['dark', 'Dark'], ['light', 'Light']]],
 ];
@@ -112,7 +113,7 @@ const segHtml = (key, opts, label) => `<div class="seg" role="group" aria-label=
 
 function buildShow() {
   const fixedRow = (k) => `<div class="row"><span class="grip none"></span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}</div></div><button class="sw" type="button" role="switch" data-show="${k}" aria-labelledby="lbl-${k}"></button></div>`;
-  const batRow = (k, i) => `<div class="row" draggable="true" data-bat="${k}"><span class="grip" aria-hidden="true">⋮⋮</span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}<em data-noton="${k}"></em></div></div>`
+  const batRow = (k, i) => `<div class="row" draggable="true" data-bat="${k}"><span class="grip" aria-hidden="true">⋮⋮</span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}<em data-noton="${k}"></em>${k === 'fable' ? '<span id="fabletail"></span>' : ''}</div></div>`
     + `<button class="mv" type="button" data-move="${k}" data-dir="-1" aria-label="Move ${SHOW[k][0]} up" ${i === 0 ? 'disabled' : ''}>▲</button><button class="mv" type="button" data-move="${k}" data-dir="1" aria-label="Move ${SHOW[k][0]} down" ${i === BATTERIES.length - 1 ? 'disabled' : ''}>▼</button>`
     + `<button class="sw" type="button" role="switch" data-show="${k}" aria-labelledby="lbl-${k}"></button></div>`;
   $('show').innerHTML = fixedRow('model') + fixedRow('effort') + order.map(batRow).join('')
@@ -134,6 +135,8 @@ function update() {
   const cols = WIDTHS[view.width], p = peek(view.hover);
   const { text, dropped } = drawn({ ...s, ...p?.set }, cols);
   $('out').innerHTML = ansiToHtml(text, NEUTRAL[view.term].fg);
+  // The glyph bars read as noise to a screen reader, so name the preview by its words only.
+  $('out').setAttribute('aria-label', text.replace(/\x1b\[[0-9;]*m/g, '').replace(/\s+│\s+/g, ', ').replace(/[^\p{L}\p{N}%!:.,$\-+\/~ \n]/gu, ' ').split('\n').map((l) => l.replace(/\s+/g, ' ').replace(/ ,/g, ',').trim()).join('. '));
   $('win').classList.toggle('light', view.term === 'light');
   $('win').style.maxWidth = view.width === 'wide' ? '100%' : `calc(${cols}ch * 13.5 / 15 + 40px)`;
   $('cols').textContent = view.width === 'wide' ? '' : `${cols} columns`;
@@ -155,6 +158,9 @@ function update() {
     b.setAttribute('aria-checked', s.show.includes(k)); b.disabled = BATTERIES.includes(k) && !offered(k);
   });
   document.querySelectorAll('[data-noton]').forEach((el) => { const why = (NOT_ON[el.dataset.noton] || {})[view.plan]; el.textContent = why ? ` · ${why}` : ''; });
+  // Pro may have Fable, which the preview only hides; API keys have no Fable limit, so there is nothing to turn on.
+  const tail = $('fabletail');
+  if (tail) tail.textContent = view.plan === 'payg' ? '' : ". This page can't turn on reading your login: type /juice set fable=on.";
   document.querySelectorAll('[data-preset]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.preset === (typeof s.colors === 'string' ? s.colors : 'custom')));
   document.querySelectorAll('[data-chips]').forEach((el) => { const set = el.dataset.chips === 'custom' ? customs[view.term] : PRESETS[el.dataset.chips][view.term]; el.innerHTML = set.map((c) => `<i style="background:${c}"></i>`).join(''); });
   document.querySelectorAll('[data-key]').forEach((b) => b.setAttribute('aria-pressed', s[b.dataset.key] === b.dataset.v));
@@ -172,7 +178,7 @@ function update() {
     el.textContent = r < 3 ? `Hard to read here (${r.toFixed(1)}:1)` : `Easy to read (${r.toFixed(1)}:1)`;
     el.classList.toggle('bad', r < 3);
   });
-  $('cmd').textContent = toCommand(s, { terminalChosen: !!view.terminalChosen });
+  $('cmd').textContent = toCommand(s, { terminalChosen: !!view.terminalChosen, motionChosen: !!view.motionChosen });
   $('json').textContent = JSON.stringify(s, null, 2);
   history.replaceState(null, '', '#c=' + encodeLink(s));
   try { localStorage.setItem(SAVED, JSON.stringify(s)); } catch {} // remembered for the next visit
@@ -200,6 +206,7 @@ document.addEventListener('click', (e) => {
     else { customs = presetArrs(t.dataset.preset); s = { ...s, colors: t.dataset.preset }; }
   } else if (t.dataset.key) {
     s = { ...s, [t.dataset.key]: t.dataset.v };
+    if (t.dataset.key === 'motion') view.motionChosen = true; // from now on the command says motion=, even Still
     if (t.dataset.key === 'terminal') {
       view.terminalChosen = true; // from now on the command says terminal=, even Automatic
       if (t.dataset.v !== 'auto') view.term = t.dataset.v; // preview what was just chosen

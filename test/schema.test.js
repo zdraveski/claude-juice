@@ -12,6 +12,14 @@ test('ids and url', () => {
   assert.match(CUSTOMIZER_URL, /^https:\/\//);
 });
 
+test('motion is off unless chosen', () => {
+  assert.equal(DEFAULTS.motion, 'off');
+  assert.equal(applySet(DEFAULTS, ['motion=on']).settings.motion, 'on');
+  const bad = applySet(DEFAULTS, ['motion=fast']);
+  assert.equal(bad.settings.motion, 'off');
+  assert.equal(bad.warnings.length, 1);
+});
+
 test('sanitize defaults and unknown keys', () => {
   assert.deepEqual(sanitize({}, { allowBadges: true }).settings, DEFAULTS);
   const r = sanitize({ layout: 'xyz', foo: 1 }, { allowBadges: true });
@@ -129,9 +137,11 @@ test('applySet colours', () => {
 
 test('toCommand', () => {
   // The public page starts at Automatic: pasting a look from it keeps the person's own terminal colour.
+  // Still, too: it starts at Still, and pasting must not undo the "/juice set motion=on" they chose earlier.
   assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget order=yours cost=auto colors=claude ends=auto battery=glossy refills=always');
-  const mine = applySet({ ...DEFAULTS, fable: 'on', terminal: 'light' }, toCommand(DEFAULTS).split(' ').slice(2)).settings;
-  assert.deepEqual([mine.fable, mine.terminal], ['on', 'light'], 'neither their fable nor their terminal choice is undone');
+  const mine = applySet({ ...DEFAULTS, fable: 'on', terminal: 'light', motion: 'on' }, toCommand(DEFAULTS).split(' ').slice(2)).settings;
+  assert.deepEqual([mine.fable, mine.terminal, mine.motion], ['on', 'light', 'on'], 'neither their fable, terminal nor motion choice is undone');
+  assert.match(toCommand(DEFAULTS, { motionChosen: true }), / motion=off$/, 'choosing Still on the page does say so');
   // Choosing Automatic on the page does say so, and undoes Light.
   const chosen = applySet({ ...DEFAULTS, terminal: 'light' }, toCommand(DEFAULTS, { terminalChosen: true }).split(' ').slice(2)).settings;
   assert.equal(chosen.terminal, 'auto');
@@ -146,10 +156,10 @@ test('an all-wrong show= list says which names are right, in plain words', () =>
 });
 
 test('toCommand round-trips through applySet, custom colours too (everything but fable)', () => {
-  const s = { ...DEFAULTS, layout: 'focus', show: ['week', 'model'], order: 'fullest', cost: 'on', colors: { dark: A, light: custom.light }, ends: 'round', battery: 'pace', terminal: 'light', refills: 'warnings', fable: 'off' };
+  const s = { ...DEFAULTS, layout: 'focus', show: ['week', 'model'], order: 'fullest', cost: 'on', colors: { dark: A, light: custom.light }, ends: 'round', battery: 'pace', terminal: 'light', refills: 'warnings', motion: 'on', fable: 'off' };
   const lower = applySet(DEFAULTS, toCommand(s).split(' ').slice(2)).settings;
   assert.deepEqual(lower, { ...sanitize(s, { allowBadges: true }).settings, fable: DEFAULTS.fable });
-  assert.equal(toCommand(s).split(' ').length, 11);
+  assert.equal(toCommand(s).split(' ').length, 12);
 });
 
 test('a share link never switches on Fable, which reads the login', () => {
@@ -246,8 +256,19 @@ test('battery set in a layout that keeps its own shapes says so; bar and focus s
   assert.deepEqual(applySet({ ...DEFAULTS, layout: 'panel' }, ['layout=bar', 'layout=panel']).changed, []);
 });
 
+test('a wrong value lists the right ones, built from the table that checks them', () => {
+  const w = (pair) => applySet(DEFAULTS, [pair]).warnings[0];
+  assert.match(w('layout=nope'), new RegExp(`Use one of: ${LAYOUT_IDS.join(', ')}\\.`));
+  assert.match(w('motion=maybe'), /Use one of: on, off\./);
+  assert.match(w('cost=x'), /Use one of: auto, on, off\./);
+  assert.match(w('look=nope'), new RegExp(`Use one of: ${LOOKS.map((l) => l.id).join(', ')}\\.`));
+  assert.match(w('colors=nope'), new RegExp(`Use one of: ${PRESET_IDS.join(', ')}\\. Or .*dark:.*light:.*#`));
+  // A bad value in juice.json says it too.
+  assert.match(sanitize({ layout: 'nope' }, { allowBadges: false }).warnings[0], new RegExp(`using 'bar'\\. Use one of: ${LAYOUT_IDS.join(', ')}\\.$`));
+});
+
 test('unknown values mention updating juice; junk settings never print "undefined"', () => {
-  assert.match(applySet(DEFAULTS, ['battery=nope']).warnings[0], /isn't valid, keeping 'glossy'\. If it's new, update juice: type \/plugin/);
+  assert.match(applySet(DEFAULTS, ['battery=nope']).warnings[0], /isn't valid, keeping 'glossy'\. Use one of: glossy, .*\. If it's new, update juice: type \/plugin/);
   for (const layout of [undefined, 'junk']) {
     const w = applySet({ ...DEFAULTS, layout }, ['battery=pie']).warnings.join();
     assert.match(w, /^battery: saved, but the current layout/);

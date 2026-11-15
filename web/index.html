@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
 <title>juice customizer: a Claude Code status line for your usage limits</title>
 <meta name="description" content="Try every look, layout and colour of juice, a Claude Code status line that shows your 5-hour, weekly and Fable usage limits as batteries, then copy one line into Claude Code.">
 <link rel="canonical" href="https://zdraveski.github.io/claude-juice/web/">
@@ -40,8 +41,8 @@ h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:10px 0;font-weigh
 select{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;color:var(--ink)}
 :focus-visible{outline:2px solid var(--clay);outline-offset:2px}
 .win{border-radius:12px;overflow:hidden;border:1px solid var(--line);box-shadow:0 18px 50px rgba(0,0,0,.45);transition:max-width .25s cubic-bezier(.3,.7,.4,1)}
-.titlebar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#232120;color:#8a857d;font-size:12.5px;white-space:nowrap;overflow:hidden}
-.win.light .titlebar{background:#ecebe8;color:#77726b}
+.titlebar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#232120;color:#9e998f;font-size:12.5px;white-space:nowrap;overflow:hidden}
+.win.light .titlebar{background:#ecebe8;color:#6b665f}
 .dots{display:flex;gap:6px}.dots i{width:10px;height:10px;border-radius:50%;background:#3a3734}.win.light .dots i{background:#d3d0ca}
 .titlebar .cols{margin-left:auto;font:12px Consolas,monospace;opacity:.8}
 .term{--tbg:#181818;--tfg:#cccccc;--rule:#3c3c3c;--ph:#6b6b6b;--chat:#9d9d9d;background:var(--tbg);color:var(--tfg);font:13.5px/1.28 Consolas,'Cascadia Mono',Menlo,monospace;padding:14px 18px 16px;overflow-x:auto}
@@ -168,7 +169,7 @@ button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visi
     <div class="term">
       <div class="chat"><b>●</b> I've added the dark mode toggle to the settings page and updated the tests.</div>
       <div class="rule"></div><div class="prompt">&gt; <span class="ph">Try "make the header sticky"</span></div><div class="rule"></div>
-      <div class="out" id="out"></div>
+      <div class="out" id="out" role="img"></div>
     </div>
   </div>
   <p class="fitnote" id="fitnote" aria-live="polite"></p>
@@ -212,19 +213,19 @@ button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visi
     <p>Two steps in Claude Code. The status line changes as soon as you press Enter.</p>
     <div class="sub"><span class="num">1</span><div class="body">
       <div class="t">First time? Install it</div>
-      <div class="cmd"><code id="install1">/plugin marketplace add zdraveski/claude-juice</code><button class="btn ghost" type="button" data-copy="install1">Copy</button></div>
-      <div class="cmd"><code id="install2">/plugin install juice@juice</code><button class="btn ghost" type="button" data-copy="install2">Copy</button></div>
-      <div class="cmd"><code id="install3">/reload-plugins</code><button class="btn ghost" type="button" data-copy="install3">Copy</button></div>
-      <div class="cmd"><code id="install4">/juice setup</code><button class="btn ghost" type="button" data-copy="install4">Copy</button></div>
+      <div class="cmd"><code id="install1">/plugin marketplace add zdraveski/claude-juice</code><button class="btn ghost" type="button" data-copy="install1" aria-label="Copy the marketplace command">Copy</button></div>
+      <div class="cmd"><code id="install2">/plugin install juice@juice</code><button class="btn ghost" type="button" data-copy="install2" aria-label="Copy the install command">Copy</button></div>
+      <div class="cmd"><code id="install3">/reload-plugins</code><button class="btn ghost" type="button" data-copy="install3" aria-label="Copy the reload command">Copy</button></div>
+      <div class="cmd"><code id="install4">/juice setup</code><button class="btn ghost" type="button" data-copy="install4" aria-label="Copy the setup command">Copy</button></div>
       <p class="hint">If Claude Code still doesn't know <code>/juice</code>, restart it and type <code>/juice setup</code> again.</p>
     </div></div>
     <div class="sub"><span class="num">2</span><div class="body">
       <div class="t">Apply your settings</div>
-      <div class="cmd"><code id="cmd"></code><button class="btn" type="button" data-copy="cmd">Copy</button></div>
+      <div class="cmd"><code id="cmd"></code><button class="btn" type="button" data-copy="cmd" aria-label="Copy the command with your settings">Copy</button></div>
     </div></div>
     <div class="tell">Prefer to just say it? Type <code>/juice</code> and ask in your own words, like <code>/juice hide the cost and make it a panel</code>. <code>/juice customize</code> opens this page with your current settings.</div>
     <details><summary>Show the settings file (for the technical folks)</summary><pre id="json"></pre></details>
-    <div class="foot"><span class="toast" id="toast" aria-live="polite"></span><span style="display:flex;gap:8px"><button class="btn ghost" id="link" type="button">Copy link to these settings</button><button class="btn ghost" id="reset" type="button">Reset to default</button></span></div>
+    <div class="foot"><span class="toast" id="toast" aria-live="polite"></span><span style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn ghost" id="link" type="button">Copy link to these settings</button><button class="btn ghost" id="reset" type="button">Reset to default</button></span></div>
   </section>
 </main>
 

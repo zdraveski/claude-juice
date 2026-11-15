@@ -2,6 +2,57 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.4.0 (2026-11-15)
+
+[Changes since 1.3.1](https://github.com/zdraveski/claude-juice/compare/v1.3.1...v1.4.0)
+
+Changed:
+- The batteries and the effort level now stand still, and the line refreshes once a minute. The climb needed a refresh every second, which cost about a sixth of a CPU core for every open Claude Code window. Type `/juice set motion=on` to bring the climb back.
+- After the update, juice moves the 1-second refresh it wrote for 1.3.x to once a minute by itself, once. It can't tell its own 1 or 30 from one you typed, so those move too; `/juice set motion=on` puts the 1 back.
+- `/juice setup` now asks before juice reads your Claude login for the Fable battery. If the Fable battery already showed on your Windows or Linux computer, it stays on.
+- When juice can't draw the line, it shows `juice: /juice doctor` after the model name, so you know where to look. It goes away on the next run that works.
+- `/juice badges list` shows only the first word of each command, so a key inside a command doesn't land in the chat. `/juice badges list --show` shows the whole commands and asks first. Don't put passwords or API keys in a badge command.
+
+Fixed:
+- The status line keeps following juice updates when your plugins folder is a link (a symlink or a Windows junction). If yours stopped following them, `/juice doctor` says so; type `/juice setup`.
+- A broken juice folder shows `juice: /juice doctor` instead of a blank line.
+- After juice is uninstalled, the line says what you can do: install it again and type `/juice restore`, or delete the `statusLine` entry in `settings.json`.
+- A window signed into another Claude account shows its own Session and Weekly numbers, not the other account's.
+- A badge whose command fails keeps its last text for 5 minutes, then shows nothing, so an old branch name never passes for the current one.
+- Badge text and model names can't send terminal codes (like clipboard writes or title changes) or hidden direction marks that reorder the line.
+- When several Claude Code windows draw at the same moment, only one starts a background refresh, so your login goes to Anthropic once and a badge command runs once.
+- If juice can't save its Fable or badge cache, it waits (15 minutes for Fable, 5 for badges) instead of trying again every few seconds.
+- The status line no longer hangs if Claude Code never finishes sending to it, and a file juice can't write no longer holds up every refresh for seconds.
+- On Mac and Linux, juice's cache folders, which hold the copy of Claude Code's data that badges read, can only be read by you. Folders from an older juice change on the first refresh after the update.
+- A wrong `/juice set` value lists the values that work, and an error saving a file is a plain sentence. Other errors hide your home folder. A `settings.json` juice isn't allowed to read is no longer called missing or one with a mistake in it, and a `juice.json` juice isn't allowed to read is no longer taken for a missing one or one to delete.
+- A clock that was set ahead when you installed or updated juice or ran `/juice setup` no longer skips, or repeats on every refresh, the changes juice makes once after an update, like moving the every-second refresh to once a minute.
+- `/juice doctor` says Node 24 or newer everywhere, says it's juice (not Claude Code) that can't read a `settings.json` with comments, and says `/juice setup` fixes a changed marketplace name.
+- 100% used with no reset time says "used up", not "almost empty".
+- A cost under a cent shows "<$0.01", and big costs get thousands separators.
+- A reset time sent in milliseconds is no longer drawn months away.
+- Fuel tank in a very narrow window never shows a "4%" that has lost its "left".
+- With no colour, rounded ends become plain ones instead of stray symbols, and an odd `COLUMNS` value no longer shrinks the line.
+- juice reads Claude Code's theme only when your `terminal` setting is automatic.
+- The customizer: a screen reader reads the preview as words, each Copy button says what it copies, nothing scrolls sideways at 320 px, the window title is easier to read, the Fable row says the page can't turn on reading your login, and the page can load only its own files.
+- The README says the Fable battery needs Node 24 or newer behind a proxy too, that the proxy carries juice's connection to Anthropic, and that the usage address juice reads isn't a documented API. `/juice` has clearer steps when setup fails or you type just `/juice`.
+- Smaller: an oversized reset time from Anthropic is refused, leftover temporary files are cleaned up, and the badge example in the help works on every system.
+
+Known limits:
+- With `motion=on`, a refresh between climb steps (after a reply, or with a refresh time you chose) can show the picture part-way up. The number beside it is always right.
+- On Windows, setup writes plain `node`, so a Node that only your shell profile puts on PATH (nvm-windows, fnm, volta) isn't found.
+- Setup uses whichever Node comes first on PATH without checking its version, and `/juice doctor` checks the Node of the shell it runs in, which may not be the one the line uses.
+- juice can't tell its own refresh time of 1 or 30 seconds from one you typed (see above).
+- A Claude folder whose path holds `$`, a backtick, `%` or `"` can't use juice; setup says so.
+- The once-per-update refresh move isn't tried again if `settings.json` was busy (`/juice doctor` says to type `/juice setup`). It rewrites `settings.json` whole, so a Claude Code change in the same instant could be lost.
+- A `settings.json` that is a link to a missing file becomes a normal file when juice writes it.
+- A clock that was slow when juice updated and was put right before the status line next refreshed (it synced in between) skips the changes juice makes once after that update. The next update makes them.
+- A test version folder (like `1.4.0-beta`) counts the same as the release.
+- WSL and Windows sharing one `settings.json` each write their own command.
+- `/juice` can change any setting without a permission prompt, `fable=on` included.
+- Two windows saving at once can drop each other's last-seen numbers until the next refresh, and two windows of the same chat swap them on every refresh.
+- Times are always 12-hour, and on a computer set to UTC every time says "UTC".
+- Some emoji sequences, skin tones and accents count wider than they draw, so the line may end a little early.
+
 ## 1.3.1 (2026-11-07)
 
 [Changes since 1.3.0](https://github.com/zdraveski/claude-juice/compare/v1.3.0...v1.3.1)

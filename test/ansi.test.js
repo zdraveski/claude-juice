@@ -44,3 +44,8 @@ test('CJK characters count as 2 columns', () => {
 test('vis: ♥ and ▪ draw one column (text presentation)', () => {
   assert.equal(vis('♥▪'), 2);
 });
+
+test('strip removes bidi overrides and zero-width marks but keeps joiners for emoji', () => {
+  assert.equal(strip('a\u202eb\u200bc\u200e\u200f\u202a\u2066\u2069\u2028\u2029\ufeffd'), 'abcd');
+  assert.equal(strip('\u{1F468}\u200d\u{1F469}\u200c'), '\u{1F468}\u200d\u{1F469}\u200c');
+});

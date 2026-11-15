@@ -14,8 +14,9 @@ import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
 import { fableCacheState, fetchedCounts } from './readings.js';
 import { recall } from './lastseen.js';
-import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes, constant, readText, OLD_REFRESH } from './setup.js';
+import { isJuice, runsLauncher, overrides, readClaudeSettings, Unreadable, refreshes, refreshFor, refreshWords, constant, readText, fwd } from './setup.js';
 import { hideHome } from './paths.js';
+import { marketOf } from './launcher-file.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
 
 const ok = (s) => `✓ ${s}`, bad = (s) => `! ${s}`, info = (s) => `· ${s}`;
@@ -33,18 +34,18 @@ export function ago(ms) {
 }
 
 
-export function doctor(p, { env, platform, now, cwd, version }) {
+export function doctor(p, { env, platform, now, cwd, version, node = process.versions.node }) {
   const out = [];
   const t = now.getTime();
-  const node = process.versions.node;
   // Older Node still draws the line; juice just isn't tested there, so say so instead of refusing.
   out.push(Number(node.split('.')[0]) >= 24 ? ok(`juice ${version}, Node ${node}, ${OS[platform] ?? platform}`)
     : bad(`Node ${node} isn't supported: juice needs Node 24 or newer. Update it from nodejs.org.`));
 
   // 1. Is juice the status line, and can that line find Node and juice?
   let settings = null;
-  try { settings = readClaudeSettings(p); } catch {
-    out.push(bad("Claude Code's settings file (settings.json in your Claude folder) has a mistake in it, so Claude Code can't read it. Ask Claude to fix it, then run /juice setup."));
+  try { settings = readClaudeSettings(p); } catch (e) {
+    out.push(bad(e instanceof Unreadable ? "juice can't read your Claude Code settings file (settings.json in your Claude folder). Make sure it is yours and you can read it (Claude can help), then run /juice setup."
+      : "juice can't read your Claude Code settings file (settings.json in your Claude folder). It has a mistake, or comments or a comma after the last item: Claude Code may read it fine, but juice can't. Ask Claude to fix it, then run /juice setup."));
   }
   const line = settings?.statusLine;
   const here = isJuice(line) && runsLauncher(p, line.command, platform);
@@ -52,10 +53,11 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   else if (line && !isJuice(line)) out.push(bad("Another status line is set, so juice isn't showing. Run /juice setup to switch to juice."));
   else if (line && !here) out.push(bad("juice is your status line but points at a folder that isn't this one (settings copied from another computer?). Run /juice setup."));
   else if (line) {
-    const every = line.refreshInterval;
-    out.push(refreshes(line) ? ok(`juice is your status line, refreshing ${every === 60 ? 'once a minute' : every === 1 ? 'every second' : `every ${every} seconds`}`)
-      // juice's own old times: setup moves them, so the pictures climb a step at a time while idle.
-      + (OLD_REFRESH.includes(every) ? '\n' + info(`Run /juice setup to refresh every second, so the effort level and batteries move a step at a time.`) : '')
+    const every = line.refreshInterval, want = refreshFor(line, loadSettings(p).settings.motion);
+    out.push(refreshes(line) ? ok(`juice is your status line, refreshing ${refreshWords(every)}`)
+      // Only juice's own times differ from what motion wants: one chosen by hand is what it wants.
+      + (want === every ? '' : '\n' + info(want === 1 ? 'Run /juice setup to refresh every second, so the effort level and batteries climb.'
+        : 'Run /juice setup to refresh once a minute: the pictures stand still, so every second only costs CPU.'))
       : bad("juice is your status line but doesn't refresh on its own, so its numbers and reset times go stale while Claude Code is idle. Run /juice setup."));
   }
 
@@ -72,7 +74,12 @@ export function doctor(p, { env, platform, now, cwd, version }) {
     else {
       const target = resolveTarget(p.config, pinned, market);
       const runs = !target ? null : pinned ? readJson(join(pinned, 'package.json'))?.version : basename(dirname(dirname(target)));
-      if (!target) out.push(bad("The status line can't find juice any more. Install it again, then run /juice setup."));
+      // Only the marketplace name differs: setup rewrites the launcher, so no reinstall is needed.
+      const other = !target && market && resolveTarget(p.config, null, null);
+      const moved = other && basename(dirname(dirname(dirname(dirname(other)))));
+      if (pinned && marketOf(fwd(pinned))) out.push(bad(`The status line is stuck on one juice folder (${pinned}) and won't follow updates. Run /juice setup.`));
+      if (moved) out.push(bad(`The status line looks for juice under "${market}", but it is installed under "${moved}". Run /juice setup.`));
+      else if (!target) out.push(bad("The status line can't find juice any more. Install it again, then run /juice setup."));
       else out.push(ok(`The status line runs juice${runs ? ` ${runs}` : ''}${pinned ? ' from a folder on this computer' : ''}`));
       if (runs && runs !== version) out.push(bad(`These /juice commands are juice ${version} but the status line runs ${runs}. Restarting Claude Code usually lines them up.`));
     }
@@ -82,10 +89,13 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   // 2. juice's own settings, and whether drawing works with them.
   const { settings: mine, warnings } = loadSettings(p);
   // An unreadable juice.json is never overwritten (it may hold badges), so only a bad value is fixed by changing a setting.
-  warnings.forEach((w) => out.push(bad(`juice settings: ${w}. ${/unreadable/.test(w)
-    ? 'Fix or delete juice.json in your Claude folder (Claude can do it for you).' : 'Choosing that setting again with /juice replaces it (a newer juice may know it: then updating juice fixes it too).'}`)));
+  // Matched from the start: a warning about a bad value quotes it, and the value could hold the same words.
+  warnings.forEach((w) => out.push(bad(`juice settings: ${w.replace(/\.$/, '')}. ${/^juice isn't allowed/.test(w)
+    ? 'Make sure it and your Claude folder are yours and you can read them (Claude can help).'
+    : /^juice\.json is unreadable/.test(w) ? 'Fix or delete juice.json in your Claude folder (Claude can do it for you).'
+    : 'Choosing that setting again with /juice replaces it (a newer juice may know it: then updating juice fixes it too).'}`)));
   if (!mine.show.length) out.push(bad(NOTHING_SHOWN));
-  const term = detectTerminal({ env, settings: mine, claudeTheme: readClaudeTheme(p.claudeSettings) });
+  const term = detectTerminal({ env, settings: mine, claudeTheme: () => readClaudeTheme(p.claudeSettings) });
   try {
     render(SAMPLES.busy, mine, term);
     out.push(ok(`Drawing works with your settings (${mine.layout} layout, showing ${mine.show.map((id) => NAMES[id] ?? id).join(', ') || 'nothing'})`));
@@ -103,16 +113,17 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   const seen = recall(p)?.subscriberSeenAt;
   out.push(info(!Number.isFinite(seen) ? "Hasn't seen plan limits yet: they show after Claude's first reply. With an API key there are none."
     : t - seen < 3600000 ? "Saw your plan's limits within the last hour" : `Last saw your plan's limits ${ago(t - seen)}`));
-  if (!fableEnabled(mine.fable, platform)) {
-    out.push(info(mine.fable === 'off' ? 'Fable battery: turned off.' : 'Fable battery: off on a Mac until you type /juice set fable=on, because macOS asks permission to read your sign-in.'));
+  if (!fableEnabled(mine.fable, platform, existsSync(p.fableFile))) {
+    out.push(info(mine.fable === 'off' ? 'Fable battery: turned off.'
+      : platform === 'darwin' ? 'Fable battery: off on a Mac until you type /juice set fable=on, because macOS asks permission to read your sign-in.'
+      : 'Fable battery: off until you turn it on with /juice set fable=on, which lets juice read your Claude login.'));
   } else {
     const f = readJson(p.fableFile);
     if (fableCacheState(f, t).backedOff) {
-      // Behind a company proxy (HTTPS_PROXY), Node's fetch reaches Anthropic only from 22.21 and 24.0 on.
-      const [maj, min] = node.split('.').map(Number);
-      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && !(maj >= 24 || (maj === 22 && min >= 21));
+      // Behind a company proxy (HTTPS_PROXY), Node's fetch reaches Anthropic only from Node 24 on.
+      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && Number(node.split('.')[0]) < 24;
       out.push(bad(`Fable battery: the last check failed; juice tries again in ${Math.ceil((f.backoffUntil - t) / 60000)} min. ${proxyBlocks
-        ? `You're behind a company proxy, which juice can only get through with Node 24 or newer, or 22.21 or newer on Node 22 (this is ${node}): install the newest from nodejs.org.`
+        ? `You're behind a company proxy, which juice can only get through with Node 24 or newer (this is ${node}): install the newest from nodejs.org.`
         : 'If it keeps failing, type /login to sign in to Claude Code again.'}`));
     } else out.push(info(fetchedCounts(f?.fetchedAt, now) ? `Fable battery: last checked ${ago(t - f.fetchedAt)}`
       : f?.fetchedAt ? 'Fable battery: not checked in the last hour; juice asks again soon.'
