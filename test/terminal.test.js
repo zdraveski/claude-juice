@@ -163,3 +163,10 @@ test('remember never throws; recall of corrupt file is null', () => {
   assert.equal(recall(q), null);
   assert.equal(recall({ cacheDir: '/nonexistent/x' }), null);
 });
+
+test('COLUMNS is a whole positive number or it is ignored', () => {
+  assert.equal(det({ COLUMNS: '1e9' }).columns, 1e9 - 4, 'not read as 1');
+  assert.equal(det({ COLUMNS: '80px' }).columns, 116);
+  assert.equal(det({ COLUMNS: '80.5' }).columns, 116);
+  assert.equal(det({ COLUMNS: ' 90 ' }).columns, 86);
+});
