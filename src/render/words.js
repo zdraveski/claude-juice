@@ -54,7 +54,7 @@ export function limitNote(a, now, { squeezed = false, noReset = false } = {}) {
     const text = noReset ? out : squeezed ? out || left : out ? `${out} · ${left}` : left;
     return { text, tone: TONE[a.level] };
   }
-  if (a.level === 'crit') return { text: squeezed ? 'low' : 'almost empty', tone: 'bad' };
+  if (a.level === 'crit') return { text: a.used >= 100 ? 'used up' : squeezed ? 'low' : 'almost empty', tone: 'bad' };
   if (a.level === 'warn') return { text: squeezed ? 'fast' : 'a bit fast', tone: 'watch' };
   return { text: '', tone: 'mute' };
 }
