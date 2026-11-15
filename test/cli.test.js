@@ -94,6 +94,32 @@ test('set motion with a broken settings.json saves motion, warns, and leaves the
   assert.equal(readFileSync(join(d, 'settings.json'), 'utf8'), '{"statusLine":');
 });
 
+test('set motion with a settings.json juice cannot save says why, not that the file has a mistake', { skip: process.platform !== 'win32' && 'elsewhere only a locked folder stops the save, and that stops juice.json too' }, async () => {
+  const d = env(), f = join(d, 'settings.json');
+  await run(d, ['setup']);
+  chmodSync(f, 0o444);
+  try {
+    const r = await run(d, ['set', 'motion=on']);
+    assert.equal(r.code, 0);
+    assert.equal(json(join(d, 'juice.json')).motion, 'on');
+    assert.match(r.out, /Warning: motion is saved, but the refresh time stays as it is\. juice couldn't save a file in your Claude folder because it is read-only or open in another program\./);
+    assert.doesNotMatch(r.out, /mistake/);
+  } finally { chmodSync(f, 0o644); }
+});
+
+// Before 1.4.0 the folders took the default permissions, and nothing makes a folder again once it exists.
+test('after an update, a refresh makes the cache folders private', { skip: process.platform === 'win32' && 'Windows has no owner-only folder mode' }, async () => {
+  const d = env(), cache = join(d, 'juice-cache'), badges = join(cache, 'badges');
+  await run(d, ['setup']);
+  mkdirSync(badges, { recursive: true });
+  chmodSync(cache, 0o755); chmodSync(badges, 0o755);
+  utimesSync(join(d, 'juice-statusline.mjs'), new Date(0), new Date(0));
+  const { runStatusLine } = await import('../src/statusline.js');
+  await runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
+  assert.equal(statSync(cache).mode & 0o777, 0o700);
+  assert.equal(statSync(badges).mode & 0o777, 0o700);
+});
+
 // 1.3.x people won't run setup again, so the first refresh after the update moves the every-second juice wrote.
 test('after an update, a refresh moves the 1 juice wrote to 60 once, and nothing else in settings.json', async () => {
   const d = env(), f = join(d, 'settings.json'), launcher = join(d, 'juice-statusline.mjs');
@@ -412,7 +438,7 @@ test('a read-only settings file gets plain words, not a raw EPERM with the path 
     if (process.platform !== 'win32' && process.getuid?.() === 0) return t.skip('root can write anywhere');
     const r = await run(d, ['setup']);
     assert.equal(r.code, 1);
-    assert.match(r.err, /^juice couldn't save a file in your Claude folder because it is read-only\./);
+    assert.match(r.err, /^juice couldn't save a file in your Claude folder because it is read-only or open in another program\./);
     assert.doesNotMatch(r.err, /EPERM|EACCES/);
   } finally { lock(false); }
   assert.deepEqual(json(f), OLD, 'left exactly as it was');
@@ -556,6 +582,8 @@ test('a file juice cannot save reaches the person as one plain sentence, never a
     assert.match(text, /^juice couldn't save a file/, code);
     assert.doesNotMatch(text, /sam|\.json/, code);
   }
+  // Windows says EPERM for a file another program holds open, too.
+  assert.match(friendly({ code: 'EPERM' }), /because it is read-only or open in another program\. /);
   const other = friendly(new Error(`EISDIR: illegal operation on a directory, open '${homedir()}/.claude/juice.json'`));
   assert.doesNotMatch(other, new RegExp(homedir().replaceAll('\\', '\\\\')));
   assert.match(other, /EISDIR/);

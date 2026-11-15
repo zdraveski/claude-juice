@@ -25,7 +25,7 @@ const SHOW = {
   week: ['Weekly', 'Your weekly limit'],
   fable: ['Fable weekly', 'The separate weekly limit for Fable'],
 };
-const NOT_ON = { session: { payg: 'API keys have no session limit' }, week: { payg: 'API keys have no weekly limit' }, fable: { payg: 'API keys have no Fable limit', pro: 'Not shown on Pro in this preview' } };
+const NOT_ON = { session: { payg: 'API keys have no session limit' }, week: { payg: 'API keys have no weekly limit' }, fable: { payg: 'API keys have no Fable limit', pro: 'The preview hides it on Pro' } };
 const DETAILS = [
   ['order', 'Battery order', 'Keep the order above, or let the batteries move as things change', [['yours', 'As above'], ['urgent', 'Needs you first'], ['fullest', 'Fullest first']]],
   // The preview shows Automatic as rounded, so say plainly where it really is rounded.
@@ -113,7 +113,7 @@ const segHtml = (key, opts, label) => `<div class="seg" role="group" aria-label=
 
 function buildShow() {
   const fixedRow = (k) => `<div class="row"><span class="grip none"></span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}</div></div><button class="sw" type="button" role="switch" data-show="${k}" aria-labelledby="lbl-${k}"></button></div>`;
-  const batRow = (k, i) => `<div class="row" draggable="true" data-bat="${k}"><span class="grip" aria-hidden="true">⋮⋮</span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}<em data-noton="${k}"></em>${k === 'fable' ? ' Preview only. To turn it on, type /juice set fable=on.' : ''}</div></div>`
+  const batRow = (k, i) => `<div class="row" draggable="true" data-bat="${k}"><span class="grip" aria-hidden="true">⋮⋮</span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}<em data-noton="${k}"></em>${k === 'fable' ? ". This page can't turn on reading your login: type /juice set fable=on." : ''}</div></div>`
     + `<button class="mv" type="button" data-move="${k}" data-dir="-1" aria-label="Move ${SHOW[k][0]} up" ${i === 0 ? 'disabled' : ''}>▲</button><button class="mv" type="button" data-move="${k}" data-dir="1" aria-label="Move ${SHOW[k][0]} down" ${i === BATTERIES.length - 1 ? 'disabled' : ''}>▼</button>`
     + `<button class="sw" type="button" role="switch" data-show="${k}" aria-labelledby="lbl-${k}"></button></div>`;
   $('show').innerHTML = fixedRow('model') + fixedRow('effort') + order.map(batRow).join('')

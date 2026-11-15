@@ -22,9 +22,9 @@ Fixed:
 - Badge text and model names can't send terminal codes (like clipboard writes or title changes) or hidden direction marks that reorder the line.
 - When several Claude Code windows draw at the same moment, only one starts a background refresh, so your login goes to Anthropic once and a badge command runs once.
 - If juice can't save its Fable or badge cache, it waits (15 minutes for Fable, 5 for badges) instead of trying again every few seconds.
-- The status line no longer hangs if Claude Code never finishes sending to it, and a file juice can never write no longer slows every refresh.
-- The copy of Claude Code's data that badges read, and juice's cache folders, can only be read by you.
-- A wrong `/juice set` value lists the values that work, and an error saving a file is a plain sentence without your folder names.
+- The status line no longer hangs if Claude Code never finishes sending to it, and a file juice can't write no longer holds up every refresh for seconds.
+- On Mac and Linux, juice's cache folders, which hold the copy of Claude Code's data that badges read, can only be read by you. Folders from an older juice change on the first refresh after the update.
+- A wrong `/juice set` value lists the values that work, and an error saving a file is a plain sentence. Other errors hide your home folder.
 - `/juice doctor` says Node 24 or newer everywhere, says it's juice (not Claude Code) that can't read a `settings.json` with comments, and says `/juice setup` fixes a changed marketplace name.
 - 100% used with no reset time says "used up", not "almost empty".
 - A cost under a cent shows "<$0.01", and big costs get thousands separators.
@@ -32,7 +32,7 @@ Fixed:
 - Fuel tank in a very narrow window never shows a "4%" that has lost its "left".
 - With no colour, rounded ends become plain ones instead of stray symbols, and an odd `COLUMNS` value no longer shrinks the line.
 - juice reads Claude Code's theme only when your `terminal` setting is automatic.
-- The customizer: a screen reader reads the preview as words, each Copy button says what it copies, nothing scrolls sideways at 320 px, the window title is easier to read, the Fable switch says it only changes the preview, and the page can load only its own files.
+- The customizer: a screen reader reads the preview as words, each Copy button says what it copies, nothing scrolls sideways at 320 px, the window title is easier to read, the Fable row says the page can't turn on reading your login, and the page can load only its own files.
 - The README says the Fable battery needs Node 24 or newer behind a proxy too, that the proxy carries juice's connection to Anthropic, and that the usage address juice reads isn't a documented API. `/juice` has clearer steps when setup fails or you type just `/juice`.
 - Smaller: an oversized reset time from Anthropic is refused, leftover temporary files are cleaned up, and the badge example in the help works on every system.
 

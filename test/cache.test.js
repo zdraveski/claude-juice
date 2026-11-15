@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readdirSync, mkdirSync, statSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readdirSync, mkdirSync, statSync, unlinkSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -78,18 +78,46 @@ test('takeLock', () => {
   assert.equal(takeLock(p, 'v', at(60)), true); // clock corrected: refreshes carry on
 });
 
-test('takeLock gives the lock to one of many windows drawing at the same moment', async () => {
+// Windows that draw together read the clock a moment apart, so the winner's time can be just after another's.
+test('takeLock leaves a lock taken a moment after this window read the clock', () => {
   const p = paths({ CLAUDE_CONFIG_DIR: tmp() });
+  assert.equal(takeLock(p, 'u', at(1)), true);
+  assert.equal(takeLock(p, 'u', NOW), false);
+});
+
+// Six windows call takeLock at the same instant; returns what each one got.
+async function race(p) {
   const url = new URL('../src/cache.js', import.meta.url).href;
   const go = Date.now() + 1500; // every child waits for the same instant, so they really do collide
   const code = `import(${JSON.stringify(url)}).then(m=>{while(Date.now()<${go});process.stdout.write(String(m.takeLock({cacheDir:${JSON.stringify(p.cacheDir)}},'u',new Date(${NOW.getTime()}))))})`;
-  const wins = await Promise.all(Array.from({ length: 6 }, () => new Promise((res) => {
+  return Promise.all(Array.from({ length: 6 }, () => new Promise((res) => {
     let out = '';
     const c = spawn(process.execPath, ['-e', code]);
     c.stdout.on('data', (d) => { out += d; });
     c.on('close', () => res(out));
   })));
+}
+
+test('takeLock gives the lock to one of many windows drawing at the same moment', async () => {
+  const wins = await race(paths({ CLAUDE_CONFIG_DIR: tmp() }));
   assert.equal(wins.filter((w) => w === 'true').length, 1, wins.join());
+});
+
+test('takeLock gives a stale lock to only one of the windows that find it', async () => {
+  const p = paths({ CLAUDE_CONFIG_DIR: tmp() });
+  mkdirSync(p.cacheDir, { recursive: true });
+  writeFileSync(join(p.cacheDir, 'u.lock'), String(NOW.getTime() - 60000));
+  const wins = await race(p);
+  assert.equal(wins.filter((w) => w === 'true').length, 1, wins.join());
+});
+
+test('an empty lock is one being written: left alone while young, replaced once old', () => {
+  const p = paths({ CLAUDE_CONFIG_DIR: tmp() }), f = join(p.cacheDir, 'u.lock');
+  mkdirSync(p.cacheDir, { recursive: true });
+  writeFileSync(f, '');
+  assert.equal(takeLock(p, 'u', NOW), false);
+  utimesSync(f, new Date(0), new Date(0)); // left empty by a window that crashed long ago
+  assert.equal(takeLock(p, 'u', NOW), true);
 });
 
 test('holdLock keeps a lock closed for as long as asked, then lets go', () => {

@@ -203,9 +203,20 @@ test('the fake window title is easy to read in both terminals', async () => {
   assert.ok(await ratio() >= 4.5, 'light');
 });
 
-test('the Fable switch says it only changes the preview, and no plan is named as the only one', async () => {
+// The switch does add fable to show=; what the page can't do is let juice read the login.
+test('the Fable row reads as sentences, says the page cannot turn on reading the login, and names no plan as the only one', async () => {
   const { page } = await open();
-  assert.match(await page.textContent('[data-bat=fable]'), /Preview only.*\/juice set fable=on/);
+  const row = () => page.textContent('[data-bat=fable] .d');
+  const tail = " This page can't turn on reading your login: type /juice set fable=on.";
+  assert.equal(await row(), `The separate weekly limit for Fable.${tail}`);
   await page.click('[data-view=plan] [data-v=pro]');
-  assert.doesNotMatch(await page.textContent('[data-bat=fable]'), /Only Max/);
+  assert.equal(await row(), `The separate weekly limit for Fable · The preview hides it on Pro.${tail}`);
+  assert.doesNotMatch(await row(), /Only Max|Preview only/);
+});
+
+test('the Motion choice reaches the copied command', async () => {
+  const { page } = await open();
+  assert.match(await cmd(page), / motion=off$/);
+  await page.click('[data-key=motion][data-v=on]');
+  assert.match(await cmd(page), / motion=on$/);
 });

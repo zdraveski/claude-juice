@@ -6,7 +6,7 @@ import { SAMPLES } from '../src/samples.js';
 import { detectTerminal } from '../src/terminal.js';
 
 const env = process.env;
-const auto = detectTerminal({ env, settings: DEFAULTS, claudeTheme: null });
+const auto = detectTerminal({ env, settings: DEFAULTS, claudeTheme: () => null });
 const line = (o) => render(SAMPLES.busy, { ...DEFAULTS, show: [...SHOW_IDS] }, { columns: 200, colorDepth: 'truecolor', ...o }).text;
 // Clay to violet in 48 steps: smooth only with full (24-bit) colour.
 const strip = Array.from({ length: 48 }, (_, i) => {

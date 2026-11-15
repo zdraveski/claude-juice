@@ -51,18 +51,27 @@ export function holdLock(p, name, now, holdMs) {
   try { writeJsonAtomic(join(p.cacheDir, `${name}.lock`), { at: +now, holdMs }, HOT_WRITE); } catch {}
 }
 
-// Taken by creating the file, which only one window can do; a stale one is removed and taken again once.
+// Taken by creating the file, which only one window can do. A stale lock is first claimed with a marker named
+// after its timestamp, so of the windows that find the same stale lock only one removes it and takes it again.
 export function takeLock(p, name, now, maxAgeMs = 30000) {
   const file = join(p.cacheDir, `${name}.lock`);
   try { mkdirSync(p.cacheDir, { recursive: true, mode: 0o700 }); } catch { return false; }
   for (let i = 0; i < 2; i++) {
     try { writeFileSync(file, String(now.getTime()), { flag: 'wx', mode: 0o600 }); return true; } catch (e) {
       if (e.code !== 'EEXIST') return false; // no lock recorded, so no refresher
-      const l = readJson(file), t = l?.at ?? l;
-      const age = now.getTime() - t;
-      if (typeof t === 'number' && age >= 0 && age < (l?.holdMs ?? maxAgeMs)) return false; // a lock from the future (clock was ahead) is ignored
-      try { unlinkSync(file); } catch { return false; }
     }
+    const st = statSync(file, { throwIfNoEntry: false });
+    if (!st) continue; // just removed by the window replacing it: try to create it again
+    if (st.size === 0 && Date.now() - st.mtimeMs < maxAgeMs) return false; // created a moment ago, its time not written yet
+    const l = readJson(file), t = l?.at ?? l;
+    const age = now.getTime() - t;
+    // A time just ahead is another window that read the clock a moment later; far ahead, the clock was wrong, so ignored.
+    if (typeof t === 'number' && age > -maxAgeMs && age < (l?.holdMs ?? maxAgeMs)) return false;
+    // A window stopped mid-claim leaves its marker, so old ones go first or the lock would stay stuck.
+    removeOld(p.cacheDir, (f) => f.startsWith(`${name}.lock.`) && f.endsWith('.steal'), maxAgeMs);
+    try { writeFileSync(`${file}.${st.mtimeMs}.steal`, '', { flag: 'wx', mode: 0o600 }); } catch { return false; }
+    if (statSync(file, { throwIfNoEntry: false })?.mtimeMs !== st.mtimeMs) return false; // replaced meanwhile, by a holdLock
+    try { unlinkSync(file); } catch { return false; }
   }
   return false;
 }

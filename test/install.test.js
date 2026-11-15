@@ -49,6 +49,7 @@ test('installed from the plugin store and turned off in /plugin, the launcher sa
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, enabledPlugins: { 'juice@mkt': false } }));
   const off = node([p.launcherFile], d, busyText);
   assert.match(off.stdout, /juice is turned off/);
+  assert.ok(off.stdout.trim().length <= 100, 'a status line is cut at the window edge, so the whole message must fit');
   assert.doesNotMatch(off.stdout, /Session/);
 });
 
@@ -65,7 +66,8 @@ test('launcher says how to get back when juice is gone', () => {
   const r = node([join(ROOT, 'bin', 'launcher.js')], tmp(), busyText);
   assert.equal(r.status, 0);
   // Uninstalled, /juice restore cannot run, so the line says what can be done.
-  assert.equal(r.stdout.trim(), 'juice is not installed. Install it again and type /juice restore, or delete the statusLine entry in settings.json (your old line is in juice-backup.json).');
+  assert.equal(r.stdout.trim(), 'juice is not installed. Reinstall it and type /juice restore, or delete statusLine in settings.json.');
+  assert.ok(r.stdout.trim().length <= 100, 'a status line is cut at the window edge, so the whole message must fit');
 });
 
 test('a broken juice folder gives the doctor hint, not a blank line', () => {

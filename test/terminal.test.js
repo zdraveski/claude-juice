@@ -3,11 +3,20 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { paths } from '../src/paths.js';
 import { DEFAULTS } from '../src/schema.js';
 import { detectTerminal, readClaudeTheme } from '../src/terminal.js';
 import { remember, recall } from '../src/lastseen.js';
 import { NOW, at } from './helpers.js';
+
+// The release checklist runs this test card in every terminal, so it must at least start.
+test('the terminal test card runs', () => {
+  const r = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/terminal-check.js', import.meta.url))], { encoding: 'utf8', env: { ...process.env, CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-')) } });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /juice would pick here on its own: ends/);
+});
 
 const det = (env = {}, settings = DEFAULTS, claudeTheme = null) => detectTerminal({ env, settings, claudeTheme: () => claudeTheme });
 const tmpPaths = () => paths({ CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-')) });

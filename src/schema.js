@@ -172,7 +172,7 @@ const colorWord = (c) => (typeof c === 'string' ? c
 
 // Everything the customizer has a control for. Not fable: switching it on reads the person's login (from the
 // Keychain on a Mac), which only they should decide, with /juice set, never a pasted command or a shared link.
-const COMMAND_KEYS = ['layout', 'show', 'order', 'cost', 'colors', 'ends', 'battery', 'terminal', 'refills'];
+const COMMAND_KEYS = ['layout', 'show', 'order', 'cost', 'colors', 'ends', 'battery', 'terminal', 'refills', 'motion'];
 
 // terminal=auto goes in only when the person chose Automatic on the page: the public page starts at auto,
 // and pasting a look from it must not undo the "/juice set terminal=light" they chose earlier.

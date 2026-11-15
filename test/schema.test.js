@@ -137,7 +137,7 @@ test('applySet colours', () => {
 
 test('toCommand', () => {
   // The public page starts at Automatic: pasting a look from it keeps the person's own terminal colour.
-  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget order=yours cost=auto colors=claude ends=auto battery=glossy refills=always');
+  assert.equal(toCommand(DEFAULTS), '/juice set layout=bar show=model,effort,memory,session,fable,week,budget order=yours cost=auto colors=claude ends=auto battery=glossy refills=always motion=off');
   const mine = applySet({ ...DEFAULTS, fable: 'on', terminal: 'light' }, toCommand(DEFAULTS).split(' ').slice(2)).settings;
   assert.deepEqual([mine.fable, mine.terminal], ['on', 'light'], 'neither their fable nor their terminal choice is undone');
   // Choosing Automatic on the page does say so, and undoes Light.
@@ -154,10 +154,10 @@ test('an all-wrong show= list says which names are right, in plain words', () =>
 });
 
 test('toCommand round-trips through applySet, custom colours too (everything but fable)', () => {
-  const s = { ...DEFAULTS, layout: 'focus', show: ['week', 'model'], order: 'fullest', cost: 'on', colors: { dark: A, light: custom.light }, ends: 'round', battery: 'pace', terminal: 'light', refills: 'warnings', fable: 'off' };
+  const s = { ...DEFAULTS, layout: 'focus', show: ['week', 'model'], order: 'fullest', cost: 'on', colors: { dark: A, light: custom.light }, ends: 'round', battery: 'pace', terminal: 'light', refills: 'warnings', motion: 'on', fable: 'off' };
   const lower = applySet(DEFAULTS, toCommand(s).split(' ').slice(2)).settings;
   assert.deepEqual(lower, { ...sanitize(s, { allowBadges: true }).settings, fable: DEFAULTS.fable });
-  assert.equal(toCommand(s).split(' ').length, 11);
+  assert.equal(toCommand(s).split(' ').length, 12);
 });
 
 test('a share link never switches on Fable, which reads the login', () => {

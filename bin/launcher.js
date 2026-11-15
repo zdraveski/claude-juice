@@ -45,6 +45,7 @@ if (isMain) {
   if (target) {
     // A broken version folder must not blank the line; the same hint the status line itself gives.
     try { await import(pathToFileURL(target).href); } catch { console.log(process.env.NO_COLOR ? 'juice: /juice doctor' : '\x1b[2mjuice: /juice doctor\x1b[22m'); }
-  } else if (turnedOff(config)) console.log('juice is turned off. Turn it back on in /plugin to see your batteries again (once it is on, /juice restore gives you your old status line instead).');
-  else console.log('juice is not installed. Install it again and type /juice restore, or delete the statusLine entry in settings.json (your old line is in juice-backup.json).');
+  // Each fits in 100 characters: a status line is cut at the window edge.
+  } else if (turnedOff(config)) console.log('juice is turned off. Turn it on in /plugin; to go back to your old line, then type /juice restore.');
+  else console.log('juice is not installed. Reinstall it and type /juice restore, or delete statusLine in settings.json.');
 }
