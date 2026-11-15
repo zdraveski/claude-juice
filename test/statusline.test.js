@@ -50,7 +50,7 @@ test('the real line stands still unless motion is on', async () => {
 });
 
 test('fable refresh spawns once per lock window, and not on darwin auto', async () => {
-  const a = setup('win32');
+  const a = setup('win32', { fable: 'on' });
   await a.run(busy);
   assert.deepEqual(a.calls, [['refresh-fable']]);
   await a.run(busy);
@@ -58,9 +58,19 @@ test('fable refresh spawns once per lock window, and not on darwin auto', async 
   const b = setup('darwin');
   await b.run(busy);
   assert.deepEqual(b.calls, []);
-  const c = setup('win32');
+  const c = setup('win32', { fable: 'on' });
   await c.run(JSON.stringify(fixture('payg')));
   assert.deepEqual(c.calls, [], 'an API-key user\'s login is never sent for limits they do not have');
+});
+
+test('fable auto reads no login on a new install, and keeps a current user on even with a damaged reading', async () => {
+  const { dir, calls, run } = setup('win32');
+  await run(busy);
+  assert.ok(!calls.some((c) => c[0] === 'refresh-fable'));
+  mkdirSync(join(dir, 'juice-cache'), { recursive: true });
+  writeFileSync(join(dir, 'juice-cache', 'fable.json'), 'not json');
+  assert.match(strip(await run(busy)), /Session/);
+  assert.ok(calls.some((c) => c[0] === 'refresh-fable'));
 });
 
 test('configured badge with no cache spawns a refresh and stashes stdin', async () => {

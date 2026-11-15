@@ -1,7 +1,7 @@
 // The per-refresh pipeline: stdin text in, status line text out. Never throws, never waits on a refresher.
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { paths, hideHome } from './paths.js';
 import { readJson, takeLock, writeJsonAtomic, HOT_WRITE } from './cache.js';
 import { loadSettings } from './settings.js';
@@ -29,7 +29,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     const extras = { lastSeen: remember(stdin, p, now) };
 
     // fable.js (child_process, crypto) only runs in the background refresher; here the cache is enough.
-    const fableOn = fableEnabled(settings.fable, platform);
+    const fableOn = fableEnabled(settings.fable, platform, existsSync(p.fableFile));
     const fableCache = fableOn ? readJson(p.fableFile) : null;
     if (fableOn) extras.fable = fableCache;
 

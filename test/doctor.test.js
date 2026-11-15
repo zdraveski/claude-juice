@@ -200,6 +200,7 @@ test('doctor: Fable off, failing, and checked', () => {
   assert.match(check(d), /Fable battery: turned off\./);
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ fable: 'auto' }));
   assert.match(check(d, { platform: 'darwin' }), /off on a Mac until you type \/juice set fable=on/);
+  assert.match(check(d), /^· Fable battery: off until you turn it on with \/juice set fable=on, which lets juice read your Claude login\.$/m);
   mkdirSync(join(d, 'juice-cache'), { recursive: true });
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 10 * 60000 }));
   assert.match(check(d), /^! Fable battery: the last check failed; juice tries again in 10 min\. If it keeps failing, type \/login/m);

@@ -30,11 +30,13 @@ const cacheFile = (p) => join(p.cacheDir, 'fable.json');
 const noExec = () => { throw new Error('should not run'); };
 
 test('fableEnabled', () => {
-  assert.equal(fableEnabled('auto', 'darwin'), false);
-  assert.equal(fableEnabled('auto', 'win32'), true);
-  assert.equal(fableEnabled('auto', 'linux'), true);
-  assert.equal(fableEnabled('on', 'darwin'), true);
-  assert.equal(fableEnabled('off', 'win32'), false);
+  // auto stays on only for someone who already has a reading (1.3.x turned it on without asking); a new install asks first.
+  assert.equal(fableEnabled('auto', 'win32', true), true);
+  assert.equal(fableEnabled('auto', 'linux', true), true);
+  assert.equal(fableEnabled('auto', 'win32', false), false);
+  assert.equal(fableEnabled('auto', 'darwin', true), false);
+  assert.equal(fableEnabled('on', 'darwin', false), true);
+  assert.equal(fableEnabled('off', 'linux', true), false);
 });
 
 test('readToken: file on win32, null on problems', () => {

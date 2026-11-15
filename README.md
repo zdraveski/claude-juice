@@ -44,9 +44,11 @@ You need Node 24 or newer. To check, type `node --version` in a terminal; if you
 
 If Claude Code still doesn't know `/juice`, restart it and type `/juice setup` again. juice saves your old status line first, if you had one, so `/juice restore` can always bring it back.
 
+Setup asks you once whether juice may read your Claude login for the Fable battery. Saying no keeps everything else working. [More in Privacy](#privacy).
+
 The very first time, the batteries fill in after Claude's first reply; until then only the model and effort level show. After that, a new chat shows Session and Weekly straight away, and Memory after the first reply.
 
-The only thing juice itself sends anywhere is a usage request to `api.anthropic.com`, while the Fable battery is on (on a Mac it starts off). It fills the Fable battery and keeps Session and Weekly up to date. [More in Privacy](#privacy).
+The only thing juice itself sends anywhere is a usage request to `api.anthropic.com`, and only while the Fable battery is on. It fills the Fable battery and keeps Session and Weekly up to date.
 
 juice works on Windows, macOS and Linux (tested by hand on Windows, automatically on all three). On a Mac or Linux, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) if something looks off.
 
@@ -258,9 +260,9 @@ After uninstalling, juice's own files are still in your Claude folder (`~/.claud
 ## Privacy
 
 - The Fable battery needs your Claude login token, the key Claude Code keeps on your computer to sign you in. juice reads it from `~/.claude/.credentials.json`.
-- The Fable battery is on by default on Windows and Linux. On a Mac it stays off until you type `/juice set fable=on`, and macOS will then ask once for permission to read it from the Keychain (the Mac's password store). This is new on the Mac: if macOS asks more than once, or the battery doesn't appear within a few minutes, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) what `/juice doctor` says. Share links and the customizer's command never turn it on or off; only you do.
+- juice asks before it reads the token, on every system: `/juice setup` asks once, and `/juice set fable=on` or `/juice set fable=off` changes your answer later. If you used juice before 1.4.0 on Windows or Linux and already have a Fable battery, it stays on. On a Mac, macOS also asks once for permission to read the token from the Keychain (the Mac's password store). This is new on the Mac: if macOS asks more than once, or the battery doesn't appear within a few minutes, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) what `/juice doctor` says. Share links and the customizer's command never turn it on or off; only you do.
 - juice sends that token only to `api.anthropic.com`, to read your usage, about every 5 minutes. It never stores or logs it.
-- The same usage reading also keeps Session and Weekly up to date in every window, including idle ones and brand-new chats. With the Fable battery off (as it is on a Mac until you turn it on), those two come only from Claude Code itself, so an idle window can show older numbers.
+- The same usage reading also keeps Session and Weekly up to date in every window, including idle ones and brand-new chats. With the Fable battery off, those two come only from Claude Code itself, so an idle window can show older numbers.
 - To switch the Fable battery off, run `/juice set fable=off`.
 - Badges only run commands you added yourself with `/juice badges add`, after juice shows you the command.
 - Check it yourself: the token is read and sent in [src/fable.js](src/fable.js); badges run in [src/badges.js](src/badges.js).

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paths } from './paths.js';
@@ -51,7 +51,9 @@ export async function main(argv, io) {
       case 'get': {
         const { settings: { badges, ...rest }, warnings } = loadSettings(p);
         // The /juice skill runs get before every change, so badge commands (which can hold keys) never go in here.
-        io.out(JSON.stringify({ ...rest, badges: badges.length }, null, 2));
+        // fableOn tells the skill whether to ask before setup reads the login.
+        const fableOn = fableEnabled(rest.fable, io.platform, existsSync(p.fableFile));
+        io.out(JSON.stringify({ ...rest, fableOn, badges: badges.length }, null, 2));
         warnings.forEach((w) => io.out(`Warning: ${w}`)); // an unreadable juice.json must not pass for the defaults
         return 0;
       }
@@ -112,7 +114,7 @@ export async function main(argv, io) {
       }
       case 'refresh-fable': {
         const { settings } = loadSettings(p);
-        if (fableEnabled(settings.fable, io.platform)) {
+        if (fableEnabled(settings.fable, io.platform, existsSync(p.fableFile))) {
           await refreshFable({ p, platform: io.platform, env: io.env, now: io.now, version: version() });
         }
         return 0;

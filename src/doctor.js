@@ -104,8 +104,10 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   const seen = recall(p)?.subscriberSeenAt;
   out.push(info(!Number.isFinite(seen) ? "Hasn't seen plan limits yet: they show after Claude's first reply. With an API key there are none."
     : t - seen < 3600000 ? "Saw your plan's limits within the last hour" : `Last saw your plan's limits ${ago(t - seen)}`));
-  if (!fableEnabled(mine.fable, platform)) {
-    out.push(info(mine.fable === 'off' ? 'Fable battery: turned off.' : 'Fable battery: off on a Mac until you type /juice set fable=on, because macOS asks permission to read your sign-in.'));
+  if (!fableEnabled(mine.fable, platform, existsSync(p.fableFile))) {
+    out.push(info(mine.fable === 'off' ? 'Fable battery: turned off.'
+      : platform === 'darwin' ? 'Fable battery: off on a Mac until you type /juice set fable=on, because macOS asks permission to read your sign-in.'
+      : 'Fable battery: off until you turn it on with /juice set fable=on, which lets juice read your Claude login.'));
   } else {
     const f = readJson(p.fableFile);
     if (fableCacheState(f, t).backedOff) {

@@ -553,6 +553,14 @@ test('badges list says which badges this computer never approved, so they never 
   assert.match(out, /2\. echo mine$/m);
 });
 
+test('get says whether the Fable battery is on', async () => {
+  const d = env();
+  assert.match((await run(d, ['get'])).out, /"fableOn": false/);
+  mkdirSync(join(d, 'juice-cache'));
+  writeFileSync(join(d, 'juice-cache', 'fable.json'), '{}');
+  assert.match((await run(d, ['get'])).out, /"fableOn": true/);
+});
+
 test('get and badges list warn when juice.json cannot be read, instead of passing for the defaults', async () => {
   const d = env();
   writeFileSync(join(d, 'juice.json'), '{ broken');
