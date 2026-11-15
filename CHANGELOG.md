@@ -2,6 +2,16 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.4.0 (2026-11-15)
+
+[Changes since 1.3.1](https://github.com/zdraveski/claude-juice/compare/v1.3.1...v1.4.0)
+
+Changed:
+- The batteries and the effort level now stand still, and the line refreshes once a minute. The climb needed a refresh every second, which cost about a sixth of a CPU core for every open Claude Code window. Type `/juice set motion=on` to bring the climb back.
+- After the update, juice moves the 1-second refresh it wrote for 1.3.x to once a minute by itself, once. It can't tell its own 1 or 30 from one you typed, so those move too; `/juice set motion=on` puts the 1 back.
+- `/juice setup` now asks before juice reads your Claude login for the Fable battery. If the Fable battery already showed on your Windows or Linux computer, it stays on.
+- When juice can't draw the line, it shows `juice: /juice doctor` after the model name, so you know where to look. It goes away on the next run that works.
+
 ## 1.3.1 (2026-11-07)
 
 [Changes since 1.3.0](https://github.com/zdraveski/claude-juice/compare/v1.3.0...v1.3.1)

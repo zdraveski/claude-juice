@@ -47,7 +47,7 @@ Use a normal session, not auto mode: auto mode approves on its own, so permissio
 7. **Restore.** `/juice restore`. Pass: your old status line is back, and `juice-statusline.mjs` and `juice-backup.json` are gone.
 8. **Update.** After publishing a version bump, `/plugin update`. Pass: the old version's folder gets `.orphaned_at`, and the
    line keeps drawing with the new version (`/juice doctor` names it). From 1.3.x: the `refreshInterval` of 1 that juice
-   wrote in `settings.json` is 60 after the first refresh, and a number you typed there yourself is left alone.
+   wrote in `settings.json` is 60 after the first refresh. A 30 becomes 60 too; any other number you typed there yourself is left alone.
 9. **Turn off and uninstall.** Turn juice off in `/plugin`. Pass: the line reads "juice is turned off…". Uninstall.
    Pass: "juice is not installed…".
 10. **No flashing windows (Windows).** Add the badge `git branch --show-current`, then work for 2 minutes.
