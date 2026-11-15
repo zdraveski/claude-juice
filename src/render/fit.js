@@ -33,6 +33,7 @@ function wholeItems(ln, columns) {
   // " left" stays with its number (the tank layout): "12%" alone would read as used.
   const head = /^(?: [│·] | *)(?:\S+ )?\d+%(?: used| left)?(?: ?!!| ?!)?/.exec(plain.slice(gap))?.[0];
   const end = head && vis(plain.slice(0, gap + head.length)) <= columns - 2 ? gap + head.length : gap;
+  if (!end && head?.includes(' left')) return 0; // a number cut off from its "left" would read as used
   return end ? vis(plain.slice(0, end)) + 1 : columns - 1; // keeps the space after it, before the '…'
 }
 
