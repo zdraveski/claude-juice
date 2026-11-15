@@ -245,3 +245,9 @@ test('a window signed into another account shows its own numbers, not the saved 
   assert.equal(d.limits.session.used, 47);
   assert.equal(d.limits.week.used, s.rate_limits.seven_day.used_percentage);
 });
+
+test('a reset time sent in milliseconds is not stretched a thousand times', () => {
+  const s = fixture('busy');
+  s.rate_limits.five_hour.resets_at = (nowS + 7800) * 1000;
+  assert.equal(normalize(s, {}, NOW).limits.session.resetsAt.getTime(), (nowS + 7800) * 1000);
+});
