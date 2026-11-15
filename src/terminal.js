@@ -22,7 +22,7 @@ export function detectTerminal({ env, settings, claudeTheme }) {
   return {
     columns: Math.max(1, (Number.isInteger(cols) && cols > 0 ? cols : 120) - RESERVE), // never wider than the window
     theme: theme(settings.terminal, claudeTheme, env),
-    ends: ['round', 'plain'].includes(settings.ends) ? settings.ends : env.TERM_PROGRAM === 'vscode' ? 'round' : 'plain',
+    ends: env.NO_COLOR ? 'plain' : ['round', 'plain'].includes(settings.ends) ? settings.ends : env.TERM_PROGRAM === 'vscode' ? 'round' : 'plain',
     // NO_COLOR (no-color.org): any non-empty value means no colour codes at all.
     // Windows Terminal draws full colour but doesn't announce it in COLORTERM.
     colorDepth: env.NO_COLOR ? 'none'

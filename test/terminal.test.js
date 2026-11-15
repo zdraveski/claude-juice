@@ -170,3 +170,8 @@ test('COLUMNS is a whole positive number or it is ignored', () => {
   assert.equal(det({ COLUMNS: '80.5' }).columns, 116);
   assert.equal(det({ COLUMNS: ' 90 ' }).columns, 86);
 });
+
+test('with no colour the rounded ends become plain ones, so no bare cap glyphs print', () => {
+  assert.equal(det({ TERM_PROGRAM: 'vscode', NO_COLOR: '1' }).ends, 'plain');
+  assert.equal(det({ TERM_PROGRAM: 'vscode' }).ends, 'round');
+});
