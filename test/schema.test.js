@@ -254,8 +254,19 @@ test('battery set in a layout that keeps its own shapes says so; bar and focus s
   assert.deepEqual(applySet({ ...DEFAULTS, layout: 'panel' }, ['layout=bar', 'layout=panel']).changed, []);
 });
 
+test('a wrong value lists the right ones, built from the table that checks them', () => {
+  const w = (pair) => applySet(DEFAULTS, [pair]).warnings[0];
+  assert.match(w('layout=nope'), new RegExp(`Use one of: ${LAYOUT_IDS.join(', ')}\\.`));
+  assert.match(w('motion=maybe'), /Use one of: on, off\./);
+  assert.match(w('cost=x'), /Use one of: auto, on, off\./);
+  assert.match(w('look=nope'), new RegExp(`Use one of: ${LOOKS.map((l) => l.id).join(', ')}\\.`));
+  assert.match(w('colors=nope'), new RegExp(`Use one of: ${PRESET_IDS.join(', ')}\\. Or .*dark:.*light:.*#`));
+  // A bad value in juice.json says it too.
+  assert.match(sanitize({ layout: 'nope' }, { allowBadges: false }).warnings[0], new RegExp(`using 'bar'\\. Use one of: ${LAYOUT_IDS.join(', ')}\\.$`));
+});
+
 test('unknown values mention updating juice; junk settings never print "undefined"', () => {
-  assert.match(applySet(DEFAULTS, ['battery=nope']).warnings[0], /isn't valid, keeping 'glossy'\. If it's new, update juice: type \/plugin/);
+  assert.match(applySet(DEFAULTS, ['battery=nope']).warnings[0], /isn't valid, keeping 'glossy'\. Use one of: glossy, .*\. If it's new, update juice: type \/plugin/);
   for (const layout of [undefined, 'junk']) {
     const w = applySet({ ...DEFAULTS, layout }, ['battery=pie']).warnings.join();
     assert.match(w, /^battery: saved, but the current layout/);
