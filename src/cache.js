@@ -13,7 +13,7 @@ export const HOT_WRITE = { maxWaitMs: 30 };
 // Deletes the files in dir that `ok` picks and nobody has touched for keepMs. Claude Code can stop a status line
 // run between writing a temp copy and renaming it into place, so stray .tmp files are swept from time to time.
 // Dated far ahead counts as old too: the clock was wrong when they were written, and waiting would take that long.
-const touchedWithin =(st, ms) => Math.abs(Date.now() - st.mtimeMs) < ms;
+const touchedWithin = (st, ms) => Math.abs(Date.now() - st.mtimeMs) < ms;
 export function removeOld(dir, ok, keepMs) {
   try {
     for (const f of readdirSync(dir)) {
