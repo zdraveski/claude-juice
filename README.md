@@ -243,7 +243,7 @@ Type `/juice doctor` first (when juice itself hits a problem, the line says `jui
 - **You see boxes or question marks instead of round battery ends.** Type `/juice use plain ends`.
 - **You want round battery ends outside VS Code.** Type `/juice use round ends`.
 - **The Fable battery doesn't show at work, behind a company proxy.** There it needs Node 24 or newer, like the rest of juice.
-- **It says "juice is turned off" or "juice is not installed".** Turn juice back on, or install it again, in `/plugin`. Then `/juice setup` uses it, or `/juice restore` gives you your old status line back.
+- **It says "juice is turned off" or "juice is not installed".** Turn juice back on, or install it again, in `/plugin`. Then `/juice setup` uses it, or `/juice restore` gives you your old status line back. If you don't want juice back, delete the `statusLine` entry in `~/.claude/settings.json`; your old one is in `~/.claude/juice-backup.json`.
 
 ## Update, undo and uninstall
 
