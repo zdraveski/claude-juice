@@ -237,3 +237,11 @@ test('model name loses OSC sequences and line breaks', () => {
   s.model.display_name = ' a\nb\tc ';
   assert.equal(normalize(s, {}, NOW).model.name, 'a b c');
 });
+
+test('a window signed into another account shows its own numbers, not the saved account\'s later window', () => {
+  const s = fixture('busy'); // own Session 47%, resets in 2h 10m; own Weekly too
+  const other = { ...seen(), fiveHour: { used: 80, resetsAt: nowS + 17000 }, sevenDay: { used: 90, resetsAt: s.rate_limits.seven_day.resets_at + 86400 } };
+  const d = normalize(s, { lastSeen: other }, NOW);
+  assert.equal(d.limits.session.used, 47);
+  assert.equal(d.limits.week.used, s.rate_limits.seven_day.used_percentage);
+});

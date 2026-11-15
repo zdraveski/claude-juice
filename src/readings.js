@@ -29,14 +29,14 @@ export function toSave(kept, seen, { known, news }, now) {
   return time(seen) > time(kept) && ended(kept, now) ? seen : kept;
 }
 
-// What to show. The saved number already counts this window's own, so it wins unless this window's is from a
-// window more than a minute later (the saved one is then another account's, kept until it ends), or the saved
-// one has already ended (this window's may lack a reset time, and an ended reading says nothing about now).
+// What to show. The saved number already counts this window's own, so it wins unless this window has not ended and its
+// reset time is more than a minute from the saved one's (an account has one current window, so the saved one is
+// another account's), or the saved one has already ended (this window's may lack a reset time, and an ended reading says nothing about now).
 // A fetched number then refines it: within one window usage only grows, so the higher wins. A later window
 // replaces ours only once ours has ended; while both are current they disagree, as when the fetch used another
 // account's login.
 export function toShow({ own, saved, fetched }, now) {
-  const ours = !saved ? own : !own ? saved : ended(saved, now) || time(saved) < time(own) - TOLERANCE ? own : saved;
+  const ours = !saved ? own : !own ? saved : ended(saved, now) || (!ended(own, now) && !sameWindow(saved, own)) ? own : saved;
   if (!ours || !fetched) return ours || fetched;
   if (sameWindow(ours, fetched)) return fetched.used > ours.used ? fetched : ours;
   const [early, late] = time(ours) < time(fetched) ? [ours, fetched] : [fetched, ours];
