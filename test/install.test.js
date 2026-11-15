@@ -2,7 +2,7 @@
 import { fixture } from './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, symlinkSync, lstatSync, cpSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, symlinkSync, lstatSync, cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -64,7 +64,20 @@ test('launcher works through a junction or symlink', (t) => {
 test('launcher says how to get back when juice is gone', () => {
   const r = node([join(ROOT, 'bin', 'launcher.js')], tmp(), busyText);
   assert.equal(r.status, 0);
-  assert.equal(r.stdout.trim(), 'juice is not installed. Install it again, then type /juice setup to use it or /juice restore to get your old status line back.');
+  // Uninstalled, /juice restore cannot run, so the line says what can be done.
+  assert.equal(r.stdout.trim(), 'juice is not installed. Install it again and type /juice restore, or delete the statusLine entry in settings.json (your old line is in juice-backup.json).');
+});
+
+test('a broken juice folder gives the doctor hint, not a blank line', () => {
+  const d = tmp();
+  const bin = join(d, 'plugins', 'cache', 'm', 'juice', '1.0.0', 'bin');
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, 'juice-statusline.js'), 'import "./missing-file.js";');
+  const run = (extra) => spawnSync(process.execPath, [join(ROOT, 'bin', 'launcher.js')], { input: busyText, encoding: 'utf8', env: { ...process.env, CLAUDE_CONFIG_DIR: d, NO_COLOR: '', ...extra } });
+  const r = run({});
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout.trim(), '\x1b[2mjuice: /juice doctor\x1b[22m');
+  assert.equal(run({ NO_COLOR: '1' }).stdout.trim(), 'juice: /juice doctor');
 });
 
 test('setup and restore write through a symlinked settings.json', (t) => {

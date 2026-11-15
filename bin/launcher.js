@@ -42,7 +42,9 @@ const isMain = (() => { try { return realpathSync(process.argv[1]) === realpathS
 if (isMain) {
   const config = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
   const target = turnedOff(config) ? null : resolveTarget(config);
-  if (target) await import(pathToFileURL(target).href);
-  else if (turnedOff(config)) console.log('juice is turned off. Turn it back on in /plugin to see your batteries again (once it is on, /juice restore gives you your old status line instead).');
-  else console.log('juice is not installed. Install it again, then type /juice setup to use it or /juice restore to get your old status line back.');
+  if (target) {
+    // A broken version folder must not blank the line; the same hint the status line itself gives.
+    try { await import(pathToFileURL(target).href); } catch { console.log(process.env.NO_COLOR ? 'juice: /juice doctor' : '\x1b[2mjuice: /juice doctor\x1b[22m'); }
+  } else if (turnedOff(config)) console.log('juice is turned off. Turn it back on in /plugin to see your batteries again (once it is on, /juice restore gives you your old status line instead).');
+  else console.log('juice is not installed. Install it again and type /juice restore, or delete the statusLine entry in settings.json (your old line is in juice-backup.json).');
 }
