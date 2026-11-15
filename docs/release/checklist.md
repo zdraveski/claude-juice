@@ -21,6 +21,7 @@ once and under whatever version number `main` says. So:
 ## 1. Run here before every release
 
 - [ ] `node --test` passes, and GitHub's run for the release commit is green on all 7.
+- [ ] `node scripts/e2e.mjs` passes (GitHub runs it after the tests; it uses a fake home and never touches yours). A changed default, message or step it checks needs it changed too.
 - [ ] `node scripts/check-customizer.js` passes every browser check (needs Playwright: `npm i -g playwright`; GitHub runs it too, as `customizer`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
 - [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json`, and CHANGELOG.md has its `## X.Y.Z` section (tests fail if the versions differ or the section is missing; Claude Code uses plugin.json's version to find updates).
