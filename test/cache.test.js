@@ -78,6 +78,44 @@ test('takeLock', () => {
   assert.equal(takeLock(p, 'v', at(60)), true); // clock corrected: refreshes carry on
 });
 
+test('takeLock gives the lock to one of many windows drawing at the same moment', async () => {
+  const p = paths({ CLAUDE_CONFIG_DIR: tmp() });
+  const url = new URL('../src/cache.js', import.meta.url).href;
+  const go = Date.now() + 1500; // every child waits for the same instant, so they really do collide
+  const code = `import(${JSON.stringify(url)}).then(m=>{while(Date.now()<${go});process.stdout.write(String(m.takeLock({cacheDir:${JSON.stringify(p.cacheDir)}},'u',new Date(${NOW.getTime()}))))})`;
+  const wins = await Promise.all(Array.from({ length: 6 }, () => new Promise((res) => {
+    let out = '';
+    const c = spawn(process.execPath, ['-e', code]);
+    c.stdout.on('data', (d) => { out += d; });
+    c.on('close', () => res(out));
+  })));
+  assert.equal(wins.filter((w) => w === 'true').length, 1, wins.join());
+});
+
+test('takeLock replaces an unreadable lock', () => {
+  const p = paths({ CLAUDE_CONFIG_DIR: tmp() });
+  mkdirSync(p.cacheDir, { recursive: true });
+  writeFileSync(join(p.cacheDir, 'u.lock'), 'junk');
+  assert.equal(takeLock(p, 'u', NOW), true);
+  assert.equal(readJson(join(p.cacheDir, 'u.lock')), NOW.getTime());
+});
+
+test('a target that can never be replaced fails at once, even with the long wait', () => {
+  const d = tmp(), target = join(d, 'dir.json');
+  mkdirSync(target);
+  const t0 = Date.now();
+  assert.throws(() => writeJsonAtomic(target, { a: 1 }));
+  assert.ok(Date.now() - t0 < 300, `took ${Date.now() - t0} ms`);
+  assert.deepEqual(readdirSync(d).filter((n) => n.endsWith('.tmp')), []);
+});
+
+test('the cache folders are private to the person', { skip: process.platform === 'win32' && 'Windows has no owner-only folder mode' }, () => {
+  const d = tmp(), f = join(d, 'juice-cache', 'badges', 'a.json');
+  writeJsonAtomic(f, {});
+  assert.equal(statSync(join(d, 'juice-cache')).mode & 0o777, 0o700);
+  assert.equal(statSync(join(d, 'juice-cache', 'badges')).mode & 0o777, 0o700);
+});
+
 test('loadSettings: missing -> fresh defaults, corrupt -> warning, save round trips', () => {
   const p = paths({ CLAUDE_CONFIG_DIR: tmp() });
   const r = loadSettings(p);
