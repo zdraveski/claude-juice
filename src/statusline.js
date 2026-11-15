@@ -41,8 +41,8 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
 
     const data = normalize(stdin, extras, now);
     const terminal = detectTerminal({ env, settings, claudeTheme: readClaudeTheme(p.claudeSettings) });
-    // Only the real line moves; previews and /juice looks draw the effort level still.
-    const { text } = render(data, settings, { ...terminal, animate: true });
+    // Only the real line moves, and only with motion on: each climb needs a refresh every second.
+    const { text } = render(data, settings, { ...terminal, animate: settings.motion === 'on' });
 
     // Only subscribers have these limits, so nobody else's login is sent to Anthropic for nothing.
     if (fableOn && data.account === 'subscriber' && fableCacheState(fableCache, now).stale && takeLock(p, 'fable', now)) {

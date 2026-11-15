@@ -12,6 +12,14 @@ test('ids and url', () => {
   assert.match(CUSTOMIZER_URL, /^https:\/\//);
 });
 
+test('motion is off unless chosen', () => {
+  assert.equal(DEFAULTS.motion, 'off');
+  assert.equal(applySet(DEFAULTS, ['motion=on']).settings.motion, 'on');
+  const bad = applySet(DEFAULTS, ['motion=fast']);
+  assert.equal(bad.settings.motion, 'off');
+  assert.equal(bad.warnings.length, 1);
+});
+
 test('sanitize defaults and unknown keys', () => {
   assert.deepEqual(sanitize({}, { allowBadges: true }).settings, DEFAULTS);
   const r = sanitize({ layout: 'xyz', foo: 1 }, { allowBadges: true });

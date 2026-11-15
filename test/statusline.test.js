@@ -1,4 +1,4 @@
-import { fixture, strip, NOW } from './helpers.js';
+import { fixture, strip, NOW, at } from './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
@@ -40,6 +40,13 @@ test('model name alone renders', async () => {
 test('internal error falls back to the model name', async () => {
   const out = await runStatusLine({ stdinText: '{"model":{"display_name":"Opus 5.5"}}', env: null, now: NOW, platform: 'win32', spawnDetached() {} });
   assert.equal(out, 'Opus 5.5');
+});
+
+test('the real line stands still unless motion is on', async () => {
+  // NOW is minute-aligned, so it is climb frame 0, and 10 s later is frame 5 of the same climb.
+  const draw = (settings, now) => runStatusLine({ stdinText: busy, env: { CLAUDE_CONFIG_DIR: setup('win32', settings).dir }, now, platform: 'win32', spawnDetached() {} });
+  assert.equal(await draw(undefined, NOW), await draw(undefined, at(10)));
+  assert.notEqual(await draw({ motion: 'on' }, NOW), await draw({ motion: 'on' }, at(10)));
 });
 
 test('fable refresh spawns once per lock window, and not on darwin auto', async () => {
