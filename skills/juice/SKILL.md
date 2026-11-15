@@ -42,6 +42,7 @@ Steps:
    - battery: glossy, classic, outline, hot, liquid, pace, and the shapes pie, sand, slider, race (Pace race), lives (hearts), dots, chevrons, ruler ("the old look" -> `battery=classic`, "thin lines" -> `battery=outline`, "show when I'm going fast" -> `battery=pace` or `battery=race`, "hearts" -> `battery=lives`). Styles and shapes draw only in the Status bar and Tightest first layouts (`layout=bar` or `layout=focus`); the other layouts keep their own shapes, so say so before promising one there
    - terminal: auto, dark, light ("my terminal is light" or "the text is hard to read" on a light background -> `terminal=light`)
    - refills (the reset times): always, warnings
+   - motion: off, on (on: the effort level and batteries climb, and the line refreshes every second, about a sixth of a CPU core per open window)
    - fable: auto, on, off
 
    If the user asks which colours there are, list them from above in plain words without running anything. For looks, use step 3.

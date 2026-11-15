@@ -14,7 +14,7 @@ import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
 import { fableCacheState, fetchedCounts } from './readings.js';
 import { recall } from './lastseen.js';
-import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes, constant, readText, OLD_REFRESH } from './setup.js';
+import { isJuice, runsLauncher, overrides, readClaudeSettings, refreshes, refreshFor, refreshWords, constant, readText } from './setup.js';
 import { hideHome } from './paths.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
 
@@ -52,10 +52,11 @@ export function doctor(p, { env, platform, now, cwd, version }) {
   else if (line && !isJuice(line)) out.push(bad("Another status line is set, so juice isn't showing. Run /juice setup to switch to juice."));
   else if (line && !here) out.push(bad("juice is your status line but points at a folder that isn't this one (settings copied from another computer?). Run /juice setup."));
   else if (line) {
-    const every = line.refreshInterval;
-    out.push(refreshes(line) ? ok(`juice is your status line, refreshing ${every === 60 ? 'once a minute' : every === 1 ? 'every second' : `every ${every} seconds`}`)
-      // juice's own old times: setup moves them, so the pictures climb a step at a time while idle.
-      + (OLD_REFRESH.includes(every) ? '\n' + info(`Run /juice setup to refresh every second, so the effort level and batteries move a step at a time.`) : '')
+    const every = line.refreshInterval, want = refreshFor(line, loadSettings(p).settings.motion);
+    out.push(refreshes(line) ? ok(`juice is your status line, refreshing ${refreshWords(every)}`)
+      // Only juice's own times differ from what motion wants: one chosen by hand is what it wants.
+      + (want === every ? '' : '\n' + info(want === 1 ? 'Run /juice setup to refresh every second, so the effort level and batteries climb.'
+        : 'Run /juice setup to refresh once a minute: the pictures stand still, so every second only costs CPU.'))
       : bad("juice is your status line but doesn't refresh on its own, so its numbers and reset times go stale while Claude Code is idle. Run /juice setup."));
   }
 

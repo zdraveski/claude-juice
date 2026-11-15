@@ -2,7 +2,7 @@
 // current. Small on purpose: every refresh loads it.
 import { readFileSync, statSync, utimesSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { writeAtomic } from './cache.js';
+import { writeAtomic, HOT_WRITE } from './cache.js';
 
 const TEMPLATE = fileURLToPath(new URL('../bin/launcher.js', import.meta.url));
 export const fwd = (s) => s.replaceAll(String.fromCharCode(92), '/');
@@ -36,15 +36,15 @@ export function launcherFor(pluginRoot) {
 // plugin named juice) would never reach people. Once after each install or update of juice (the launcher is older
 // than the running juice's template), a refresh compares it with what this juice would write and replaces it if
 // they differ, else marks it checked. A missing one (restore removed it) is left alone. Never throws.
+// True when this refresh was that once-per-update check, so the caller can do its own once-per-update work.
 export function upgradeLauncher(p, pluginRoot) {
   try {
     if (statSync(p.launcherFile).mtimeMs >= statSync(TEMPLATE).mtimeMs) return false;
     const want = launcherFor(pluginRoot), have = readFileSync(p.launcherFile, 'utf8'), target = launcherTarget(have);
     // A launcher setup pointed at another copy of juice stays pointed there: running a checkout to test it must
     // not take the place of the installed juice.
-    if (have !== want && (!target || target === launcherTarget(want))) { writeAtomic(p.launcherFile, want, { maxWaitMs: 30 }); return true; }
-    const now = new Date();
-    utimesSync(p.launcherFile, now, now);
-  } catch {}
-  return false;
+    if (have !== want && (!target || target === launcherTarget(want))) writeAtomic(p.launcherFile, want, HOT_WRITE);
+    else { const now = new Date(); utimesSync(p.launcherFile, now, now); }
+    return true;
+  } catch { return false; }
 }

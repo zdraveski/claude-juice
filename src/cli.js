@@ -10,7 +10,7 @@ import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
 import { refreshFable } from './fable.js';
 import { refreshBadges, addBadge, listBadges, removeBadge, unapprovedBadges } from './badges.js';
-import { install, restore, fwd, NeedsConfirm } from './setup.js';
+import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm } from './setup.js';
 
 const ROOT = new URL('..', import.meta.url);
 const USAGE = 'Usage: juice set <key=value>... | get | looks | setup | restore | customize | doctor | badges add|list|remove | refresh-fable | refresh-badges <key>';
@@ -35,6 +35,14 @@ export async function main(argv, io) {
         const changed = write.filter((k) => moved.includes(k) || Object.hasOwn(file, k));
         if (write.length) saveSettings(p, Object.fromEntries(write.map((k) => [k, settings[k]])));
         io.out(changed.length ? `Changed: ${changed.join(', ')}` : 'Nothing changed.');
+        if (chosen.includes('motion')) {
+          try {
+            const n = matchRefresh(p, { platform: io.platform });
+            if (n) io.out(`juice now refreshes ${refreshWords(n)}.`);
+          } catch {
+            io.out('Warning: motion is saved, but your Claude Code settings file (settings.json) has a mistake in it, so the refresh time stays as it is. Ask Claude to fix it, then run /juice setup.');
+          }
+        }
         // The file's warnings were read before this write: drop the ones about values just replaced.
         [...loaded.warnings.filter((w) => !write.some((k) => w.startsWith(`${k}:`))), ...warnings].forEach((w) => io.out(`Warning: ${w}`));
         if (!settings.show.length) io.out(`Warning: ${NOTHING_SHOWN}`);

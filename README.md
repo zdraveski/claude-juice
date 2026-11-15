@@ -87,7 +87,9 @@ If you use the VS Code chat panel or the desktop app, open a terminal and type `
 | Weekly | Your weekly limit. |
 | Budget | Only with a company spending limit: how much of it is used. Amber with ! at 85%, red with !! at 90%. |
 
-Next to the batteries you also see the model's name and its effort level: a little staircase that climbs from 1 step (low) to 5 steps (max), with the word beside it. On your status line the staircase climbs up to your level, one step every 2 seconds, holds there, then starts again; the word always says the level (when a narrow window hides the word, the staircase stands still). The batteries' pictures climb the same way, in four steps from a quarter of the way up to the real amount, and everything starts again together every 12 seconds; the number and words beside them never move, and a red battery stands still. juice refreshes every second (twice a step, so no step is skipped) so it keeps moving while Claude Code is idle. Each open Claude Code window runs juice that often; to make it lighter, set a slower `refreshInterval` in Claude Code's settings yourself, such as 10 or 20 seconds, and `/juice setup` keeps it (but not 30 or 60, which older juice wrote, so setup changes them).
+Next to the batteries you also see the model's name and its effort level: a little staircase from 1 step (low) to 5 steps (max), with the word beside it. By default the staircase and the batteries stand still at their true level, and juice refreshes once a minute, so the numbers and reset times stay current while Claude Code is idle at almost no cost.
+
+To make them move, type `/juice set motion=on`. The staircase then climbs up to your level, one step every 2 seconds, holds there, then starts again; the word always says the level (when a narrow window hides the word, the staircase stands still). The batteries' pictures climb the same way, in four steps from a quarter of the way up to the real amount, and everything starts again together every 12 seconds; the number and words beside them never move, and a red battery stands still. With motion on, juice refreshes every second (twice a step, so no step is skipped). That costs about a sixth of a CPU core per open Claude Code window. A `refreshInterval` you set yourself in Claude Code's settings, such as 10 or 20 seconds, is kept either way (but not 1, 30 or 60, which juice writes itself).
 
 The rounded battery ends in the pictures show on their own in VS Code. Other terminals get plain ends, because some fonts draw the rounded ones as boxes; if yours can draw them, type `/juice use round ends`.
 
@@ -176,6 +178,7 @@ Or type `/juice` and then say what you want, in your own words. For example:
 - `/juice show the reset times only when something needs attention`
 - `/juice make it a panel`
 - `/juice my terminal is light` (if the text is hard to read on a light background)
+- `/juice set motion=on` (the effort level and batteries climb; juice then refreshes every second, about a sixth of a CPU core per open window)
 - `/juice customize` (opens the live customizer with your current settings)
 
 ### Battery style

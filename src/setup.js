@@ -3,6 +3,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { readJson, writeJsonAtomic, writeAtomic } from './cache.js';
 import { NOTHING_SHOWN } from './schema.js';
+import { loadSettings } from './settings.js';
 import { fwd, constant, launcherTarget, launcherFor } from './launcher-file.js';
 
 export { fwd, constant };
@@ -11,16 +12,18 @@ const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 const usableBackup = (b) => !!b && typeof b === 'object' && 'statusLine' in b;
 export const readText = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
 // Claude Code only redraws on events, so without a timer the countdowns freeze while it is idle.
-// Every second also moves the pictures' climb: two redraws per step (CLIMB_MS in render/pieces.js), so a step is never skipped.
-const REFRESH_SECONDS = 1;
-// What juice itself wrote before (60 up to 1.2.2, 30 in 1.3.0), so setup moves it; any other time was chosen by hand.
-export const OLD_REFRESH = [60, 30];
+// With motion on, every second moves the climb: two redraws per step (CLIMB_MS in render/pieces.js), so a step is never skipped.
+// Every time juice itself writes or wrote (60 up to 1.2.2 and from 1.4.0, 30 in 1.3.0, 1 in 1.3.1), so juice may move it;
+// any other time was chosen by hand and stays.
+export const JUICE_REFRESH = [1, 30, 60];
 // A refresh time Claude Code uses: at least one second (a hand-typed "60", -5 or 0.5 is ignored by it).
 export const refreshes = (statusLine) => Number.isFinite(statusLine?.refreshInterval) && statusLine.refreshInterval >= 1;
-const keepsRefresh = (statusLine) => refreshes(statusLine) && !OLD_REFRESH.includes(statusLine.refreshInterval);
+const keepsRefresh = (statusLine) => refreshes(statusLine) && !JUICE_REFRESH.includes(statusLine.refreshInterval);
+export const refreshFor = (statusLine, motion) => (keepsRefresh(statusLine) ? statusLine.refreshInterval : motion === 'on' ? 1 : 60);
+export const refreshWords = (seconds) => (seconds === 1 ? 'every second' : seconds === 60 ? 'once a minute' : `every ${seconds} seconds`);
 
 // A symlinked settings.json must stay a symlink, so write to what it points at.
-const writeSettings = (p, v) => writeJsonAtomic(existsSync(p.claudeSettings) ? realpathSync(p.claudeSettings) : p.claudeSettings, v);
+const writeSettings = (p, v, opts) => writeJsonAtomic(existsSync(p.claudeSettings) ? realpathSync(p.claudeSettings) : p.claudeSettings, v, opts);
 
 // juice's own line is Node (node, nodejs or node.exe, bare or by path, optionally after the PATH="…:$PATH"
 // that setup writes on macOS and Linux) running a juice-statusline.mjs, and nothing else, so a wrapper script
@@ -88,6 +91,19 @@ export function readClaudeSettings(p) {
   return v;
 }
 
+// Sets the refresh of this folder's juice line to what motion wants, unless it was chosen by hand. Run by set motion, and
+// once after each update (1.3.x wrote every second, which costs CPU while the line stands still).
+// Throws on a broken settings.json; returns the time it wrote, or null when there was nothing to change.
+// write: HOT_WRITE from a refresh, which must not wait on a file another program holds open.
+export function matchRefresh(p, { platform = process.platform, write } = {}) {
+  const settings = readClaudeSettings(p), line = settings.statusLine;
+  if (!isJuice(line) || !runsLauncher(p, line.command, platform)) return null;
+  const want = refreshFor(line, loadSettings(p).settings.motion);
+  if (line.refreshInterval === want) return null;
+  writeSettings(p, { ...settings, statusLine: { ...line, refreshInterval: want } }, write);
+  return want;
+}
+
 export function install(p, { pluginRoot, yes = false, platform = process.platform, env = process.env, cwd = process.cwd() }) {
   const settings = readClaudeSettings(p);
   if (SHELL_UNSAFE.test(p.launcherFile)) {
@@ -122,19 +138,22 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
     lines.push(settings.statusLine ? 'Saved your current status line so you can get it back.' : 'You had no status line, so there is nothing to save.');
   }
   const current = ours && samePath(settings.statusLine.command, command, platform);
-  if (current && keepsRefresh(settings.statusLine)) lines.push(fix ? 'juice is already your status line.' : 'juice is already your status line. Nothing changed.');
+  // Another tool's refresh time was chosen for that tool, so a first setup starts from juice's own.
+  const want = refreshFor(ours ? settings.statusLine : null, loadSettings(p).settings.motion);
+  if (current && settings.statusLine.refreshInterval === want) lines.push(fix ? 'juice is already your status line.' : 'juice is already your status line. Nothing changed.');
   else if (current) {
-    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, refreshInterval: REFRESH_SECONDS } });
-    lines.push(`juice now refreshes every second, so its numbers and reset times stay current and its pictures move.`);
+    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, refreshInterval: want } });
+    lines.push(want === 1 ? 'juice now refreshes every second, so its pictures climb and its numbers stay current.'
+      : 'juice now refreshes once a minute, so its numbers and reset times stay current while Claude Code is idle.');
   } else if (ours) {
     // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing;
     // one with the right launcher but an older way of finding Node just gets the current one.
     const sameLauncher = runsLauncher(p, settings.statusLine.command, platform);
-    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: keepsRefresh(settings.statusLine) ? settings.statusLine.refreshInterval : REFRESH_SECONDS } });
+    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: want } });
     lines.push(sameLauncher ? 'juice is your status line, now set up to find Node even when Claude Code starts from an app.'
       : 'juice was your status line but pointed somewhere else, so it now points at this copy of juice.');
   } else {
-    writeSettings(p, { ...settings, statusLine: { type: 'command', command, padding: 0, refreshInterval: REFRESH_SECONDS } });
+    writeSettings(p, { ...settings, statusLine: { type: 'command', command, padding: 0, refreshInterval: want } });
     lines.push("juice is now your status line. It shows up the next time Claude Code redraws it, and the batteries fill in after Claude's first reply.");
   }
   if (fix && ours) lines.push(fix); // a first setup has no launcher yet: nothing to say about putting it back

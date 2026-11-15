@@ -57,25 +57,67 @@ test('setup backs up, keeps other keys, and a second setup keeps the backup', as
 });
 
 // The countdowns go stale while Claude Code is idle unless it re-runs the status line on a timer.
-test('setup asks for a refresh every second, adds it to an older juice install, and moves the old 60 and 30', async () => {
+test('setup writes the refresh motion wants: once a minute when still, every second when climbing', async () => {
   const d = env();
+  const sl = () => json(join(d, 'settings.json')).statusLine;
   writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD));
   await run(d, ['setup']);
-  assert.equal(json(join(d, 'settings.json')).statusLine.refreshInterval, 1);
-  const older = json(join(d, 'settings.json'));
-  delete older.statusLine.refreshInterval;
-  writeFileSync(join(d, 'settings.json'), JSON.stringify(older));
-  const r = await run(d, ['setup']);
-  assert.equal(r.code, 0);
-  assert.equal(json(join(d, 'settings.json')).statusLine.refreshInterval, 1);
+  assert.equal(sl().refreshInterval, 60);
   assert.deepEqual(json(join(d, 'juice-backup.json')).statusLine, OLD.statusLine, 'the saved old line is untouched');
   assert.match((await run(d, ['setup'])).out, /already your status line\. Nothing changed\./);
-  // 60 and 30 are what juice wrote before; setup moves them, so the pictures climb while idle.
-  for (const old of [60, 30]) {
-    writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...older, statusLine: { ...older.statusLine, refreshInterval: old } }));
-    assert.match((await run(d, ['setup'])).out, /refreshes every second/, String(old));
-    assert.equal(json(join(d, 'settings.json')).statusLine.refreshInterval, 1, String(old));
+  // 1 and 30 are what juice wrote before (1.3.1 and 1.3.0), and a missing time is an install from before 0.3.
+  for (const old of [1, 30, undefined]) {
+    writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...OLD, statusLine: { ...sl(), refreshInterval: old } }));
+    assert.match((await run(d, ['setup'])).out, /juice now refreshes once a minute/, String(old));
+    assert.equal(sl().refreshInterval, 60, String(old));
   }
+  assert.match((await run(d, ['set', 'motion=on'])).out, /Changed: motion\njuice now refreshes every second/);
+  assert.equal(sl().refreshInterval, 1);
+  assert.match((await run(d, ['setup'])).out, /already your status line\. Nothing changed\./);
+  await run(d, ['set', 'motion=off']);
+  assert.equal(sl().refreshInterval, 60);
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...OLD, statusLine: { ...sl(), refreshInterval: 45 } }));
+  for (const m of ['on', 'off']) {
+    await run(d, ['set', `motion=${m}`]);
+    await run(d, ['setup']);
+    assert.equal(sl().refreshInterval, 45, 'a time chosen by hand stays');
+  }
+});
+
+test('set motion with a broken settings.json saves motion, warns, and leaves the file alone', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), '{"statusLine":');
+  const r = await run(d, ['set', 'motion=on']);
+  assert.equal(r.code, 0);
+  assert.equal(json(join(d, 'juice.json')).motion, 'on');
+  assert.match(r.out, /Warning: motion is saved, but your Claude Code settings file/);
+  assert.equal(readFileSync(join(d, 'settings.json'), 'utf8'), '{"statusLine":');
+});
+
+// 1.3.x people won't run setup again, so the first refresh after the update moves the every-second juice wrote.
+test('after an update, a refresh moves the 1 juice wrote to 60 once, and nothing else in settings.json', async () => {
+  const d = env(), f = join(d, 'settings.json'), launcher = join(d, 'juice-statusline.mjs');
+  await run(d, ['setup']);
+  const s = { ...json(f), theme: 'dark', permissions: { allow: ['Bash(ls)'] }, hooks: { Stop: [] }, env: { A: '1' } };
+  const put = (o) => writeFileSync(f, JSON.stringify({ ...s, statusLine: { ...s.statusLine, ...o } }));
+  const stale = () => utimesSync(launcher, new Date(0), new Date(0));
+  const { runStatusLine } = await import('../src/statusline.js');
+  const { matchRefresh } = await import('../src/setup.js');
+  const { paths } = await import('../src/paths.js');
+  const draw = () => runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
+  put({ refreshInterval: 1 }); stale(); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 60);
+  assert.deepEqual({ ...json(f), statusLine: null }, { ...s, statusLine: null }, 'every other key comes back as it was');
+  assert.equal(matchRefresh(paths({ CLAUDE_CONFIG_DIR: d }), { platform: 'linux' }), null, 'a second window changes nothing');
+  put({ refreshInterval: 1 }); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 1, 'only once per update');
+  put({ refreshInterval: 45 }); stale(); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 45, 'a time chosen by hand stays');
+  put({ command: 'node "/elsewhere/.claude/juice-statusline.mjs"', refreshInterval: 1 }); stale(); await draw();
+  assert.equal(json(f).statusLine.refreshInterval, 1, "another folder's juice is not ours to change");
+  writeFileSync(f, '{"statusLine":'); stale();
+  assert.equal(typeof await draw(), 'string');
+  assert.equal(readFileSync(f, 'utf8'), '{"statusLine":', 'a broken file is never written');
 });
 
 // Switching between a checkout and the plugin store only rewrites the launcher; setup must still say so.
@@ -94,7 +136,7 @@ test('setup says when it points the launcher at another copy of juice', async ()
   writeFileSync(join(d, 'juice-statusline.mjs'), 'await import("old")');
   const s = json(join(d, 'settings.json'));
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: undefined } }));
-  assert.match((await run(d, ['setup'])).out, /refreshes every second.*\nIts launcher file was missing or from an older juice, so juice put it back\./);
+  assert.match((await run(d, ['setup'])).out, /refreshes once a minute.*\nIts launcher file was missing or from an older juice, so juice put it back\./);
 });
 
 test('rare setups: an empty settings.json, a relative config folder, a " in its path, a refresh under a second', async () => {
@@ -114,7 +156,7 @@ test('rare setups: an empty settings.json, a relative config folder, a " in its 
   }
   const s = json(join(d, 'settings.json'));
   writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 0.5 } }));
-  assert.match((await run(d, ['setup'])).out, /refreshes every second/, 'Claude Code ignores anything under one second');
+  assert.match((await run(d, ['setup'])).out, /refreshes once a minute/, 'Claude Code ignores anything under one second');
 });
 
 test('a settings.json juice cannot read is never replaced', { skip: process.platform === 'win32' && 'Windows has no owner-only file mode' }, async () => {

@@ -55,7 +55,9 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
         spawnDetached(['refresh-badges', key]);
       });
     }
-    upgradeLauncher(p, ROOT); // keeps the launcher setup wrote up to date with the juice now running
+    // Keeps the launcher setup wrote up to date with the juice now running. Once per update, the refresh time
+    // juice wrote moves to what motion wants (1.3.x people never run setup again). setup.js loads only then.
+    if (upgradeLauncher(p, ROOT)) { try { (await import('./setup.js')).matchRefresh(p, { platform, write: HOT_WRITE }); } catch {} }
     return text;
   } catch (e) {
     // Kept for /juice doctor: the message and juice's own file and line, with every folder taken out of paths

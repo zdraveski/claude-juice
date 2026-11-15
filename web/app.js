@@ -33,6 +33,7 @@ const DETAILS = [
   ['battery', 'Battery style', 'How the batteries are drawn, or a shape instead. Classic is the old flat look', [['glossy', 'Glossy'], ['classic', 'Classic'], ['outline', 'Outline'], ['hot', 'Hot tip'], ['liquid', 'Liquid edge'], ['pace', 'Pace glow'],
     ['pie', 'Pie'], ['sand', 'Sand'], ['slider', 'Slider'], ['race', 'Pace race'], ['lives', 'Lives'], ['dots', 'Dots'], ['chevrons', 'Chevrons'], ['ruler', 'Ruler']]],
   ['refills', 'Reset times', 'Always show them, or only when something needs attention', [['always', 'Always'], ['warnings', 'Only when needed']]],
+  ['motion', 'Motion', 'Still is free. Climbing redraws every second, about a sixth of a CPU core per open window', [['off', 'Still'], ['on', 'Climbing']]],
   // Without this the copied command can't fix dark colours on a light terminal: the Dark/Light switch above only changes the preview.
   ['terminal', 'Terminal colour', 'Automatic follows Claude Code’s theme. Pick Light if the text is hard to read on a light background', [['auto', 'Automatic'], ['dark', 'Dark'], ['light', 'Light']]],
 ];
