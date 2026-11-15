@@ -83,16 +83,17 @@ export class NeedsConfirm extends Error {}
 export class Unreadable extends Error {}
 
 // A missing or empty file counts as {}; anything unreadable, unparseable or not an object aborts before we write anything.
-// readJson strips the BOM PowerShell 5.1 writes. "Try again" means the command just run: setup, set or restore.
+// Read once, since Claude Code may save it in between. "Try again", not "run setup": restore shows these too.
 export function readClaudeSettings(p) {
   let text;
   // Only the error says "missing": existsSync is false for a file in a folder juice can't enter, too.
-  try { text = readFileSync(p.claudeSettings, 'utf8'); } catch (e) {
+  try { text = readFileSync(p.claudeSettings, 'utf8').replace(/^﻿/, ''); } catch (e) { // BOM: PowerShell 5.1 writes one
     if (e.code === 'ENOENT' || e.code === 'ENOTDIR') return {};
     throw new Unreadable("juice can't read your Claude Code settings file (settings.json in your Claude folder), so it changed nothing. Make sure it is yours and you can read it (Claude can help), then try again.");
   }
-  if (!text.replace(/^﻿/, '').trim()) return {};
-  const v = readJson(p.claudeSettings);
+  if (!text.trim()) return {};
+  let v = null;
+  try { v = JSON.parse(text); } catch {}
   if (v === null || typeof v !== 'object' || Array.isArray(v)) {
     throw new Error("Your Claude Code settings file (settings.json in your Claude folder) has a mistake in it, so juice changed nothing. Ask Claude to fix it, then try again.");
   }

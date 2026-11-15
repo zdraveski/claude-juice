@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, statSync, chmodSync, rmSync, utimesSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
@@ -22,9 +24,9 @@ async function run(dir, argv) {
   return { code, out: out.join('\n'), err: err.join('\n'), opened };
 }
 const json = (f) => JSON.parse(readFileSync(f, 'utf8'));
-// Windows says EPERM for a file another program holds open. Elsewhere a save replaces the file, so only its folder's
-// owner or mode can stop it.
-const LOCKED = process.platform === 'win32' ? 'it is read-only or open in another program' : 'a folder it goes in is read-only or belongs to another user';
+// Windows says EPERM for a file another program holds open. Elsewhere a save replaces the file, so a folder's owner or
+// mode stops it (EACCES), and so does a locked file (EPERM: the Finder's Locked box, chattr +i).
+const LOCKED = process.platform === 'win32' ? 'it is read-only or open in another program' : 'it or a folder it goes in is read-only, locked or belongs to another user';
 const OLD = { statusLine: { type: 'command', command: 'node old.js' }, theme: 'dark' };
 // The command setup writes for config dir d: plain node on Windows; on macOS and Linux, node with its folder put in front of PATH.
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -106,7 +108,7 @@ test('a settings.json juice cannot read is called unreadable, never a file with 
   assert.match(setup.err, /^juice can't read your Claude Code settings file/);
   const set = await run(d, ['set', 'motion=on']);
   assert.equal(set.code, 0);
-  assert.match(set.out, /Warning: motion is saved, but juice can't read your Claude Code settings file/);
+  assert.match(set.out, /Warning: motion is saved, but juice can't read your Claude Code settings file[^\n]*then try again\./);
   const doctor = await run(d, ['doctor']);
   assert.match(doctor.out, /juice can't read your Claude Code settings file/);
   // Restore says so too, and "try again" means the command they just ran, not setup (that would reinstall juice).
@@ -114,14 +116,35 @@ test('a settings.json juice cannot read is called unreadable, never a file with 
   assert.equal(restore.code, 1);
   for (const r of [setup, restore]) assert.match(r.err, /^juice can't read your Claude Code settings file.*then try again\.$/);
   for (const r of [setup, set, doctor, restore]) assert.doesNotMatch(r.out + r.err, /mistake/);
+  for (const r of [set, restore]) assert.doesNotMatch(r.out + r.err, /\/juice setup/);
 });
 
-test('a settings.json with a mistake in it says try again, not run setup, so restore is not sent to setup', async () => {
+test('a settings.json with a mistake in it says try again, not run setup, so restore and set are not sent to setup', async () => {
   const d = env();
   writeFileSync(join(d, 'settings.json'), '{ "statusLine": ');
   const restore = await run(d, ['restore']);
   assert.equal(restore.code, 1);
   assert.match(restore.err, /has a mistake in it.*then try again\.$/);
+  const set = await run(d, ['set', 'motion=on']);
+  assert.match(set.out, /has a mistake in it[^\n]*then try again\./);
+  assert.doesNotMatch(set.out, /\/juice setup/);
+});
+
+// Claude Code can save settings.json at any moment; a second read could catch it mid-save (Windows: EBUSY).
+test('settings.json is read once, so a save between two reads is not called a mistake', async (t) => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD));
+  const { readClaudeSettings } = await import('../src/setup.js');
+  const { paths } = await import('../src/paths.js');
+  const real = fs.readFileSync;
+  let reads = 0;
+  t.mock.method(fs, 'readFileSync', function (file, ...rest) {
+    if (String(file).endsWith('settings.json') && ++reads > 1) throw Object.assign(new Error('busy'), { code: 'EBUSY' });
+    return real.call(this, file, ...rest);
+  });
+  syncBuiltinESMExports(); // named imports of node:fs follow the mock only after this
+  try { assert.deepEqual(readClaudeSettings(paths({ CLAUDE_CONFIG_DIR: d })), OLD); }
+  finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
 });
 
 test('a Claude folder juice cannot enter is called unreadable, not a folder with no status line', {
@@ -134,6 +157,7 @@ test('a Claude folder juice cannot enter is called unreadable, not a folder with
     const doctor = await run(d, ['doctor']);
     assert.match(doctor.out, /juice can't read your Claude Code settings file/);
     assert.doesNotMatch(doctor.out, /No status line is set/);
+    assert.match(doctor.out, /juice settings: juice\.json is unreadable/, 'not silently drawn with the defaults');
   } finally { chmodSync(d, 0o700); }
 });
 
@@ -189,16 +213,27 @@ test('after an update, a refresh moves the 1 juice wrote to 60 once, and nothing
   assert.equal(readFileSync(f, 'utf8'), '{"statusLine":', 'a broken file is never written');
 });
 
-test('a launcher dated far ahead by a wrong clock still gets the once-per-update check', async () => {
-  const d = env(), f = join(d, 'settings.json'), launcher = join(d, 'juice-statusline.mjs');
-  await run(d, ['setup']);
-  writeFileSync(f, JSON.stringify({ statusLine: { ...json(f).statusLine, refreshInterval: 1 } }));
-  const ahead = new Date(Date.now() + 365 * 86400000);
-  utimesSync(launcher, ahead, ahead);
+test('a launcher or juice dated far ahead by a wrong clock gets the once-per-update check, once', async (t) => {
   const { runStatusLine } = await import('../src/statusline.js');
-  await runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
-  assert.equal(json(f).statusLine.refreshInterval, 60);
-  assert.ok(statSync(launcher).mtimeMs <= Date.now(), 'marked checked at the real time, so the next refresh skips it');
+  const YEAR = 365 * 86400000, installed = statSync(new URL('../bin/launcher.js', import.meta.url)).mtimeMs;
+  // [case, when the launcher was written, the clock now (null: the real one)]
+  for (const [name, written, clock] of [
+    ['launcher ahead', Date.now() + YEAR, null],
+    ['juice and launcher ahead (installed and set up under the wrong clock)', installed + 7200000, Date.now() - YEAR],
+  ]) {
+    const d = env(), f = join(d, 'settings.json'), launcher = join(d, 'juice-statusline.mjs');
+    await run(d, ['setup']);
+    const every = (n) => writeFileSync(f, JSON.stringify({ statusLine: { ...json(f).statusLine, refreshInterval: n } }));
+    utimesSync(launcher, new Date(written), new Date(written));
+    if (clock) t.mock.timers.enable({ apis: ['Date'], now: clock });
+    const draw = () => runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
+    try {
+      every(1); await draw();
+      assert.equal(json(f).statusLine.refreshInterval, 60, `${name}: checked`);
+      every(1); await draw();
+      assert.equal(json(f).statusLine.refreshInterval, 1, `${name}: only once`);
+    } finally { if (clock) t.mock.timers.reset(); }
+  }
 });
 
 // Switching between a checkout and the plugin store only rewrites the launcher; setup must still say so.

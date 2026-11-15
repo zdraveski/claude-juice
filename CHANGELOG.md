@@ -25,7 +25,7 @@ Fixed:
 - The status line no longer hangs if Claude Code never finishes sending to it, and a file juice can't write no longer holds up every refresh for seconds.
 - On Mac and Linux, juice's cache folders, which hold the copy of Claude Code's data that badges read, can only be read by you. Folders from an older juice change on the first refresh after the update.
 - A wrong `/juice set` value lists the values that work, and an error saving a file is a plain sentence. Other errors hide your home folder. A `settings.json` juice isn't allowed to read is no longer called missing or one with a mistake in it.
-- A clock that was set ahead when you ran `/juice setup` no longer stops juice updates from reaching your status line.
+- A clock that was set ahead when you installed juice or ran `/juice setup` no longer skips, or repeats on every refresh, the changes juice makes once after an update, like moving the every-second refresh to once a minute.
 - `/juice doctor` says Node 24 or newer everywhere, says it's juice (not Claude Code) that can't read a `settings.json` with comments, and says `/juice setup` fixes a changed marketplace name.
 - 100% used with no reset time says "used up", not "almost empty".
 - A cost under a cent shows "<$0.01", and big costs get thousands separators.

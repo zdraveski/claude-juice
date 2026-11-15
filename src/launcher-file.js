@@ -44,14 +44,16 @@ export function launcherFor(pluginRoot) {
 // True when this refresh was that once-per-update check, so the caller can do its own once-per-update work.
 export function upgradeLauncher(p, pluginRoot) {
   try {
-    const t = statSync(p.launcherFile).mtimeMs;
-    // Dated far ahead, the clock was wrong when it was written; waiting for the template to pass it could take years.
-    if (t >= statSync(TEMPLATE).mtimeMs && t < Date.now() + 60000) return false;
+    const t = statSync(p.launcherFile).mtimeMs, tpl = statSync(TEMPLATE).mtimeMs;
+    // A wrong clock can date either file ahead. Marked checked at the later of the two clocks, so the check runs once
+    // instead of waiting years for the clock, or running on every refresh. ceil: a Date drops tpl's fraction of a ms.
+    const at = Math.ceil(Math.max(tpl, Date.now()));
+    if (t >= tpl && t < at + 60000) return false;
     const want = launcherFor(pluginRoot), have = readFileSync(p.launcherFile, 'utf8'), target = launcherTarget(have);
     // A launcher setup pointed at another copy of juice stays pointed there: running a checkout to test it must
     // not take the place of the installed juice.
     if (have !== want && (!target || target === launcherTarget(want))) writeAtomic(p.launcherFile, want, HOT_WRITE);
-    else { const now = new Date(); utimesSync(p.launcherFile, now, now); }
+    else utimesSync(p.launcherFile, new Date(at), new Date(at));
     return true;
   } catch { return false; }
 }
