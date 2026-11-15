@@ -2,13 +2,14 @@
 import { fixture } from './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, symlinkSync, lstatSync, cpSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, symlinkSync, lstatSync, cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { paths } from '../src/paths.js';
 import { install, restore } from '../src/setup.js';
+import { launcherFor, constant } from '../src/launcher-file.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '');
 const tmp = () => mkdtempSync(join(tmpdir(), 'juice-install-'));
@@ -63,7 +64,20 @@ test('launcher works through a junction or symlink', (t) => {
 test('launcher says how to get back when juice is gone', () => {
   const r = node([join(ROOT, 'bin', 'launcher.js')], tmp(), busyText);
   assert.equal(r.status, 0);
-  assert.equal(r.stdout.trim(), 'juice is not installed. Install it again, then type /juice setup to use it or /juice restore to get your old status line back.');
+  // Uninstalled, /juice restore cannot run, so the line says what can be done.
+  assert.equal(r.stdout.trim(), 'juice is not installed. Install it again and type /juice restore, or delete the statusLine entry in settings.json (your old line is in juice-backup.json).');
+});
+
+test('a broken juice folder gives the doctor hint, not a blank line', () => {
+  const d = tmp();
+  const bin = join(d, 'plugins', 'cache', 'm', 'juice', '1.0.0', 'bin');
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, 'juice-statusline.js'), 'import "./missing-file.js";');
+  const run = (extra) => spawnSync(process.execPath, [join(ROOT, 'bin', 'launcher.js')], { input: busyText, encoding: 'utf8', env: { ...process.env, CLAUDE_CONFIG_DIR: d, NO_COLOR: '', ...extra } });
+  const r = run({});
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout.trim(), '\x1b[2mjuice: /juice doctor\x1b[22m');
+  assert.equal(run({ NO_COLOR: '1' }).stdout.trim(), 'juice: /juice doctor');
 });
 
 test('setup and restore write through a symlinked settings.json', (t) => {
@@ -77,4 +91,18 @@ test('setup and restore write through a symlinked settings.json', (t) => {
   restore(p);
   assert.ok(lstatSync(join(d, 'settings.json')).isSymbolicLink());
   assert.equal(JSON.parse(readFileSync(real, 'utf8')).statusLine.command, 'old');
+});
+
+test('the launcher follows updates when the plugins folder is a link, and stays pinned for a checkout', () => {
+  // A symlinked or junctioned plugins folder shows the running copy at its real place, with no /plugins/cache/ in it.
+  const linked = launcherFor('D:/shared/claude-plugins/cache/my-market/juice/1.3.1');
+  assert.equal(constant(linked, 'MARKET'), 'my-market');
+  assert.equal(constant(linked, 'PINNED'), null);
+  assert.equal(constant(launcherFor('C:\\Users\\a\\.claude\\plugins\\cache\\m2\\juice\\41f619d61b99'), 'MARKET'), 'm2');
+  assert.equal(constant(launcherFor('/home/a/.claude/plugins/cache/m3/juice/1.0.0'), 'MARKET'), 'm3');
+  // A checkout, even one with juice in its path, is not a plugin version folder.
+  for (const checkout of ['/home/a/code/juice', '/home/a/dev/juice/main']) {
+    assert.equal(constant(launcherFor(checkout), 'PINNED'), checkout);
+    assert.equal(constant(launcherFor(checkout), 'MARKET'), null);
+  }
 });

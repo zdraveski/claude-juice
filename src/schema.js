@@ -51,7 +51,7 @@ export const LOOKS = Object.freeze([
 export const COLOR_KEYS = ['plentyLeft', 'goingFast', 'almostEmpty', 'accent'];
 const HEX = /^#[0-9a-f]{6}$/i;
 const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
-const oneOf = (ids) => (v) => (ids.includes(v) ? v : undefined);
+const oneOf = (ids) => Object.assign((v) => (ids.includes(v) ? v : undefined), { ids });
 
 const palette = (p) => (isObj(p) && COLOR_KEYS.every((k) => typeof p[k] === 'string' && HEX.test(p[k]))
   ? Object.fromEntries(COLOR_KEYS.map((k) => [k, p[k]])) : undefined);
@@ -81,10 +81,13 @@ const CHECK = {
 };
 
 const show = (v) => (typeof v === 'string' ? `'${v}'` : JSON.stringify(v));
+// The right values, from the same table that checks them (show has its own, longer warning).
+const valid = (key) => key === 'colors' ? `Use one of: ${PRESET_IDS.join(', ')}. Or your own: dark:a,b,c,d/light:a,b,c,d, each a hex colour like #22c55e (${COLOR_KEYS.join(', ')} in that order).`
+  : CHECK[key].ids ? `Use one of: ${CHECK[key].ids.join(', ')}.` : '';
 // A misspelt battery name is dropped, but never silently: "sesion" would otherwise just make Session vanish.
 const unknownShow = (v) => (Array.isArray(v) ? v.filter((id) => !SHOW_IDS.includes(id)) : []);
 // A value from a newer juice looks invalid to an older one.
-const NEWER = ". If it's new, update juice: type /plugin, update juice, restart Claude Code.";
+const NEWER = " If it's new, update juice: type /plugin, update juice, restart Claude Code.";
 const showWarning = (bad, then = 'so it was left out') => `show: ${bad.map(show).join(', ')} isn't a battery name (they are ${SHOW_IDS.join(', ')}; Weekly is "week"), ${then}`;
 
 export function sanitize(x, { allowBadges }) {
@@ -94,7 +97,7 @@ export function sanitize(x, { allowBadges }) {
   for (const k of Object.keys(CHECK)) {
     if (!(k in src)) continue;
     const v = CHECK[k](src[k]);
-    if (v === undefined) warnings.push(`${k}: ${show(src[k])} isn't valid, using ${show(DEFAULTS[k])}`);
+    if (v === undefined) warnings.push(`${k}: ${show(src[k])} isn't valid, using ${show(DEFAULTS[k])}${k === 'show' ? '' : `. ${valid(k)}`}`);
     else settings[k] = v;
     if (k === 'show' && v !== undefined && unknownShow(src.show).length) warnings.push(showWarning(unknownShow(src.show)));
   }
@@ -137,7 +140,7 @@ export function applySet(settings, pairs) {
     if (key === 'look') {
       const l = LOOKS.find((x) => x.id === text);
       if (l) Object.entries(l.set).forEach(([k, v]) => put(k, v));
-      else warnings.push(`look: '${text}' isn't a look`);
+      else warnings.push(`look: '${text}' isn't a look. Use one of: ${LOOKS.map((x) => x.id).join(', ')}.`);
       continue;
     }
     if (!Object.hasOwn(CHECK, key)) { warnings.push(`${pair}: not a setting`); continue; }
@@ -145,7 +148,7 @@ export function applySet(settings, pairs) {
     const v = CHECK[key](parsed);
     if (v === undefined) {
       // Plain words, not JSON: "sesion,weekly" gets the list of right names (Weekly is "week").
-      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${text}' isn't valid, keeping ${show(next[key])}${key === 'colors' && text.includes(':') ? '' : NEWER}`);
+      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${text}' isn't valid, keeping ${show(next[key])}. ${valid(key)}${key === 'colors' && text.includes(':') ? '' : NEWER}`);
       continue;
     }
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));
