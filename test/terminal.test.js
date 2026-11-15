@@ -9,7 +9,7 @@ import { detectTerminal, readClaudeTheme } from '../src/terminal.js';
 import { remember, recall } from '../src/lastseen.js';
 import { NOW, at } from './helpers.js';
 
-const det = (env = {}, settings = DEFAULTS, claudeTheme = null) => detectTerminal({ env, settings, claudeTheme });
+const det = (env = {}, settings = DEFAULTS, claudeTheme = null) => detectTerminal({ env, settings, claudeTheme: () => claudeTheme });
 const tmpPaths = () => paths({ CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-')) });
 
 test('detects everything from env', () => {
@@ -174,4 +174,10 @@ test('COLUMNS is a whole positive number or it is ignored', () => {
 test('with no colour the rounded ends become plain ones, so no bare cap glyphs print', () => {
   assert.equal(det({ TERM_PROGRAM: 'vscode', NO_COLOR: '1' }).ends, 'plain');
   assert.equal(det({ TERM_PROGRAM: 'vscode' }).ends, 'round');
+});
+
+test('Claude Code settings are read only when the theme needs them', () => {
+  const boom = () => { throw new Error('read'); };
+  for (const terminal of ['dark', 'light']) detectTerminal({ env: {}, settings: { ...DEFAULTS, terminal }, claudeTheme: boom });
+  assert.equal(detectTerminal({ env: {}, settings: { ...DEFAULTS, terminal: 'auto' }, claudeTheme: () => 'light' }).theme, 'light');
 });

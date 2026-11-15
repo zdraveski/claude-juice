@@ -10,8 +10,9 @@ export function readClaudeTheme(file) {
 // in COLORFGBG as "fg;bg", where 7 and 15 are the light greys and white.
 const lightTerminal = (env) => ['7', '15'].includes(String(env.COLORFGBG ?? '').split(';').pop());
 
-function theme(setting, claudeTheme, env) {
+function theme(setting, readTheme, env) {
   if (setting === 'dark' || setting === 'light') return setting;
+  const claudeTheme = readTheme(); // only now: settings.json is not read when the setting decides
   if (typeof claudeTheme === 'string' && claudeTheme.startsWith('light')) return 'light';
   if (claudeTheme === null || claudeTheme === 'auto') return lightTerminal(env) ? 'light' : 'dark';
   return 'dark';
