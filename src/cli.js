@@ -96,7 +96,9 @@ export async function main(argv, io) {
         }
         if (sub === 'list') {
           const l = listBadges(p), off = unapprovedBadges(p);
-          io.out(l.length ? l.map((c, i) => `${i + 1}. ${c}${off.includes(i + 1) ? ' (not approved on this computer, so it never runs: remove it, then add it again to use it)' : ''}`).join('\n') : 'No badges.');
+          // The /juice skill runs list without asking, and a command can hold a key: only its first word, unless --show.
+          const name = (c) => (all.includes('--show') || !/\s/.test(c.trim()) ? c : `${c.trim().split(/\s+/)[0]} …`);
+          io.out(l.length ? l.map((c, i) => `${i + 1}. ${name(c)}${off.includes(i + 1) ? ' (not approved on this computer, so it never runs: remove it, then add it again to use it)' : ''}`).join('\n') : 'No badges.');
           loadSettings(p).warnings.forEach((w) => io.out(`Warning: ${w}`));
           return 0;
         }

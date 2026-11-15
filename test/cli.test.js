@@ -511,11 +511,11 @@ test('badges add needs --yes, then add/list/remove', async () => {
   assert.match(r.out, /Run again with --yes to add it\./);
   assert.equal(existsSync(join(d, 'juice.json')), false);
   assert.equal((await run(d, ['badges', 'add', 'rtk gain', '--yes'])).code, 0);
-  assert.match((await run(d, ['badges', 'list'])).out, /1\. rtk gain/);
+  assert.match((await run(d, ['badges', 'list', '--show'])).out, /1. rtk gain/);
   const ask = await run(d, ['badges', 'remove', '1']);
   assert.equal(ask.code, 2);
   assert.match(ask.out, /This would remove badge 1: rtk gain/);
-  assert.match((await run(d, ['badges', 'list'])).out, /1\. rtk gain/, 'asking removed nothing');
+  assert.match((await run(d, ['badges', 'list', '--show'])).out, /1\. rtk gain/, 'asking removed nothing');
   assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 0);
   assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 1);
 });
@@ -533,7 +533,7 @@ test('a --yes inside the badge command belongs to the command; only a final --ye
   assert.equal(ask.code, 2, 'not the go-ahead');
   assert.match(ask.out, /This badge would run: npx --yes ccusage/);
   assert.equal((await run(d, ['badges', 'add', 'npx', '--yes', 'ccusage', '--yes'])).code, 0);
-  assert.equal((await run(d, ['badges', 'list'])).out, '1. npx --yes ccusage');
+  assert.equal((await run(d, ['badges', 'list', '--show'])).out, '1. npx --yes ccusage');
 });
 
 test('badges remove takes --yes before or after the number', async () => {
@@ -541,14 +541,24 @@ test('badges remove takes --yes before or after the number', async () => {
   await run(d, ['badges', 'add', 'echo A', '--yes']);
   await run(d, ['badges', 'add', 'echo B', '--yes']);
   assert.equal((await run(d, ['badges', 'remove', '--yes', '2'])).code, 0);
-  assert.equal((await run(d, ['badges', 'list'])).out, '1. echo A');
+  assert.equal((await run(d, ['badges', 'list', '--show'])).out, '1. echo A');
+});
+
+test('badges list keeps keys out of the chat: first word only, whole commands with --show', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'curl -H "Authorization: sk-secret-123" https://x.test', '--yes']);
+  await run(d, ['badges', 'add', 'uptime', '--yes']);
+  const hidden = (await run(d, ['badges', 'list'])).out;
+  assert.equal(hidden, '1. curl …\n2. uptime');
+  assert.doesNotMatch(hidden, /sk-secret/);
+  assert.match((await run(d, ['badges', 'list', '--show'])).out, /1\. curl -H "Authorization: sk-secret-123" https:\/\/x\.test\n2\. uptime/);
 });
 
 test('badges list says which badges this computer never approved, so they never run', async () => {
   const d = env();
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ badges: [{ command: 'echo copied' }] }));
   await run(d, ['badges', 'add', 'echo mine', '--yes']);
-  const out = (await run(d, ['badges', 'list'])).out;
+  const out = (await run(d, ['badges', 'list', '--show'])).out;
   assert.match(out, /1\. echo copied \(not approved on this computer/);
   assert.match(out, /2\. echo mine$/m);
 });
@@ -574,7 +584,7 @@ test('the /juice flow for removing one of two badges removes only that one', asy
   await run(d, ['badges', 'add', 'echo B', '--yes']);
   await run(d, ['badges', 'remove', '1']); // first run: shows what it would do
   await run(d, ['badges', 'remove', '1', '--yes']); // re-run after the user agrees
-  assert.equal((await run(d, ['badges', 'list'])).out, '1. echo B');
+  assert.equal((await run(d, ['badges', 'list', '--show'])).out, '1. echo B');
 });
 
 test('an unreadable juice.json is never overwritten with defaults', async () => {
