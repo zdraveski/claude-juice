@@ -17,13 +17,21 @@ export function keychainService(env = {}) {
 // The token lives only in this call's return value; callers must not store or log it.
 // false: the login has expired (given now), so sending it would only earn a refusal.
 export function readToken({ platform, p, env, now, execFileSync = realExec }) {
+  const file = () => tokenIn(() => readFileSync(join(p.config, '.credentials.json'), 'utf8'), now);
+  if (platform !== 'darwin') return file();
+  // macOS may first ask in a dialog: 25 s leaves time to answer it, and ends before the 30 s fable lock does,
+  // so no second refresher (and second dialog) starts meanwhile. This runs only in the detached refresher.
+  // security prints an item holding bytes it can't show as text in hex. With no Keychain login, Claude Code keeps it
+  // in the file, as elsewhere.
+  return tokenIn(() => {
+    const out = execFileSync('security', ['find-generic-password', '-s', keychainService(env), '-w'], { timeout: 25000, encoding: 'utf8' }).trim();
+    return /^(?:[0-9a-f]{2})+$/i.test(out) ? Buffer.from(out, 'hex').toString('utf8') : out;
+  }, now) ?? file();
+}
+
+function tokenIn(read, now) {
   try {
-    // macOS may first ask in a dialog: 25 s leaves time to answer it, and ends before the 30 s fable lock does,
-    // so no second refresher (and second dialog) starts meanwhile. This runs only in the detached refresher.
-    const raw = platform === 'darwin'
-      ? execFileSync('security', ['find-generic-password', '-s', keychainService(env), '-w'], { timeout: 25000, encoding: 'utf8' })
-      : readFileSync(join(p.config, '.credentials.json'), 'utf8');
-    const { accessToken: t, expiresAt } = JSON.parse(raw)?.claudeAiOauth ?? {};
+    const { accessToken: t, expiresAt } = JSON.parse(read())?.claudeAiOauth ?? {};
     if (!(typeof t === 'string' && t)) return null;
     return now !== undefined && Number.isFinite(expiresAt) && expiresAt <= +now ? false : t;
   } catch { return null; }

@@ -65,7 +65,7 @@ test('readToken darwin uses security with exact args', () => {
   const execFileSync = (...a) => { calls.push(a); return creds(); };
   assert.equal(readToken({ platform: 'darwin', p: setup(), execFileSync }), TOKEN);
   assert.deepEqual(calls[0], ['security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], { timeout: 25000, encoding: 'utf8' }]);
-  assert.equal(readToken({ platform: 'darwin', p: setup(), execFileSync: noExec }), null);
+  assert.equal(readToken({ platform: 'darwin', p: paths({ CLAUDE_CONFIG_DIR: join(setup().config, 'nope') }), execFileSync: noExec }), null);
 });
 
 test('fetchFable sends the exact request and picks the Fable entry', async () => {
@@ -229,4 +229,18 @@ test('the Keychain read waits long enough to answer the macOS dialog, but ends b
   let opts;
   readToken({ platform: 'darwin', env: {}, execFileSync: (c, a, o) => { opts = o; return '{}'; } });
   assert.ok(opts.timeout >= 20000 && opts.timeout < 30000, String(opts.timeout));
+});
+
+test('a Keychain item that security prints as hex is read too', () => {
+  const hex = Buffer.from(JSON.stringify({ claudeAiOauth: { accessToken: TOKEN }, mcpOAuth: { 'café': {} } })).toString('hex');
+  assert.equal(readToken({ platform: 'darwin', env: {}, execFileSync: () => `${hex}\n` }), TOKEN);
+});
+
+test('on a Mac whose Keychain holds no login, juice reads .credentials.json, where Claude Code keeps it then', () => {
+  const p = setup();
+  assert.equal(readToken({ platform: 'darwin', p, env: {}, execFileSync: () => { throw new Error('not found'); } }), TOKEN);
+  assert.equal(readToken({ platform: 'darwin', p, env: {}, execFileSync: () => '{}' }), TOKEN);
+  // An expired login in the Keychain is the answer: the file is not asked to overrule it.
+  const old = JSON.stringify({ claudeAiOauth: { accessToken: 'old', expiresAt: NOW - 1 } });
+  assert.equal(readToken({ platform: 'darwin', p, env: {}, now: NOW, execFileSync: () => old }), false);
 });
