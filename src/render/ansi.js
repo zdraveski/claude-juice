@@ -25,9 +25,9 @@ export const vis = (s) => { let n = 0; for (const m of strip(s).matchAll(/[\s\S]
 // Cut a coloured line to n visible columns without breaking its escape codes, or what draws as one character
 // (a flag, a joined emoji, a skin tone, a letter and its accent): the cut goes between whole characters.
 // Making a segmenter costs ~20 ms, a whole refresh's budget, so plain text (no mark, joiner, flag half, skin tone or
-// Hangul part) steps by code point and the segmenter is made only for text that needs it.
+// Hangul part, Thai or Lao sara am) steps by code point and the segmenter is made only for text that needs it.
 let SEG;
-const JOINS = /[\p{M}\p{Cf}\p{RI}\p{Emoji_Modifier}\u1160-\u11ff\ud7b0-\ud7ff]/u;
+const JOINS = /[\p{M}\p{Cf}\p{RI}\p{Emoji_Modifier}\u1160-\u11ff\ud7b0-\ud7ff\u0e33\u0eb3]/u;
 const chars = (t) => (JOINS.test(t) ? Array.from((SEG ??= new Intl.Segmenter(undefined, { granularity: 'grapheme' })).segment(t), (g) => g.segment) : Array.from(t));
 export function cut(s, n) {
   if (vis(s) <= n) return s + `${E}0m`; // what fits is never segmented: a badge is cut on every refresh
