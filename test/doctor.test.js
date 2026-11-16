@@ -242,6 +242,17 @@ test('doctor: Fable off, failing, and checked', () => {
   const old = check(d, { ...proxy, node: '22.21.0' });
   assert.match(old, /company proxy, which juice can only get through with Node 24 or newer \(this is 22\.21\.0\)/);
   assert.doesNotMatch(old, /22\.21 or newer/, 'juice needs Node 24 everywhere');
+  // Each failure gets the advice that fits it: /login only when Anthropic refused the login.
+  const failed = (why) => {
+    writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 10 * 60000, why }));
+    return check(d);
+  };
+  assert.match(failed('login'), /tries again in 10 min\. If it keeps failing, type \/login/);
+  assert.match(failed('expired'), /sign-in was due for renewal/);
+  for (const why of ['expired', 'busy', 'changed', 'offline']) assert.doesNotMatch(failed(why), /\/login/, why);
+  assert.match(failed('busy'), /Anthropic's server was busy/);
+  assert.match(failed('changed'), /github\.com\/zdraveski\/claude-juice\/issues/);
+  assert.match(failed('offline'), /couldn't reach Anthropic/);
   // Stamped by a clock that was ahead: juice ignores these, and so does the doctor.
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 30 * 86400000 }));
   assert.doesNotMatch(check(d), /last check failed/);

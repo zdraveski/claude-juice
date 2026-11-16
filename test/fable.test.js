@@ -87,14 +87,35 @@ test('fetchFable still finds the entry when it carries a version, like "Fable 5.
   assert.equal((await fetchFable(TOKEN, okFetch(b), 'v')).used, 41);
 });
 
-test('fetchFable returns null on bad responses', async () => {
-  assert.equal(await fetchFable(TOKEN, async () => ({ ok: false, status: 401 }), 'v'), null);
-  assert.equal(await fetchFable(TOKEN, async () => { throw new Error('net'); }, 'v'), null);
-  assert.equal(await fetchFable(TOKEN, async () => ({ ok: true, json: async () => { throw new Error('x'); } }), 'v'), null);
-  assert.equal(await fetchFable(TOKEN, okFetch({ limits: [] }), 'v'), null);
-  assert.equal(await fetchFable(TOKEN, okFetch({}), 'v'), null);
-  assert.equal(await fetchFable(TOKEN, okFetch(body('x')), 'v'), null);
-  assert.equal(await fetchFable(TOKEN, okFetch(body(10, 'not a date')), 'v'), null);
+test('fetchFable says why a check failed, so the doctor can give the right advice', async () => {
+  const status = (s) => async () => ({ ok: false, status: s });
+  assert.equal(await fetchFable(TOKEN, status(401), 'v'), 'login');
+  assert.equal(await fetchFable(TOKEN, status(403), 'v'), 'login');
+  assert.equal(await fetchFable(TOKEN, status(429), 'v'), 'busy');
+  assert.equal(await fetchFable(TOKEN, status(503), 'v'), 'busy');
+  assert.equal(await fetchFable(TOKEN, status(404), 'v'), 'changed', 'the address moved');
+  assert.equal(await fetchFable(TOKEN, async () => { throw new Error('net'); }, 'v'), 'offline');
+  assert.equal(await fetchFable(TOKEN, async () => ({ ok: true, json: async () => { throw new Error('x'); } }), 'v'), 'offline', 'a sign-in page or proxy answered instead');
+  assert.equal(await fetchFable(TOKEN, okFetch({ limits: [] }), 'v'), 'changed');
+  assert.equal(await fetchFable(TOKEN, okFetch({}), 'v'), 'changed');
+  assert.equal(await fetchFable(TOKEN, okFetch(body('x')), 'v'), 'changed');
+  assert.equal(await fetchFable(TOKEN, okFetch(body(10, 'not a date')), 'v'), 'changed');
+});
+
+test('an expired login is never sent; juice looks again in 2 minutes, after Claude Code renews it', async () => {
+  const p = setup();
+  const save = (expiresAt) => writeFileSync(join(p.config, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: TOKEN, expiresAt } }));
+  save(NOW - 1);
+  assert.equal(readToken({ platform: 'win32', p, now: NOW, execFileSync: noExec }), false);
+  let called = false;
+  const r = await refreshFable({ p, platform: 'win32', execFileSync: noExec, now: NOW, version: 'v', fetchImpl: async () => { called = true; } });
+  assert.equal(r, false);
+  assert.equal(called, false, 'an expired token would only earn a 401');
+  assert.deepEqual(readJson(cacheFile(p)), { backoffUntil: NOW + 120000, why: 'expired' });
+  save(NOW + 60000);
+  assert.equal(readToken({ platform: 'win32', p, now: NOW, execFileSync: noExec }), TOKEN);
+  save('soon');
+  assert.equal(readToken({ platform: 'win32', p, now: NOW, execFileSync: noExec }), TOKEN, 'an expiry juice cannot read is not a reason to stop');
 });
 
 test('fetchFable also reads Session and Weekly, and works with no Fable entry', async () => {
@@ -103,7 +124,7 @@ test('fetchFable also reads Session and Weekly, and works with no Fable entry', 
   const session = { used: 15, resetsAt: '2026-10-28T16:39:59.960Z' }, week = { used: 95, resetsAt: '2026-11-01T00:00:00.000Z' };
   assert.deepEqual(await fetchFable(TOKEN, okFetch({ ...body(), five_hour, seven_day }), 'v'), { used: 41, resetsAt: '2026-11-01T00:00:00.000Z', session, week });
   assert.deepEqual(await fetchFable(TOKEN, okFetch({ five_hour, seven_day }), 'v'), { session, week });
-  assert.deepEqual(await fetchFable(TOKEN, okFetch({ five_hour: { utilization: 'x', resets_at: 'y' } }), 'v'), null);
+  assert.deepEqual(await fetchFable(TOKEN, okFetch({ five_hour: { utilization: 'x', resets_at: 'y' } }), 'v'), 'changed');
 });
 
 test('refreshFable failure keeps Session and Weekly too', async () => {
@@ -111,14 +132,14 @@ test('refreshFable failure keeps Session and Weekly too', async () => {
   const old = { session: { used: 15, resetsAt: '2026-10-28T16:40:00Z' }, week: { used: 95, resetsAt: '2026-11-01T00:00:00Z' }, fetchedAt: NOW - 400000 };
   writeJsonAtomic(cacheFile(p), old);
   await refreshFable({ p, platform: 'win32', execFileSync: noExec, now: NOW, version: 'v', fetchImpl: async () => ({ ok: false }) });
-  assert.deepEqual(readJson(cacheFile(p)), { ...old, backoffUntil: NOW + 900000 });
+  assert.deepEqual(readJson(cacheFile(p)), { ...old, backoffUntil: NOW + 900000, why: 'changed' });
 });
 
 test('fetchFable stores the date it understood, and refuses an absurdly long one', async () => {
   const r = await fetchFable(TOKEN, okFetch(body(41, '2026-11-01 00:00:00Z')), 'v');
   assert.equal(r.resetsAt, '2026-11-01T00:00:00.000Z');
   const long = `2026-11-01T00:00:00Z${' '.repeat(100000)}`;
-  assert.equal(await fetchFable(TOKEN, okFetch(body(41, long)), 'v'), null);
+  assert.equal(await fetchFable(TOKEN, okFetch(body(41, long)), 'v'), 'changed');
 });
 
 test('a cache that cannot be written still holds the refresher back for the backoff', async () => {
@@ -133,7 +154,7 @@ test('a cache that cannot be written still holds the refresher back for the back
 test('fetchFable aborts a hanging request', async () => {
   const f = (url, { signal }) => new Promise((_, rej) => signal.addEventListener('abort', () => rej(new Error('aborted'))));
   const t0 = Date.now();
-  assert.equal(await fetchFable(TOKEN, f, 'v', 50), null);
+  assert.equal(await fetchFable(TOKEN, f, 'v', 50), 'offline');
   assert.ok(Date.now() - t0 < 2000);
 });
 
@@ -151,7 +172,7 @@ test('refreshFable failure keeps old values and sets backoff; recovery clears it
   writeJsonAtomic(cacheFile(p), old);
   const args = { p, platform: 'win32', execFileSync: noExec, now: NOW, version: 'v' };
   assert.equal(await refreshFable({ ...args, fetchImpl: async () => ({ ok: false, status: 401 }) }), false);
-  assert.deepEqual(readJson(cacheFile(p)), { ...old, backoffUntil: NOW + 900000 });
+  assert.deepEqual(readJson(cacheFile(p)), { ...old, backoffUntil: NOW + 900000, why: 'login' });
   assert.equal(await refreshFable({ ...args, fetchImpl: async () => { throw new Error(`boom ${TOKEN}`); } }), false);
   assert.equal(readJson(cacheFile(p)).used, 30);
   assert.ok(!readFileSync(cacheFile(p), 'utf8').includes(TOKEN));
@@ -165,7 +186,7 @@ test('refreshFable with no token and no old cache backs off, never throws', asyn
   const r = await refreshFable({ p, platform: 'linux', fetchImpl: async () => { called = true; }, execFileSync: noExec, now: NOW, version: 'v' });
   assert.equal(r, false);
   assert.equal(called, false);
-  assert.deepEqual(readJson(cacheFile(p)), { backoffUntil: NOW + 900000 });
+  assert.deepEqual(readJson(cacheFile(p)), { backoffUntil: NOW + 900000, why: 'login' });
 });
 
 test('fableCacheState', () => {

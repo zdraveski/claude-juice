@@ -121,10 +121,14 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
     const f = readJson(p.fableFile);
     if (fableCacheState(f, t).backedOff) {
       // Behind a company proxy (HTTPS_PROXY), Node's fetch reaches Anthropic only from Node 24 on.
-      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && Number(node.split('.')[0]) < 24;
-      out.push(bad(`Fable battery: the last check failed; juice tries again in ${Math.ceil((f.backoffUntil - t) / 60000)} min. ${proxyBlocks
-        ? `You're behind a company proxy, which juice can only get through with Node 24 or newer (this is ${node}): install the newest from nodejs.org.`
-        : 'If it keeps failing, type /login to sign in to Claude Code again.'}`));
+      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && Number(node.split('.')[0]) < 24 && [undefined, 'offline'].includes(f.why);
+      const advice = proxyBlocks ? `You're behind a company proxy, which juice can only get through with Node 24 or newer (this is ${node}): install the newest from nodejs.org.`
+        : f.why === 'expired' ? 'Your Claude sign-in was due for renewal; Claude Code renews it on your next message, and juice picks it up after that.'
+        : f.why === 'busy' ? "Anthropic's server was busy; nothing to do."
+        : f.why === 'changed' ? "Anthropic's answer wasn't what juice expects. If it lasts a day, tell us at https://github.com/zdraveski/claude-juice/issues."
+        : f.why === 'offline' ? "juice couldn't reach Anthropic: check you're online. Behind a company proxy, set HTTPS_PROXY (and NODE_EXTRA_CA_CERTS if it checks secure connections)."
+        : 'If it keeps failing, type /login to sign in to Claude Code again.';
+      out.push(bad(`Fable battery: the last check failed; juice tries again in ${Math.ceil((f.backoffUntil - t) / 60000)} min. ${advice}`));
     } else out.push(info(fetchedCounts(f?.fetchedAt, now) ? `Fable battery: last checked ${ago(t - f.fetchedAt)}`
       : f?.fetchedAt ? 'Fable battery: not checked in the last hour; juice asks again soon.'
       : 'Fable battery: not checked yet. juice asks in the background for plan subscribers.'));
