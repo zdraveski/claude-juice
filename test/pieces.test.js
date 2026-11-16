@@ -331,6 +331,23 @@ test('every style survives 256 colours', () => {
     assert.ok(!/[34]8;2;/.test(to256(batteryPct(sk(style), pct, 'warn', 7, 0.5) + battery(sk(style, 'light'), pct, 'crit', 12, 0.3))), style);
 });
 
+// The nearest of the 256 colours could be lighter on a light terminal: Claude's red fell from 4.8:1 to 3.7:1 (audit, 1.4.1).
+test('on a 256-colour terminal, words read as well as in full colour (up to 4.5:1), on the background and on a fill', () => {
+  const L = [0, 95, 135, 175, 215, 255], two = (v) => v.toString(16).padStart(2, '0');
+  const hex = (n) => '#' + (n >= 232 ? Array(3).fill(8 + (n - 232) * 10) : [L[Math.floor((n - 16) / 36)], L[Math.floor((n - 16) / 6) % 6], L[(n - 16) % 6]]).map(two).join('');
+  const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(';');
+  const q = (layer, c, bgc) => hex(Number(/[34]8;5;(\d+)m/.exec(to256(`\x1b[${layer};2;${rgb(c)}m`, bgc))[1]));
+  for (const theme of ['dark', 'light']) {
+    const N = NEUTRAL[theme];
+    for (const [id, p] of Object.entries(PRESETS)) for (const c of [...p[theme], N.text, N.sub, N.fable]) {
+      const text = q(38, c, N.bg), want = Math.min(4.5, contrast(c, N.bg)) - 0.005;
+      assert.ok(contrast(text, N.bg) >= want, `${theme} ${id}: ${c} became ${text}, ${contrast(text, N.bg).toFixed(2)}:1`);
+      const fill = q(48, c, N.bg), ink = q(38, inkOn(c), N.bg), wantInk = Math.min(4.5, contrast(inkOn(c), c)) - 0.005;
+      assert.ok(contrast(ink, fill) >= wantInk, `${theme} ${id}: ink on ${c} became ${ink} on ${fill}, ${contrast(ink, fill).toFixed(2)}:1`);
+    }
+  }
+});
+
 for (const style of SKINS) for (const [left, w, t] of [[35, 7], [45, 7], [50, 7], [82, 7], [60, 5], [62, 7, 0.57], [82, 7, 0.5]]) {
   test(`${style}: ${left}% (w=${w}${t ? `, tick ${t}` : ''}) digits stay whole, one colour each`, () => {
     // Outline's left wall is not a cell.

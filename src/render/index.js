@@ -19,6 +19,6 @@ export function render(data, settings, terminal) {
   if (batteries && data.memoryUsed === null && !Object.keys(data.limits).length && vis(first) && vis(first) + vis(add) <= cols) {
     text = [first + fg(ctx.P.sub, add), ...rest].join('\n');
   }
-  const out = terminal.colorDepth === 'none' ? strip(text) : terminal.colorDepth === '256' ? to256(text) : text;
+  const out = terminal.colorDepth === 'none' ? strip(text) : terminal.colorDepth === '256' ? to256(text, ctx.P.bg) : text;
   return { text: out, get dropped() { return fitted.dropped; } };
 }

@@ -35,7 +35,8 @@ export function cut(s, n) {
   return out + `${E}0m`;
 }
 
-const lum = (h) => { const [r, g, b] = rgbOf(h).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const lumOf = (rgb) => { const [r, g, b] = rgb.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const lum = (h) => lumOf(rgbOf(h));
 export const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 export const inkOn = (h) => (contrast(h, '#141312') >= contrast(h, '#ffffff') ? '#141312' : '#ffffff');
 // c, pushed toward black or white only as far as it needs to read on `on` (4.5:1 is small text); a colour that already reads is unchanged.
@@ -47,22 +48,37 @@ export const readable = (c, on, min = 4.5) => {
 };
 
 const LEVELS = [0, 95, 135, 175, 215, 255];
-const nearestLevel = (v) => LEVELS.reduce((best, l, i) => (Math.abs(l - v) < Math.abs(LEVELS[best] - v) ? i : best), 0);
+// The 240 colours of the xterm cube and grey ramp (0-15 are the terminal's own, so unknown).
+const XTERM = Array.from({ length: 240 }, (_, i) => {
+  const v = i < 216 ? [LEVELS[Math.floor(i / 36)], LEVELS[Math.floor(i / 6) % 6], LEVELS[i % 6]] : Array(3).fill(8 + (i - 216) * 10);
+  return { n: 16 + i, v, y: lumOf(v) };
+});
 
-function index256(r, g, b) {
-  const [ri, gi, bi] = [r, g, b].map(nearestLevel);
-  const cube = [LEVELS[ri], LEVELS[gi], LEVELS[bi]];
-  const grey = Math.min(23, Math.max(0, Math.round((((r + g + b) / 3) - 8) / 10)));
-  const gv = 8 + grey * 10;
-  const dist = (c) => (c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2;
-  return dist([gv, gv, gv]) < dist(cube) ? 232 + grey : 16 + 36 * ri + 6 * gi + bi;
+// The nearest xterm colour. With away 1 (or -1) only one as light or lighter (as dark or darker), so a colour moved
+// away from what it is read against never loses contrast to it.
+function index256(rgb, away) {
+  const y = lumOf(rgb);
+  let best = 16, d0 = Infinity;
+  for (const c of XTERM) {
+    const d = (c.v[0] - rgb[0]) ** 2 + (c.v[1] - rgb[1]) ** 2 + (c.v[2] - rgb[2]) ** 2;
+    if (d < d0 && away * (c.y - y) >= 0) { d0 = d; best = c.n; }
+  }
+  return best;
 }
 
 // 38;2;r;g;b and 48;2;r;g;b can sit anywhere in one code (a badge may send bold and a colour together).
-export const to256 = (s) => s.replace(/\x1b\[([0-9;]*)m/g, (_, ps) => {
+// With the terminal's background (bg), words move away from it and a fill moves away from its ink (inkOn), so neither
+// reads worse than in full colour: the nearest of the 256 can be lighter on a light terminal (Claude's red fell to 3.7:1).
+export const to256 = (s, bg) => s.replace(/\x1b\[([0-9;]*)m/g, (_, ps) => {
   const p = ps.split(';'), out = [];
   for (let i = 0; i < p.length; i++) {
-    if ((p[i] === '38' || p[i] === '48') && p[i + 1] === '2') { out.push(p[i], '5', index256(+p[i + 2], +p[i + 3], +p[i + 4])); i += 4; }
+    if ((p[i] === '38' || p[i] === '48') && p[i + 1] === '2') {
+      const rgb = p.slice(i + 2, i + 5).map((v) => Math.min(255, Math.max(0, +v || 0)));
+      while (rgb.length < 3) rgb.push(0);
+      const hex = '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
+      const away = !bg ? 0 : p[i] === '38' ? Math.sign(lumOf(rgb) - lum(bg)) : inkOn(hex) === '#ffffff' ? -1 : 1;
+      out.push(p[i], '5', index256(rgb, away)); i += 4;
+    }
     else if ((p[i] === '38' || p[i] === '48') && p[i + 1] === '5') { out.push(p[i], '5', p[i + 2]); i += 2; } // its colour number is not a code
     else out.push(p[i]);
   }
