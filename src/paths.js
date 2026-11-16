@@ -7,7 +7,7 @@ export function hideHome(text, env = process.env, platform = process.platform) {
   const homes = [homedir(), env?.HOME, env?.USERPROFILE].filter((h) => typeof h === 'string' && h.length > 1)
     .flatMap((h) => [h, h.replaceAll('\\', '/')]).sort((a, b) => b.length - a.length);
   const flags = platform === 'win32' ? 'gi' : 'g';
-  return homes.reduce((s, h) => s.replace(new RegExp(h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags), '~'), text);
+  return homes.reduce((s, h) => s.replace(new RegExp(h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=[\\\\/]|$)', flags), '~'), text);
 }
 
 export function paths(env = process.env) {

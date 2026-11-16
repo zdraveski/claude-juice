@@ -265,6 +265,11 @@ test('doctor: Fable off, failing, and checked', () => {
   assert.match(check(d), /^· Fable battery: last checked 3 min ago$/m);
 });
 
+test('hideHome leaves a folder that only starts like the home folder alone', () => {
+  assert.equal(hideHome('/rootfs/x and /root/y and /root', { HOME: '/root' }, 'linux'), '/rootfs/x and ~/y and ~');
+  assert.equal(hideHome('C:\\Users\\Kire2\\y and C:\\Users\\Kire\\z', { USERPROFILE: 'C:\\Users\\Kire' }, 'win32'), 'C:\\Users\\Kire2\\y and ~\\z');
+});
+
 test('hideHome: the home folder becomes ~ with either slash, and on Windows in any letter case', () => {
   const env = { HOME: 'C:\\Users\\KIRE', USERPROFILE: 'C:\\Users\\KIRE' };
   assert.equal(hideHome('c:/users/kire/proj/.claude/settings.json', env, 'win32'), '~/proj/.claude/settings.json');
