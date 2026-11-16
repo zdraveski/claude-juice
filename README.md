@@ -14,7 +14,7 @@ Free, open source and unofficial: juice is not made by Anthropic.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
-  <img src="docs/images/hero-light.png" alt="juice: your Claude Code limits as batteries, right under the prompt. The same numbers drawn in five of its looks, Juice, Spotlight, Retro phone, Capsule and Road trip: Memory 64%, Session 47%, and Weekly 50% in amber with ! because it is going a bit fast, with its reset time, Sat 7:20 PM.">
+  <img src="docs/images/hero-light.png" alt="juice: your Claude Code limits as batteries, right under the prompt. The same numbers drawn in five of its looks, Juice, Spotlight, Retro phone, Capsule and Road trip: Memory 64%, Session 47%, and Weekly 50% in amber with ! because it is going a bit fast, with its reset time, Sat 7:20 PM. Road trip shows the same as what is left: 36%, 53% and 50%.">
 </picture>
 
 ## Install
@@ -80,7 +80,7 @@ If you use the VS Code chat panel or the desktop app, open a terminal and type `
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/features-dark.png">
-  <img src="docs/images/features-light.png" alt="What you get, in five rows: when every limit resets, shown right next to it; warnings you can't miss, amber ! when you are going fast and red !! when nearly out; Fable in its own violet battery; 14 looks and 13 colour sets, with colour-blind safe and light-terminal sets; and safe to try, because /juice restore brings your old status line back.">
+  <img src="docs/images/features-light.png" alt="What you get, in five rows: when every limit resets, shown right next to it; warnings you can't miss, amber ! when you are going fast and red !! when nearly out; Fable in its own violet battery; 14 looks and 13 colour sets, with colour-blind safe and light-terminal sets, and Session drawn in three of the looks, Night owl, Easy to see and Colour-blind friendly; and safe to try, because /juice restore brings your old status line back.">
 </picture>
 
 ## What the batteries mean
@@ -136,7 +136,7 @@ A look sets the layout, the colours, what shows and in what order, the cost, the
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/looks-dark.png">
-  <img src="docs/images/looks-light.png" alt="All 14 ready-made looks, numbered as /juice look takes them, each showing the same Session 47% and Weekly 50%: 1 Juice, 2 Just the basics, 3 Spotlight, 4 Everything, 5 Retro phone, 6 Quiet, 7 Night owl, 8 Easy to see, 9 Colour-blind friendly, 10 Works everywhere, 11 Cost watcher, 12 Fable first, 13 Capsule and 14 Road trip.">
+  <img src="docs/images/looks-light.png" alt="All 14 ready-made looks, numbered as /juice look takes them, each showing the same Session 47% and Weekly 50% used (Road trip shows what is left: 53% and 50%): 1 Juice, 2 Just the basics, 3 Spotlight, 4 Everything, 5 Retro phone, 6 Quiet, 7 Night owl, 8 Easy to see, 9 Colour-blind friendly, 10 Works everywhere, 11 Cost watcher, 12 Fable first, 13 Capsule and 14 Road trip.">
 </picture>
 
 <details>
@@ -182,7 +182,7 @@ There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe,
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/colour-sets-dark.png">
-  <img src="docs/images/colour-sets-light.png" alt="All 13 colour sets, each with a battery that has plenty left, one going fast with ! and one nearly out with !!: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose.">
+  <img src="docs/images/colour-sets-light.png" alt="All 13 colour sets, each with three batteries under the columns Plenty left, Going fast ! and Nearly out !!: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose.">
 </picture>
 
 ## Change how it looks

@@ -10,7 +10,6 @@ const { render } = await imp('src/render/index.js');
 const { DEFAULTS, SHOW_IDS, LOOKS } = await imp('src/schema.js');
 const { NEUTRAL, PRESETS } = await imp('src/render/palette.js');
 const { SAMPLES } = await imp('src/samples.js');
-const { strip, vis } = await imp('src/render/ansi.js');
 const app = readFileSync(REPO + 'web/app.js', 'utf8');
 const ansiToHtml = new Function(app.slice(app.indexOf('const LEFTS'), app.indexOf('// ---------- preview')) + '\nreturn ansiToHtml;')();
 
@@ -18,12 +17,12 @@ export { LOOKS, PRESETS, NEUTRAL };
 export const busy = SAMPLES.busy;
 export const THEMES = ['dark', 'light'];
 const settings = (o = {}) => ({ ...DEFAULTS, show: [...SHOW_IDS], badges: [], ...o });
-// Real status line markup plus its width in characters, rendered for a `theme` ('dark' or 'light') terminal `columns` wide.
+// Real status line markup, rendered for a `theme` ('dark' or 'light') terminal `columns` wide.
 export const line = (data, o, columns = 400, theme = 'dark') => {
   const t = render(data, settings(o), { columns, theme, ends: 'round', colorDepth: 'truecolor' }).text;
   // The pace marker is 1.5px wide on screen and would vanish once GitHub shrinks the picture: draw it 3px here.
   const html = ansiToHtml(t, NEUTRAL[theme].fg).replace(/linear-gradient\(90deg,rgb\([^"]*?\)\)/g, (g) => g.replaceAll('.75px', '1.5px'));
-  return { html, chars: Math.max(...strip(t).split('\n').map(vis)) };
+  return { html };
 };
 
 // GitHub's own colours (Primer), so a picture reads as part of the page in either theme. The accent is juice's clay,
@@ -32,7 +31,7 @@ const T = {
   dark: { bg: '#0d1117', box: '#151b23', term: '#0d1117', line: '#3d444d', ink: '#f0f6fc', sub: '#9198a1', accent: '#e2885f', onAccent: '#0d1117' },
   light: { bg: '#ffffff', box: '#f6f8fa', term: '#ffffff', line: '#d1d9e0', ink: '#1f2328', sub: '#59636e', accent: '#b85932', onAccent: '#ffffff' },
 };
-export const tone = (theme) => { const [good, watch, bad] = PRESETS.claude[theme]; return { good, watch, bad, fable: NEUTRAL[theme].fable }; };
+const tone = (theme) => { const [good, watch, bad] = PRESETS.claude[theme]; return { good, watch, bad, fable: NEUTRAL[theme].fable }; };
 const FONTS = '<link href="https://fonts.googleapis.com/css2?family=Mona+Sans:wdth,wght@75..125,200..900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">';
 const base = (theme) => {
   const t = T[theme], c = tone(theme);
@@ -49,7 +48,7 @@ body{width:var(--w);height:var(--h);overflow:hidden;color:var(--ink);font-family
 .head{display:flex;align-items:center;gap:14px;padding:18px 28px;background:var(--box);border-bottom:1.5px solid var(--line);font-size:24px;font-weight:600;white-space:nowrap}
 .head .brand{font-size:26px}.head i{font-style:normal;font-weight:400;color:var(--sub)}.head .hint{margin-left:auto;font-size:21px;font-weight:400;color:var(--sub)}
 .row{padding:16px 28px;border-bottom:1.5px solid var(--line)}.row:last-child{border-bottom:0}
-.sub{color:var(--sub);line-height:1.4}
+.sub{color:var(--sub);line-height:1.4}p,.sub{text-wrap:pretty}
 .n{flex:none;width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-size:20px;font-weight:700}`;
 };
 export const brand = (size) => `<div class="brand"${size ? ` style="font-size:${size}px"` : ''}><span class="bat"><b></b></span><span>juice</span></div>`;

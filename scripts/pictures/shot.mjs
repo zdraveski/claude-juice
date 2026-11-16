@@ -21,12 +21,16 @@ export async function browser() {
 // shown: how wide GitHub shows the picture on a desktop. height: a fixed size (the hero) instead of cropping to the content.
 // scale: 2 keeps README pictures sharp on high-density screens; 1 for the social preview.
 // clear: transparent where the page has no background (the button); such a picture keeps its full colours.
-export async function shoot(br, name, html, { width = 1280, height = 0, pad = 0, shown = DESK, scale = 2, clear = false } = {}) {
+export async function shoot(br, name, html, { width = 1280, height = 0, shown = DESK, scale = 2, clear = false } = {}) {
   mkdirSync(OUT, { recursive: true });
   writeFileSync(join(OUT, `${name}.html`), html);
   const pg = await br.newPage({ viewport: { width, height: height || 4000 }, deviceScaleFactor: scale });
   await pg.goto(pathToFileURL(join(OUT, `${name}.html`)).href);
   await pg.evaluate(() => document.fonts.ready);
+  // Offline, the Google Fonts sheet fails quietly and the picture comes out in system-ui: refuse that.
+  if (!await pg.evaluate(() => [...document.fonts].some((f) => f.family.replaceAll('"', '') === 'Mona Sans' && f.status === 'loaded') && ![...document.fonts].some((f) => f.status === 'error'))) {
+    throw new Error(`${name}: Mona Sans or JetBrains Mono did not load (the pictures need the network for Google Fonts)`);
+  }
   const r = await pg.evaluate((CODE) => {
     let code = 99, text = 99, bottom = 0;
     const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -37,11 +41,11 @@ export async function shoot(br, name, html, { width = 1280, height = 0, pad = 0,
       if (el.closest(CODE)) code = Math.min(code, f); else text = Math.min(text, f);
     }
     for (const e of document.body.querySelectorAll('*')) bottom = Math.max(bottom, e.getBoundingClientRect().bottom);
-    const over = [...document.body.querySelectorAll('*')].filter((e) => getComputedStyle(e).overflow !== 'visible' && e.scrollWidth > e.clientWidth + 1).length
+    const over = [...document.body.querySelectorAll('*')].filter((e) => getComputedStyle(e).overflow !== 'visible' && (e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1)).length
       + (document.documentElement.scrollWidth > innerWidth + 1 ? 1 : 0);
     return { code, text, over, bottom: Math.ceil(bottom) };
   }, CODE);
-  const h = height || r.bottom + pad, over = r.over + (r.bottom > h ? 1 : 0);
+  const h = height || r.bottom, over = r.over + (r.bottom > h ? 1 : 0);
   await pg.setViewportSize({ width, height: h }); // a clip below the window comes out cut off
   const raw = join(OUT, `${name}.png`), png = join(IMG, `${name}.png`);
   await pg.screenshot({ path: clear ? png : raw, clip: { x: 0, y: 0, width, height: h }, omitBackground: clear });

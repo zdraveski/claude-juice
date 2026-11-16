@@ -9,14 +9,15 @@ const W = 1280, TALL = 4000;
 // A chat that is nearly full: the one red battery, so the pictures show all three states.
 const full = { ...busy, memoryUsed: 91 };
 const look = (id) => LOOKS.find((x) => x.id === id);
+const nb = (s) => `<span style="white-space:nowrap">${s}</span>`; // keeps a hyphenated word on one line
 const lines = (ls) => `<div class="lines">${ls.map((l) => `<div class="term">${l.html}</div>`).join('')}</div>`;
 
 // ---------- Hero: a GitHub box, the same numbers drawn in five of the looks; also the social preview, so 1280x640 ----------
 const HERO_LOOKS = ['juice', 'spotlight', 'retro', 'capsule', 'roadtrip'];
 const hero = (theme) => page(theme, W, 640, `
-.box{position:absolute;inset:32px}
+.box{position:absolute;inset:32px;display:flex;flex-direction:column}
 .head{gap:28px;padding:22px 32px}.pitch{font-size:27px;font-weight:500;letter-spacing:-.01em}
-.row{padding:12px 28px 13px}.name{font-size:21px;font-weight:600;margin-bottom:5px}.name span{font-weight:400;color:var(--sub);margin-left:10px}`,
+.row{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 28px}.name{font-size:21px;font-weight:600;margin-bottom:5px}.name span{font-weight:400;color:var(--sub);margin-left:10px}`,
 `<div class="box"><div class="head">${brand(48)}<div class="pitch">Your Claude Code limits as batteries, right under the prompt.</div></div>
 ${HERO_LOOKS.map((id) => { const l = look(id); return `<div class="row"><div class="name">${l.name}<span>${l.note}</span></div><div class="term">${line(busy, { ...l.set, show: ['memory', 'session', 'week'], cost: 'off', refills: 'warnings' }, 400, theme).html}</div></div>`; }).join('')}
 </div>`);
@@ -33,7 +34,7 @@ h3{font-size:22px;font-weight:600;margin-bottom:4px}.lines{display:grid;gap:6px}
 ${row('When every limit resets', 'How long, or which day and time, right next to it.', lines([one('session'), one('week')]))}
 ${row('Warnings you can\'t miss', 'Amber ! when you\'re going fast, red !! when nearly out.', lines([one('week'), one('memory', full)]))}
 ${row('Fable has its own battery', 'Its own weekly limit, in its own violet battery.', lines([one('fable')]))}
-${row(`${LOOKS.length} looks, ${Object.keys(PRESETS).length} colour sets`, 'One click each, with colour-blind safe and light-terminal sets.', lines([inLook('nightowl'), inLook('easy'), inLook('colorblind')]))}
+${row(`${LOOKS.length} looks, ${Object.keys(PRESETS).length} colour sets`, `Shown: Night owl, Easy to see and ${nb('Colour-blind')} friendly. One click each, with ${nb('colour-blind')} safe and ${nb('light-terminal')} sets.`, lines([inLook('nightowl'), inLook('easy'), inLook('colorblind')]))}
 ${row('Safe to try', 'Your old status line is saved and comes back in one step.', `<div class="lines"><div class="code"><s>&gt;</s> /juice restore</div><div class="term ok">Your old status line is back.</div></div>`)}
 </div>`);
 };

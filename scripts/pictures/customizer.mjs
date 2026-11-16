@@ -17,8 +17,6 @@ const server = createServer(async (req, res) => {
 await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
 const base = `http://127.0.0.1:${server.address().port}/web/`;
 const browser = await launch();
-// As wide as a desktop shows a README picture (DESK), so GitHub shows the page 1:1 instead of shrinking its text.
-const PW = DESK;
 const open = async (w, h, scale) => {
   const pg = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: scale });
   pg.on('dialog', (d) => d.dismiss());
@@ -29,13 +27,14 @@ const open = async (w, h, scale) => {
 };
 
 // ---------- GIF frames: Juice -> Spotlight -> Colour-blind friendly -> Light -> Dark -> Juice ----------
-const W = PW, H = 600, FPS = 10;
+// As wide as a desktop shows a README picture (DESK), so GitHub shows the page 1:1 instead of shrinking its text.
+const W = DESK, H = 600, FPS = 10;
 const pg = await open(W, H, 1);
 await pg.addStyleTag({ content: '#fc{position:fixed;left:0;top:0;z-index:99999;pointer-events:none;width:26px;height:26px}#fr{position:fixed;z-index:99998;pointer-events:none;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid #e2885f;opacity:0}' });
 await pg.evaluate(() => {
   document.body.insertAdjacentHTML('beforeend', '<div id="fr"></div><svg id="fc" viewBox="0 0 26 26"><path d="M2 2 L2 21 L7 16.5 L10.5 24 L14 22.5 L10.5 15 L17 15 Z" fill="#fff" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/></svg>');
 });
-// Scroll so the sticky preview sits on top with the first looks under it.
+// Scroll so the sticky preview sits on top with the first row of looks under it; later steps scroll further down.
 const looksTop = await pg.evaluate(() => document.querySelector('.c-looks').getBoundingClientRect().top + scrollY);
 const stageH = await pg.evaluate(() => document.querySelector('.stage').getBoundingClientRect().height);
 const scroll0 = Math.round(looksTop - stageH - 20); // low enough that the intro sentence is fully off the top
@@ -43,13 +42,18 @@ const centre = async (sel, sy) => pg.evaluate(([s, y]) => { const r = document.q
 await pg.evaluate((y) => scrollTo(0, y), scroll0);
 await pg.waitForTimeout(300);
 const look = (id) => `[data-look="${id}"]`;
-const juice = await centre(look('juice'), scroll0), spot = await centre(look('spotlight'), scroll0);
+const juice = await centre(look('juice'), scroll0);
+// Spotlight is in the second row, below a 600px frame at scroll0: scroll just enough to show it whole.
+const spotBottom = await pg.evaluate((s) => document.querySelector(s).getBoundingClientRect().bottom + scrollY, look('spotlight'));
+const scrollSpot = Math.max(scroll0, Math.round(spotBottom - H + 24));
+const spot = await centre(look('spotlight'), scrollSpot);
 const cbY = await pg.evaluate((s) => document.querySelector(s).getBoundingClientRect().top + scrollY, look('colorblind'));
 const scroll1 = Math.round(cbY - stageH - 30);
 const cb = await centre(look('colorblind'), scroll1);
 // The sticky preview only pins once scrolled far enough, so measure its buttons where they get clicked.
 await pg.evaluate((y) => scrollTo(0, y), scroll1); await pg.waitForTimeout(200);
-const light = await centre('[data-view="term"] [data-v="light"]', scroll1), dark = await centre('[data-view="term"] [data-v="dark"]', scroll1);
+const LIGHT = '[data-view="term"] [data-v="light"]', DARK = '[data-view="term"] [data-v="dark"]';
+const light = await centre(LIGHT, scroll1), dark = await centre(DARK, scroll1);
 await pg.evaluate((y) => scrollTo(0, y), scroll0); await pg.waitForTimeout(200);
 
 await pg.mouse.click(juice[0], juice[1]); await pg.waitForTimeout(200); // first frame = last frame (Juice chosen), so the loop is seamless
@@ -71,14 +75,17 @@ const move = async (to, s, toScroll = sy) => {
   const from = cur, s0 = sy, n = Math.round(s * FPS);
   for (let i = 1; i <= n; i++) { const t = ease(i / n); cur = [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t]; sy = s0 + (toScroll - s0) * t; await frame(); }
 };
-const click = async () => { await pg.mouse.click(cur[0], cur[1]); await pg.waitForTimeout(120); await frame(1); await frame(0.5); };
+// Refuses a click that would land outside the frame or on something else (a hidden target once made a silent GIF).
+const click = async (sel) => {
+  if (!await pg.evaluate(([x, y, s]) => !!document.elementFromPoint(x, y)?.closest(s), [cur[0], cur[1], sel])) throw new Error(`customizer: the click at ${cur.map(Math.round)} misses ${sel}`);
+  await pg.mouse.click(cur[0], cur[1]); await pg.waitForTimeout(120); await frame(1); await frame(0.5); };
 
 await hold(0.5);
-await move(spot, 0.7); await click(); await hold(0.9);
-await move(cb, 0.8, scroll1); await click(); await hold(0.9);
-await move(light, 0.6); await click(); await hold(0.9);
-await move(dark, 0.4); await click(); await hold(0.4);
-await move(juice, 0.8, scroll0); await click(); await hold(0.5);
+await move(spot, 0.7, scrollSpot); await click(look('spotlight')); await hold(0.9);
+await move(cb, 0.8, scroll1); await click(look('colorblind')); await hold(0.9);
+await move(light, 0.6); await click(LIGHT); await hold(0.9);
+await move(dark, 0.4); await click(DARK); await hold(0.4);
+await move(juice, 0.8, scroll0); await click(look('juice')); await hold(0.5);
 console.log('frames', f, `${W}x${H}`, (f / FPS).toFixed(1) + 's');
 await browser.close();
 server.close();
