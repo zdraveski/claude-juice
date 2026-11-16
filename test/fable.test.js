@@ -152,10 +152,10 @@ test('a cache that cannot be written still holds the refresher back for the back
 });
 
 test('fetchFable aborts a hanging request', async () => {
-  const f = (url, { signal }) => new Promise((_, rej) => signal.addEventListener('abort', () => rej(new Error('aborted'))));
-  const t0 = Date.now();
-  assert.equal(await fetchFable(TOKEN, f, 'v', 50), 'offline');
-  assert.ok(Date.now() - t0 < 2000);
+  let aborted = false;
+  const f = (url, { signal }) => new Promise((_, rej) => signal.addEventListener('abort', () => { aborted = true; rej(new Error('aborted')); }));
+  assert.equal(await fetchFable(TOKEN, f, 'v', 50), 'offline'); // a request nobody aborts never returns, so no clock is needed
+  assert.equal(aborted, true);
 });
 
 test('refreshFable success writes cache without the token', async () => {

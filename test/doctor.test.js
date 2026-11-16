@@ -10,6 +10,9 @@ import { paths, hideHome } from '../src/paths.js';
 import { runStatusLine } from '../src/statusline.js';
 import { NOW } from './helpers.js';
 
+// main() and install() look for project settings above process.cwd(): start in a folder of our own, so the runner's cwd can't change a result.
+process.chdir(mkdtempSync(join(tmpdir(), 'juice-cwd-')));
+
 const config = () => {
   const d = join(mkdtempSync(join(tmpdir(), 'juice-doctor-')), '.claude');
   mkdirSync(d, { recursive: true });

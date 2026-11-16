@@ -118,7 +118,19 @@ test('add, list and remove badges', () => {
 test('default run captures stdout and honours the timeout', async () => {
   // Generous: starting Node through cmd takes over 5 s on a busy Windows machine running tests in parallel.
   assert.deepEqual(await run(`node -e "process.stdout.write('hi')"`, { input: '', timeoutMs: 15000 }), { ok: true, stdout: 'hi' });
-  assert.equal((await run(`node -e "setTimeout(()=>{},5000)"`, { input: '', timeoutMs: 200 })).ok, false);
+});
+
+test('the timeout is what ends a command that runs too long, and refreshes give a badge 2 s', async () => {
+  // A command that fails at once gives the same ok: false, so tell them apart by when it returns: after the timeout,
+  // long before the command would have finished by itself.
+  const t0 = Date.now();
+  const r = await run(`node -e "setTimeout(()=>{},20000)"`, { input: '', timeoutMs: 600 });
+  const took = Date.now() - t0;
+  assert.deepEqual(r, { ok: false, stdout: '' });
+  assert.ok(took >= 550 && took < 12000, `returned after ${took} ms, wanted about 600`);
+  const seen = [], p = tmp();
+  await refreshBadges({ p, settings: { badges: [approve(p, 'x')] }, key: 'k', stdinText: '', runImpl: async (c, o) => { seen.push(o.timeoutMs); return { ok: true, stdout: '' }; } });
+  assert.equal(seen.at(-1), 2000, 'a hung badge may stall a refresh for 2 s, no more');
 });
 
 test('a failing command is not ok, so the badge keeps its last good text', async () => {
@@ -127,12 +139,12 @@ test('a failing command is not ok, so the badge keeps its last good text', async
 
 test('a command that leaves a helper running still counts, and does not keep us waiting', async () => {
   const t0 = Date.now();
-  // The helper inherits stdout and stderr and lives 10 s after the command itself has exited. ok: true means the
-  // command's own exit counted (waiting out the 8 s limit would be ok: false); far under 10 s means we never waited.
-  const cmd = `node -e "require('child_process').spawn(process.execPath,['-e','setTimeout(()=>{},10000)'],{stdio:'inherit'}).unref(); process.stdout.write('hi')"`;
-  const r = await run(cmd, { input: '', timeoutMs: 8000 });
+  // The helper inherits stdout and stderr and lives 20 s after the command itself has exited. ok: true means the
+  // command's own exit counted (waiting out the 15 s limit would be ok: false); well under 20 s means we never waited.
+  const cmd = `node -e "require('child_process').spawn(process.execPath,['-e','setTimeout(()=>{},20000)'],{stdio:'inherit'}).unref(); process.stdout.write('hi')"`;
+  const r = await run(cmd, { input: '', timeoutMs: 15000 });
   assert.deepEqual(r, { ok: true, stdout: 'hi' });
-  assert.ok(Date.now() - t0 < 7500, `took ${Date.now() - t0}ms`);
+  assert.ok(Date.now() - t0 < 12000, `took ${Date.now() - t0}ms`);
 });
 
 test('an empty or half-written badge secret is replaced, so a new badge really runs', () => {
@@ -157,10 +169,10 @@ test('cleanBadge strips ESC-backslash OSC and unterminated OSC', () => {
 
 test('timeout kills a hung grandchild and resolves promptly', async () => {
   const t0 = Date.now();
-  const cmd = `node -e "require('child_process').spawnSync(process.execPath,['-e','setTimeout(()=>{},5000)'],{stdio:'inherit'})"`;
+  const cmd = `node -e "require('child_process').spawnSync(process.execPath,['-e','setTimeout(()=>{},20000)'],{stdio:'inherit'})"`;
   const r = await run(cmd, { input: '', timeoutMs: 300 });
   assert.equal(r.ok, false);
-  assert.ok(Date.now() - t0 < 1300, `took ${Date.now() - t0}ms`);
+  assert.ok(Date.now() - t0 < 10000, `took ${Date.now() - t0}ms: it waited for the grandchild (20 s)`);
 });
 
 test('badges refresh again after 2.5 s, not after 1 s', async () => {

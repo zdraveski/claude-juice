@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readdirSync, mkdirSync, statSync, unlinkSync, utimesSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, readdirSync, mkdirSync, statSync, unlinkSync, utimesSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -85,30 +85,38 @@ test('takeLock leaves a lock taken a moment after this window read the clock', (
   assert.equal(takeLock(p, 'u', NOW), false);
 });
 
-// Six windows call takeLock at the same instant; returns what each one got.
+// Six windows call takeLock for the same lock at the same instant, ROUNDS times over (a fresh lock each round, so one lucky
+// stagger can't hide a broken lock). A window that wins stays in its critical section for 25 ms and writes when it was in
+// and out to a shared file: no two windows may ever overlap in one round, and exactly one wins each.
+const ROUNDS = 5;
 async function race(p) {
   const url = new URL('../src/cache.js', import.meta.url).href;
+  const log = join(tmp(), 'sections.log');
   const go = Date.now() + 1500; // every child waits for the same instant, so they really do collide
-  const code = `import(${JSON.stringify(url)}).then(m=>{while(Date.now()<${go});process.stdout.write(String(m.takeLock({cacheDir:${JSON.stringify(p.cacheDir)}},'u',new Date(${NOW.getTime()}))))})`;
-  return Promise.all(Array.from({ length: 6 }, () => new Promise((res) => {
-    let out = '';
-    const c = spawn(process.execPath, ['-e', code]);
-    c.stdout.on('data', (d) => { out += d; });
-    c.on('close', () => res(out));
-  })));
+  const code = `import(${JSON.stringify(url)}).then(m=>{const fs=require('fs');for(let r=0;r<${ROUNDS};r++){while(Date.now()<${go}+r*300);` +
+    `if(m.takeLock({cacheDir:${JSON.stringify(p.cacheDir)}},'u'+r,new Date(${NOW.getTime()}))){const s=Date.now();while(Date.now()<s+25);` +
+    `fs.appendFileSync(${JSON.stringify(log)},JSON.stringify({r,s,e:Date.now()})+'\\n')}}})`;
+  await Promise.all(Array.from({ length: 6 }, () => new Promise((res) => spawn(process.execPath, ['-e', code]).on('close', res))));
+  return existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map((l) => JSON.parse(l)) : [];
+}
+function assertOneAtATime(sections) {
+  for (let r = 0; r < ROUNDS; r++) {
+    const mine = sections.filter((x) => x.r === r).sort((x, y) => x.s - y.s);
+    assert.equal(mine.length, 1, `round ${r}: ${mine.length} windows got the lock: ${JSON.stringify(mine)}`);
+  }
+  const all = [...sections].sort((x, y) => x.s - y.s);
+  for (let i = 1; i < all.length; i++) if (all[i].r === all[i - 1].r) assert.ok(all[i].s >= all[i - 1].e, 'two windows were in the critical section together');
 }
 
 test('takeLock gives the lock to one of many windows drawing at the same moment', async () => {
-  const wins = await race(paths({ CLAUDE_CONFIG_DIR: tmp() }));
-  assert.equal(wins.filter((w) => w === 'true').length, 1, wins.join());
+  assertOneAtATime(await race(paths({ CLAUDE_CONFIG_DIR: tmp() })));
 });
 
 test('takeLock gives a stale lock to only one of the windows that find it', async () => {
   const p = paths({ CLAUDE_CONFIG_DIR: tmp() });
   mkdirSync(p.cacheDir, { recursive: true });
-  writeFileSync(join(p.cacheDir, 'u.lock'), String(NOW.getTime() - 60000));
-  const wins = await race(p);
-  assert.equal(wins.filter((w) => w === 'true').length, 1, wins.join());
+  for (let r = 0; r < ROUNDS; r++) writeFileSync(join(p.cacheDir, `u${r}.lock`), String(NOW.getTime() - 60000));
+  assertOneAtATime(await race(p));
 });
 
 test('an empty lock is one being written: left alone while young, replaced once old', () => {
@@ -153,7 +161,7 @@ test('a target that can never be replaced fails at once, even with the long wait
   mkdirSync(target);
   const t0 = Date.now();
   assert.throws(() => writeJsonAtomic(target, { a: 1 }));
-  assert.ok(Date.now() - t0 < 300, `took ${Date.now() - t0} ms`);
+  assert.ok(Date.now() - t0 < 1500, `took ${Date.now() - t0} ms: it waited for the long retry (2.5 s) instead of failing at once`);
   assert.deepEqual(readdirSync(d).filter((n) => n.endsWith('.tmp')), []);
 });
 
@@ -200,7 +208,7 @@ test('hot-path writes fail fast and takeLock returns false instead of throwing',
   mkdirSync(target); // renaming a file over a directory always fails
   const t0 = Date.now();
   assert.throws(() => writeJsonAtomic(target, { a: 1 }, HOT_WRITE));
-  assert.ok(Date.now() - t0 < 200);
+  assert.ok(Date.now() - t0 < 1500, `took ${Date.now() - t0} ms: a hot-path write must not wait for the long retry`);
   assert.deepEqual(readdirSync(d).filter((n) => n.endsWith('.tmp')), []);
   const p = paths({ CLAUDE_CONFIG_DIR: d });
   mkdirSync(join(p.cacheDir, 'u.lock'), { recursive: true });

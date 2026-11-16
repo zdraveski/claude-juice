@@ -1,5 +1,5 @@
 // juice installed into a Claude folder, the way Claude Code runs it: the launcher, the plugin store, links.
-import { fixture } from './helpers.js';
+import { fixture, cleanEnv } from './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, symlinkSync, lstatSync, cpSync } from 'node:fs';
@@ -15,7 +15,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '')
 const tmp = () => mkdtempSync(join(tmpdir(), 'juice-install-'));
 const busyText = JSON.stringify(fixture('busy'));
 // Always a temp CLAUDE_CONFIG_DIR: juice must never see the real login.
-const node = (args, dir, input = '') => spawnSync(process.execPath, args, { input, encoding: 'utf8', env: { ...process.env, CLAUDE_CONFIG_DIR: dir } });
+const node = (args, dir, input = '') => spawnSync(process.execPath, args, { input, encoding: 'utf8', env: cleanEnv(dir) });
 const installed = () => {
   const d = tmp();
   const p = paths({ CLAUDE_CONFIG_DIR: d });
@@ -76,7 +76,7 @@ test('a broken juice folder gives the doctor hint, not a blank line', () => {
   const bin = join(d, 'plugins', 'cache', 'm', 'juice', '1.0.0', 'bin');
   mkdirSync(bin, { recursive: true });
   writeFileSync(join(bin, 'juice-statusline.js'), 'import "./missing-file.js";');
-  const run = (extra) => spawnSync(process.execPath, [join(ROOT, 'bin', 'launcher.js')], { input: busyText, encoding: 'utf8', env: { ...process.env, CLAUDE_CONFIG_DIR: d, NO_COLOR: '', ...extra } });
+  const run = (extra) => spawnSync(process.execPath, [join(ROOT, 'bin', 'launcher.js')], { input: busyText, encoding: 'utf8', env: cleanEnv(d, extra) });
   const r = run({});
   assert.equal(r.status, 0);
   assert.equal(r.stdout.trim(), '\x1b[2mjuice: /juice doctor\x1b[22m');

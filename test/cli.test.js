@@ -10,6 +10,9 @@ import { main, friendly } from '../src/cli.js';
 import { isJuice } from '../src/setup.js';
 import { CUSTOMIZER_URL, LOOKS } from '../src/schema.js';
 
+// main() and install() look for project settings above process.cwd(): start in a folder of our own, so the runner's cwd can't change a result.
+process.chdir(mkdtempSync(join(tmpdir(), 'juice-cwd-')));
+
 function env(sub = '.claude') {
   const root = mkdtempSync(join(tmpdir(), 'juice-cli-'));
   const dir = join(root, sub);

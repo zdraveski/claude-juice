@@ -1,10 +1,10 @@
-import { fixture, strip, NOW, at } from './helpers.js';
+import { fixture, strip, NOW, at, cleanEnv } from './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, linkSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL, fileURLToPath } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { runStatusLine } from '../src/statusline.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
@@ -121,7 +121,7 @@ test('the stashed stdin is private to the person', { skip: process.platform === 
 
 test('a stdin pipe that never closes still ends in a drawn line', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'juice-hang-'));
-  const c = spawn(process.execPath, [fileURLToPath(new URL('../bin/juice-statusline.js', import.meta.url))], { env: { ...process.env, CLAUDE_CONFIG_DIR: dir }, stdio: ['pipe', 'pipe', 'ignore'] });
+  const c = spawn(process.execPath, [fileURLToPath(new URL('../bin/juice-statusline.js', import.meta.url))], { env: cleanEnv(dir), stdio: ['pipe', 'pipe', 'ignore'] });
   let out = '';
   c.stdout.on('data', (d) => { out += d; });
   c.stdin.write('{"model":{"display_name":"Opus 5.5"}}'); // and never end it
@@ -164,5 +164,4 @@ test('launcher picks the highest version, or the pinned one', async () => {
   assert.equal(turnedOff(dir, 'm'), true, 'turned off in /plugin');
   assert.equal(turnedOff(dir, 'other'), false);
   assert.equal(turnedOff(dir, null), false, 'a pinned dev install has no marketplace to check');
-  assert.ok(pathToFileURL(hi).href);
 });
