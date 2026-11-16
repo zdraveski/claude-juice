@@ -15,7 +15,7 @@ import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm, Unread
 const ROOT = new URL('..', import.meta.url);
 // The /juice skill runs badges list without asking, and a command can hold a key: shown is only its first word,
 // after any NAME=value set in front of it (GITHUB_TOKEN=… gh …), with the values left out.
-const SET = /^([A-Za-z_]\w*)=(?:"[^"]*"|'[^']*'|\$'[^']*'|\$\([^)]*\)|`[^`]*`|\\.|[^\s"'\\])*\s*/;
+const SET = /^([A-Za-z_]\w*)=(?:"(?:[^"\\]|\\.)*"|'[^']*'|\$'(?:[^'\\]|\\.)*'|\$\{[^}]*\}|\$\([^)]*\)|`[^`]*`|\\.|[^\s"'\\])*\s*/;
 function hidden(c) {
   let rest = c.trim(), shown = '';
   for (let m; (m = SET.exec(rest));) { shown += `${m[1]}=… `; rest = rest.slice(m[0].length); }
@@ -113,7 +113,10 @@ export async function main(argv, io) {
           const l = listBadges(p), off = unapprovedBadges(p);
           const name = (c) => (all.includes('--show') ? strip(c) : hidden(c));
           const why = (c, i) => {
-            if (!off.includes(i + 1)) return '';
+            if (!off.includes(i + 1)) {
+              const first = l.findIndex((d, j) => d === c && !off.includes(j + 1)) + 1; // 1.4.0 could approve the same badge twice
+              return first !== i + 1 ? ` (a second copy of badge ${first}: remove it)` : '';
+            }
             const twin = l.findIndex((d, j) => d === c && !off.includes(j + 1)) + 1; // 1.4.0 added a second copy instead of approving
             return twin ? ` (a copy of badge ${twin} that never runs: remove it)` : ' (not approved on this computer, so it never runs: add the same command again to approve it)';
           };

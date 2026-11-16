@@ -828,8 +828,9 @@ test('badges list hides a key set in front of the command, and remove never show
 
 test('badges list hides all of a key, however its value is quoted or escaped', async () => {
   const d = env();
-  for (const c of ['TOKEN="sk-ant"rest gh', 'TOKEN=sk\\ ant gh', "TOKEN=$'sk ant' gh", 'TOKEN=sk-"a b" gh', 'TOKEN=$(echo sk-ant-xyz) gh', 'TOKEN=`echo sk-ant` gh']) await run(d, ['badges', 'add', c, '--yes']);
-  assert.equal((await run(d, ['badges', 'list'])).out, '1. TOKEN=… gh\n2. TOKEN=… gh\n3. TOKEN=… gh\n4. TOKEN=… gh\n5. TOKEN=… gh\n6. TOKEN=… gh');
+  for (const c of ['TOKEN="sk-ant"rest gh', 'TOKEN=sk\\ ant gh', "TOKEN=$'sk ant' gh", 'TOKEN=sk-"a b" gh', 'TOKEN=$(echo sk-ant-xyz) gh', 'TOKEN=`echo sk-ant` gh',
+    'TOKEN="abc\\" sk-two" gh', "TOKEN=$'abc\\' sk-two' gh", 'TOKEN=${SECRET:-a sk-two} gh']) await run(d, ['badges', 'add', c, '--yes']);
+  assert.equal((await run(d, ['badges', 'list'])).out, Array.from({ length: 9 }, (_, i) => `${i + 1}. TOKEN=… gh`).join('\n'));
 });
 
 test('adding a badge that is already there adds no second copy', async () => {
@@ -864,6 +865,15 @@ test('badges list says to remove a copy that never runs when the same badge is a
   assert.match((await run(d, ['badges', 'add', 'uptime', '--yes'])).out, /already there, as badge 2/);
   await run(d, ['badges', 'remove', '1', '--yes']);
   assert.equal((await run(d, ['badges', 'list'])).out, '1. uptime');
+});
+
+// 1.4.0 also let `badges add --yes` run twice: two approved copies, both drawn.
+test('badges list says to remove a second approved copy of a badge', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'uptime', '--yes']);
+  const f = join(d, 'juice.json'), saved = JSON.parse(readFileSync(f, 'utf8'));
+  writeFileSync(f, JSON.stringify({ ...saved, badges: [...saved.badges, { command: 'echo b' }, ...saved.badges] }));
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. uptime\n2. echo … (not approved on this computer, so it never runs: add the same command again to approve it)\n3. uptime (a second copy of badge 1: remove it)');
 });
 
 test('an unreadable juice.json is never overwritten with defaults', async () => {
