@@ -223,7 +223,7 @@ const say = (t) => { $('say').textContent = t; };
 // The button itself says Copied for a moment, where the eye already is. It keeps its width meanwhile, so a second
 // tap lands on it again and not on the button that slid in beside it (Reset, next to Copy link).
 const done = (b) => {
-  b.style.minWidth = `${b.offsetWidth}px`;
+  b.style.minWidth ||= getComputedStyle(b).width; // the content width: on a desktop the border and padding come on top
   b.dataset.label ??= b.textContent; b.textContent = 'Copied'; b.dataset.done = '';
   clearTimeout(b.timer); b.timer = setTimeout(() => { b.textContent = b.dataset.label; delete b.dataset.done; b.style.minWidth = ''; }, 1600);
 };

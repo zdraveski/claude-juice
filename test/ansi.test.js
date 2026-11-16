@@ -67,6 +67,15 @@ test('in 256 colours a round end and the battery it closes get the same colour',
     assert.equal(right, body, `${casing} on ${back}: ${JSON.stringify(out)}`);
   }
 });
+// Re-review (1.4.1): only a round end may map the fill's way. A faint colour of your own that the line also fills with
+// moved its words toward their background (#073397 on #181818: 1.63:1 in full colour, 1.14:1 in 256).
+test('in 256 colours a word maps by what it sits on, even when the line also fills with its colour', () => {
+  for (const [back, c] of [['#ffffff', '#928828'], ['#181818', '#073397']]) {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+    const alone = to256(fg(c, 'abc'), back), withFill = to256(`${fg(c, 'abc')} \x1b[48;2;${r};${g};${b}m 42% \x1b[49m`, back);
+    assert.ok(withFill.startsWith(alone), `${c} on ${back}: ${JSON.stringify(withFill)} vs ${JSON.stringify(alone)}`);
+  }
+});
 test('strip removes every escape sequence and control char but keeps newlines', () => {
   assert.equal(strip('\x1b]0;x\x07hi'), 'hi');
   assert.equal(strip('\x1b]0;x\x1b\\hi'), 'hi');

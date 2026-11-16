@@ -242,13 +242,15 @@ test('the skip link moves to the options and keeps every setting and the history
 
 // Site review (1.4.1): on a phone "Copied" shortened the button and Reset slid under a second tap, wiping the settings.
 test('tapping Copy link twice never lands on Reset', async () => {
-  for (const width of [360, 390, 430, 520]) for (const where of ['middle', 'end']) {
+  // Re-review: the toast's text wrapped the buttons onto a new row, so widths 400-690 and 1010-1100 and the bottom edge
+  // still landed on Reset.
+  for (const width of [360, 390, 430, 520, 600, 680, 1050]) for (const where of ['middle', 'end', 'bottom']) {
     const { page } = await open(width);
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
     await page.click('[data-look=nightowl]');
     const want = await cmd(page);
     await page.locator('#link').scrollIntoViewIfNeeded();
-    const b = await page.locator('#link').boundingBox(), x = where === 'end' ? b.x + b.width - 6 : b.x + b.width / 2, y = b.y + b.height / 2;
+    const b = await page.locator('#link').boundingBox(), x = where === 'end' ? b.x + b.width - 6 : b.x + b.width / 2, y = where === 'bottom' ? b.y + b.height - 4 : b.y + b.height / 2;
     await page.mouse.click(x, y);
     await page.waitForTimeout(150);
     await page.mouse.click(x, y);
@@ -265,6 +267,31 @@ test('in forced colours every chosen button still shows it is chosen', async () 
     .filter((e) => e.getClientRects().length && getComputedStyle(e).outlineStyle === 'none')
     .map((e) => e.textContent.trim().slice(0, 24)));
   assert.deepEqual(plain, []);
+});
+
+// Re-review (1.4.1): on a desktop the buttons have no box-sizing, so holding a width taken with the border and padding
+// grew each Copy button by them, and again on every click.
+test('a Copy button keeps its width while it says Copied, however often it is clicked', async () => {
+  const { page } = await open(1280);
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
+  for (const sel of ['#link', '[data-copy=cmd]']) {
+    await page.locator(sel).scrollIntoViewIfNeeded();
+    const before = (await page.locator(sel).boundingBox()).width, seen = [];
+    for (let i = 0; i < 3; i++) { await page.click(sel); await page.waitForTimeout(100); seen.push((await page.locator(sel).boundingBox()).width); }
+    assert.ok(seen.every((w) => Math.abs(w - before) < 1), `${sel}: ${before} then ${seen}`);
+  }
+});
+
+// Re-review (1.4.1): in forced colours a chosen button's outline is its "chosen" mark, so focus has to look different.
+test('in forced colours focus on a chosen button still shows', async () => {
+  const { page } = await open();
+  await page.emulateMedia({ forcedColors: 'active' });
+  const sel = '.seg button[aria-pressed=true]';
+  const ring = () => page.evaluate((s) => { const e = document.querySelector(s), c = getComputedStyle(e); return `${c.outlineStyle} ${c.outlineWidth} ${c.outlineOffset}`; }, sel);
+  const still = await ring();
+  await page.focus(sel); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate((s) => document.activeElement === document.querySelector(s), sel), true);
+  assert.notEqual(await ring(), still);
 });
 
 // Site review (1.4.1): the preview scrolls, so the keyboard stops on it, and the fade at its end hid the focus ring.

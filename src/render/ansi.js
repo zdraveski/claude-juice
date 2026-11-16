@@ -88,26 +88,28 @@ const rgbAt = (p, i) => {
   while (rgb.length < 3) rgb.push(0);
   return rgb;
 };
+const ROUND = new RegExp(`[${String.fromCharCode(0xe0b4, 0xe0b6)}]`); // the round ends pieces.js draws (CAP_R, CAP_L)
 export const to256 = (s, bg) => {
   const back = bg ? lum(bg) : 0;
   let under = back; // shortcut: a fill sent in the same code after its words counts from the next code on
-  // A colour the line also fills with maps the fill's way wherever it is drawn: a round end is drawn as a word in its
-  // battery's colour, and moving the two apart left a seam between them.
+  // A round end is drawn as a word in its battery's colour, so when the text also fills with that colour the end maps
+  // the fill's way: moving the two apart left a seam between them. Every other word still maps by what it sits on, or a
+  // faint colour of your own that is also a fill would read worse.
   const fills = new Set();
-  if (bg) for (const [, ps] of s.matchAll(/\x1b\[([0-9;]*)m/g)) {
+  if (bg && ROUND.test(s)) for (const [, ps] of s.matchAll(/\x1b\[([0-9;]*)m/g)) {
     const p = ps.split(';');
     for (let i = 0; i < p.length; i++) if ((p[i] === '38' || p[i] === '48') && (p[i + 1] === '2' || p[i + 1] === '5')) {
       if (p[i] === '48' && p[i + 1] === '2') fills.add(rgbAt(p, i).join());
       i += p[i + 1] === '2' ? 4 : 2;
     }
   }
-  return s.replace(/\x1b\[([0-9;]*)m/g, (_, ps) => {
-    const p = ps.split(';'), out = [];
+  return s.replace(/\x1b\[([0-9;]*)m/g, (m, ps, at) => {
+    const p = ps.split(';'), out = [], end = ROUND.test(s[at + m.length] ?? '');
     for (let i = 0; i < p.length; i++) {
       if ((p[i] === '38' || p[i] === '48') && p[i + 1] === '2') {
         const rgb = rgbAt(p, i);
         const hex = '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
-        const asFill = p[i] === '48' || fills.has(rgb.join());
+        const asFill = p[i] === '48' || (end && fills.has(rgb.join()));
         const away = !bg ? 0 : asFill ? (inkOn(hex) === '#ffffff' ? -1 : 1) : Math.sign(lumOf(rgb) - under);
         const n = index256(rgb, away);
         if (bg && p[i] === '48') under = xterm()[n - 16].y;
