@@ -1,5 +1,4 @@
 // Badges: user-added shell commands whose first output line is shown before the batteries.
-import { spawn } from 'node:child_process';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
@@ -40,6 +39,9 @@ export function readBadges(p, key, now, commands) {
   // Cleaned again: the cache is a file anyone could have edited, and the terminal obeys what it is sent.
   return { texts: commands.map((cmd) => { const t = textFor(c, cmd); return typeof t === 'string' ? cleanBadge(t) : ''; }), stale: !(age >= 0 && age <= FRESH_MS) };
 }
+
+// child_process is loaded only when a command runs: the status line reads badges far more often than it runs them.
+const spawn = (...a) => process.getBuiltinModule('node:child_process').spawn(...a);
 
 // Kills the shell and anything it started, and frees the pipe so it can't keep us alive.
 function killTree(child) {

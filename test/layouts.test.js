@@ -299,3 +299,15 @@ test('text on a coloured fill (pills, a number inside a battery) is readable, 4.
     for (const t of ['good', 'watch', 'bad', 'fable']) assert.ok(contrast(P[t], inkOn(P[t])) >= 4.5, `${id} ${theme} ${t} ${P[t]}`);
   }
 });
+
+// A fresh Node builds its number formatter cold: about 40 ms on every pay-as-you-go refresh.
+test('cost is written without a locale formatter', () => {
+  const d = { ...SAMPLES.busy, account: 'payg', limits: {} }, was = Number.prototype.toLocaleString;
+  Number.prototype.toLocaleString = () => { throw new Error('toLocaleString'); };
+  try {
+    for (const [n, s] of [[1.005, '$1.01'], [2.675, '$2.68'], [1234.5, '$1,234.50'], [999999.995, '$1,000,000.00'], [0.01, '$0.01']]) {
+      const t = text({ ...d, costUsd: n });
+      assert.ok(t.endsWith(`spent ${s}`), `${n}: ${t}`);
+    }
+  } finally { Number.prototype.toLocaleString = was; }
+});

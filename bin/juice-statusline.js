@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { runStatusLine } from '../src/statusline.js';
 
@@ -9,7 +8,8 @@ const juice = fileURLToPath(new URL('./juice.js', import.meta.url));
 // people's own commands and keep the environment they had.
 const proxied = process.env.HTTPS_PROXY || process.env.https_proxy;
 const env = proxied ? { ...process.env, NODE_USE_ENV_PROXY: '1' } : process.env;
-const spawnDetached = (args) => spawn(process.execPath, [juice, ...args], { detached: true, stdio: 'ignore', windowsHide: true, env: args[0] === 'refresh-fable' ? env : process.env }).on('error', () => {}).unref();
+// child_process is loaded only here: most refreshes start nothing.
+const spawnDetached = (args) => process.getBuiltinModule('node:child_process').spawn(process.execPath, [juice, ...args], { detached: true, stdio: 'ignore', windowsHide: true, env: args[0] === 'refresh-fable' ? env : process.env }).on('error', () => {}).unref();
 
 let out = '';
 try {

@@ -4,8 +4,9 @@ import { vis, cut, strip } from './ansi.js';
 // so hiding the ones that are fine is the very last step, after every word and space has given way.
 export const FIT_STEPS = [['badges', 'badges'], ['noRefills', 'reset times'], ['noEffortWord', 'the effort word'], ['noCost', 'cost'],
   ['noEffort', 'the effort level'], ['noModel', 'the model name'], ['tight', 'spacing'], ['small', 'battery size'],
-  ['noAmberOut', 'amber run-out times'], ['shortWords', 'warning words'], ['bare', 'battery pictures'], ['onlyTrouble', 'batteries that are fine'],
-  ['onlyRed', 'batteries going a bit fast'], ['noNotes', 'run-out and reset times']];
+  ['noAmberOut', 'amber run-out times'], ['outOnly', 'reset times beside a run-out time'], ['shortWords', 'warning words'],
+  ['bare', 'battery pictures'], ['onlyTrouble', 'batteries that are fine'], ['onlyRed', 'batteries going a bit fast'],
+  ['noNotes', 'run-out and reset times']];
 // After hiding the fine batteries, the amber ones go; then even a red one's words ("out ~2:44 PM") go before a red
 // battery itself is lost to the last-resort cut.
 
@@ -57,11 +58,15 @@ export function fit(layoutFn, data, ctx, columns) {
       if (widest(next) <= columns) { flags = without(flags, flag); text = next; }
     }
   }
-  const dropped = FIT_STEPS.filter(([flag]) => flags[flag] && draw(without(flags, flag)) !== text).map(([, label]) => label);
-  if (widest(text) > columns) {
+  const fitted = text, cutEnd = widest(text) > columns;
+  if (cutEnd) {
     // The cut keeps the start of the line, so the battery that blocks you first moves to the start.
     text = draw({ ...flags, urgentFirst: true }).split('\n').map((ln) => (vis(ln) > columns ? cut(ln, wholeItems(ln, columns)) + '…' : ln)).join('\n');
-    dropped.push('the end of the line');
   }
-  return { text, dropped };
+  let dropped;
+  return { text, get dropped() {
+    dropped ??= FIT_STEPS.filter(([flag]) => flags[flag] && draw(without(flags, flag)) !== fitted).map(([, label]) => label)
+      .concat(cutEnd ? ['the end of the line'] : []);
+    return dropped;
+  } };
 }

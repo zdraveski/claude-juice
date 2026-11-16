@@ -7,7 +7,8 @@ import { ramp, chip, battery, batteryPct, batterySeg, batteryLow, form, isForm, 
 const lbl = (ctx, t) => fg(ctx.P.mute, t);
 const num = (ctx, t, level) => fg(level === 'ok' ? ctx.P.text : tone(ctx, level), t);
 const join = (parts, gap = '   ') => parts.filter(Boolean).join(gap);
-const money = (n) => (n < 0.01 ? '<$0.01' : `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+// Not toLocaleString: a fresh Node builds its number formatter cold, about 40 ms a refresh. Same output ("$1,234.50").
+const money = (n) => (n < 0.01 ? '<$0.01' : '$' + Number(Math.round(n + 'e2') + 'e-2').toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
 
 const badges = (data, ctx) => (ctx.fit.badges ? '' : data.badges.filter(Boolean).map((b) => fg(ctx.P.sub, b)).join(' '));
 
@@ -88,7 +89,7 @@ const wants = (ctx, i) => !ctx.fit.noNotes && (!i.sameReset || saysOut(i.assesse
   && (i.level !== 'ok' || ((ctx.fit.noRefills ? 'warnings' : ctx.settings.refills) === 'always' && !!i.assessed));
 function say(ctx, i) {
   const n = i.assessed
-    ? limitNote(i.assessed, ctx.now, { squeezed: !!ctx.fit.shortWords, noReset: !!i.sameReset }) : i.note;
+    ? limitNote(i.assessed, ctx.now, { squeezed: !!ctx.fit.shortWords, noReset: !!i.sameReset || (!!ctx.fit.outOnly && saysOut(i.assessed, !!ctx.fit.shortWords)) }) : i.note;
   return n && n.text ? fg(ctx.P[n.tone], n.text) : '';
 }
 const withSay = (ctx, i, sep) => (wants(ctx, i) && say(ctx, i) ? sep + say(ctx, i) : '');
