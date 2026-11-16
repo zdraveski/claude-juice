@@ -29,6 +29,7 @@ export async function shoot(br, name, html, { width = 1280, height = 0, shown = 
   await pg.evaluate(() => document.fonts.ready);
   // Offline, the Google Fonts sheet fails quietly and the picture comes out in system-ui: refuse that.
   if (!await pg.evaluate(() => [...document.fonts].some((f) => f.family.replaceAll('"', '') === 'Mona Sans' && f.status === 'loaded') && ![...document.fonts].some((f) => f.status === 'error'))) {
+    await pg.close();
     throw new Error(`${name}: Mona Sans or JetBrains Mono did not load (the pictures need the network for Google Fonts)`);
   }
   const r = await pg.evaluate((CODE) => {
@@ -40,6 +41,7 @@ export async function shoot(br, name, html, { width = 1280, height = 0, shown = 
       const f = parseFloat(getComputedStyle(el).fontSize);
       if (el.closest(CODE)) code = Math.min(code, f); else text = Math.min(text, f);
       // A hyphenated word drawn on two lines ("Colour-" / "blind") reads as two words.
+      // shortcut: checks one text node at a time, so Colour-<b>blind</b> is missed; walk across nodes if a picture ever builds one.
       for (const m of t.textContent.matchAll(/[^\s-]+(?:-[^\s-]+)+/g)) {
         const g = document.createRange(); g.setStart(t, m.index); g.setEnd(t, m.index + m[0].length);
         if (new Set([...g.getClientRects()].map((x) => Math.round(x.top))).size > 1) split.push(m[0]);
