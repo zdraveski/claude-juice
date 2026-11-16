@@ -145,10 +145,14 @@ test('dragging a battery row reorders it, and so do the arrow buttons', async ()
   assert.match(await cmd(page), /show=model,effort,week,memory,session,fable,budget /);
   await page.click('[data-move=session][data-dir="-1"]');
   assert.deepEqual(await order(), ['week', 'session', 'memory', 'fable']);
+  // Dragged down onto the last row, it takes the last place (1.4.0 stopped one short, so the bottom was unreachable).
+  await page.dragAndDrop('[data-bat=week]', '[data-bat=fable]');
+  assert.deepEqual(await order(), ['session', 'memory', 'fable', 'week']);
 });
 
 test('light terminal, and no sideways scrolling on a phone', async () => {
   const { page } = await open(390);
+  await page.click('#popts summary'); // on a phone the preview's own options fold away under the preview
   await page.click('[data-view=term] [data-v=light]');
   assert.ok(await page.locator('#win.light').count());
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -183,6 +187,168 @@ test('no sideways scrolling at 320 px wide', async () => {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
 });
 
+// On a phone the preview sat 2,000 px above the looks, so tapping one showed nothing (1.4.0).
+// Small (80 columns) still ran past a phone's edge and dropped the battery pictures, with no sign the line went on.
+test('on a phone the preview starts at Wide, fades where the line goes on, and stays in view while you pick a look', async () => {
+  const { page } = await open(390);
+  assert.equal(await page.getAttribute('[data-view=width] [data-v=wide]', 'aria-pressed'), 'true');
+  assert.equal(await page.textContent('#fitnote'), '', 'nothing dropped');
+  const more = () => page.evaluate(() => document.getElementById('out').classList.contains('more'));
+  assert.ok(await more(), 'fades at the right edge');
+  await page.evaluate(() => { const o = document.getElementById('out'); o.scrollLeft = o.scrollWidth; });
+  await page.waitForFunction(() => !document.getElementById('out').classList.contains('more'));
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'only the line scrolls');
+  await page.click('[data-look=nightowl]');
+  const box = await page.locator('#out').boundingBox();
+  assert.ok(box && box.y >= 0 && box.y + box.height <= 900, `the preview is at ${box?.y}px`);
+  assert.match(await cmd(page), /look=nightowl|layout=/);
+});
+
+test('on a phone every control is at least 44 px to tap', async () => {
+  const { page } = await open(390);
+  await page.click('#popts summary');
+  const small = await page.evaluate(() => [...document.querySelectorAll('button,select,input,summary')]
+    .filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden')
+    .map((e) => {
+      const b = e.getBoundingClientRect();
+      let h = b.height;
+      if (e.classList.contains('sw')) { // a switch is drawn thinner than it taps: measure what a tap above and below it hits
+        e.scrollIntoView({ block: 'center', behavior: 'instant' });
+        const r = e.getBoundingClientRect(), x = r.left + r.width / 2, hit = (y) => document.elementFromPoint(x, y)?.closest('.sw') === e;
+        let up = 0, down = 0;
+        while (up < 30 && hit(r.top - up - 1)) up++;
+        while (down < 30 && hit(r.bottom + down)) down++;
+        h = r.height + up + down;
+      }
+      return Math.min(h, b.width) < 44 ? `${e.className || e.tagName} ${Math.round(b.width)}x${Math.round(h)}` : '';
+    }).filter(Boolean));
+  assert.deepEqual([...new Set(small)], []);
+});
+
+// Site review (1.4.1): the skip link moved focus by changing the address, and a new address re-reads the settings from it.
+test('the skip link moves to the options and keeps every setting and the history', async () => {
+  const { page } = await open();
+  const r = await page.evaluate(async () => {
+    document.querySelector('[data-look=nightowl]').click();
+    document.querySelector('[data-layout=tank]').click(); // within 200 ms, so its address is still waiting to be written
+    const before = document.querySelector('#cmd').textContent, h = history.length;
+    document.querySelector('.skip').click();
+    await new Promise((res) => setTimeout(res, 400));
+    return { before, after: document.querySelector('#cmd').textContent, grew: history.length - h, focus: document.activeElement.id, hash: location.hash.slice(0, 3) };
+  });
+  assert.equal(r.after, r.before);
+  assert.deepEqual([r.grew, r.focus, r.hash], [0, 'opts', '#c=']);
+});
+
+// Site review (1.4.1): on a phone "Copied" shortened the button and Reset slid under a second tap, wiping the settings.
+test('tapping Copy link twice never lands on Reset', async () => {
+  // Re-review: the toast's text wrapped the buttons onto a new row, so widths 400-690 and 1010-1100 and the bottom edge
+  // still landed on Reset.
+  for (const width of [360, 390, 430, 520, 600, 680, 1050]) for (const where of ['middle', 'end', 'bottom']) {
+    const { page } = await open(width);
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
+    await page.click('[data-look=nightowl]');
+    const want = await cmd(page);
+    await page.locator('#link').scrollIntoViewIfNeeded();
+    const b = await page.locator('#link').boundingBox(), x = where === 'end' ? b.x + b.width - 6 : b.x + b.width / 2, y = where === 'bottom' ? b.y + b.height - 4 : b.y + b.height / 2;
+    await page.mouse.click(x, y);
+    await page.waitForTimeout(150);
+    await page.mouse.click(x, y);
+    assert.equal(await cmd(page), want, `${width} px, ${where}`);
+    await page.context().close();
+  }
+});
+
+// Site review (1.4.1): in forced colours the chosen Plan, Window, Terminal and Situation buttons lost their outline.
+test('in forced colours every chosen button still shows it is chosen', async () => {
+  const { page } = await open();
+  await page.emulateMedia({ forcedColors: 'active' });
+  const plain = await page.evaluate(() => [...document.querySelectorAll('[aria-pressed=true]')]
+    .filter((e) => e.getClientRects().length && getComputedStyle(e).outlineStyle === 'none')
+    .map((e) => e.textContent.trim().slice(0, 24)));
+  assert.deepEqual(plain, []);
+});
+
+// Re-review (1.4.1): on a desktop the buttons have no box-sizing, so holding a width taken with the border and padding
+// grew each Copy button by them, and again on every click.
+test('a Copy button keeps its width while it says Copied, however often it is clicked', async () => {
+  const { page } = await open(1280);
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
+  for (const sel of ['#link', '[data-copy=cmd]']) {
+    await page.locator(sel).scrollIntoViewIfNeeded();
+    const before = (await page.locator(sel).boundingBox()).width, seen = [];
+    for (let i = 0; i < 3; i++) { await page.click(sel); await page.waitForTimeout(100); seen.push((await page.locator(sel).boundingBox()).width); }
+    assert.ok(seen.every((w) => Math.abs(w - before) < 1), `${sel}: ${before} then ${seen}`);
+  }
+});
+
+// Re-review (1.4.1): in forced colours a chosen button's outline is its "chosen" mark, so focus has to look different.
+test('in forced colours focus on a chosen button still shows', async () => {
+  const { page } = await open();
+  await page.emulateMedia({ forcedColors: 'active' });
+  const sel = '.seg button[aria-pressed=true]';
+  const ring = () => page.evaluate((s) => { const e = document.querySelector(s), c = getComputedStyle(e); return `${c.outlineStyle} ${c.outlineWidth} ${c.outlineOffset}`; }, sel);
+  const still = await ring();
+  await page.focus(sel); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate((s) => document.activeElement === document.querySelector(s), sel), true);
+  assert.notEqual(await ring(), still);
+});
+
+// Re-review (1.4.1): in forced colours focus and "chosen" were both a solid Highlight ring, so moving to Max while Pro
+// was chosen showed two rings alike.
+test('in forced colours a focused button that is not chosen does not look chosen', async () => {
+  const { page } = await open();
+  await page.emulateMedia({ forcedColors: 'active' });
+  const style = (s) => page.evaluate((q) => getComputedStyle(document.querySelector(q)).outlineStyle, s);
+  const chosen = await style('.seg button[aria-pressed=true]');
+  const other = '.seg button:not([aria-pressed=true])';
+  await page.focus(other); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate((q) => document.activeElement === document.querySelector(q), other), true);
+  assert.notEqual(await style(other), chosen);
+});
+
+// Site review (1.4.1): the preview scrolls, so the keyboard stops on it, and the fade at its end hid the focus ring.
+test('the keyboard reaches the preview and sees its focus ring', async () => {
+  const { page } = await open(390);
+  let id = '';
+  for (let i = 0; i < 40 && id !== 'out'; i++) { await page.keyboard.press('Tab'); id = await page.evaluate(() => document.activeElement.id); }
+  assert.equal(id, 'out');
+  const s = await page.evaluate(() => {
+    const o = document.getElementById('out'), c = getComputedStyle(o);
+    return { more: o.classList.contains('more'), mask: c.maskImage, ring: c.outlineStyle };
+  });
+  assert.deepEqual(s, { more: true, mask: 'none', ring: 'solid' });
+});
+
+// Safari throws after 100 address changes in 10 s, and dragging a colour picker sends dozens a second.
+test('dragging a colour picker changes the address at most 5 times a second, and the link still ends up right', async () => {
+  const { page } = await open();
+  const n = await page.evaluate(async () => {
+    let calls = 0; const real = history.replaceState.bind(history);
+    history.replaceState = (...a) => { calls++; return real(...a); };
+    const inp = document.querySelector('[data-custom="0"]'), t0 = performance.now();
+    for (let i = 0; i < 60; i++) {
+      inp.value = `#${(16 + i * 3).toString(16)}8040`;
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    await new Promise((r) => setTimeout(r, 400));
+    return { calls, ms: performance.now() - t0 };
+  });
+  assert.ok(n.calls <= Math.ceil(n.ms / 200) + 1, JSON.stringify(n));
+  const want = await cmd(page), other = await open();
+  await other.page.goto(page.url());
+  assert.equal(await cmd(other.page), want);
+});
+
+test('a Copy button says Copied on itself, then goes back', async () => {
+  const { page } = await open();
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
+  await page.click('[data-copy=install1]');
+  await page.waitForFunction(() => document.querySelector('[data-copy=install1]').textContent === 'Copied', null, { timeout: 2000 });
+  await page.waitForFunction(() => document.querySelector('[data-copy=install1]').textContent === 'Copy', null, { timeout: 3000 });
+});
+
 test('a Content-Security-Policy is set, and the page still works under it', async () => {
   const { page, errors } = await open();
   assert.match(await page.getAttribute('meta[http-equiv=Content-Security-Policy]', 'content'), /default-src 'none'/);
@@ -201,6 +367,18 @@ test('the fake window title is easy to read in both terminals', async () => {
   assert.ok(await ratio() >= 4.5, 'dark');
   await page.click('[data-view=term] [data-v=light]');
   assert.ok(await ratio() >= 4.5, 'light');
+});
+
+// Final review (1.4.1): "A little faint" was styled like "Hard to read".
+test('a faint colour is marked softly, a hard-to-read one strongly, an easy one not at all', async () => {
+  const { page } = await open();
+  const mark = async (hex) => {
+    await page.fill('[data-custom="0"]', hex);
+    return page.evaluate(() => { const el = document.querySelector('[data-ratio="0"]'); return `${el.className} ${el.textContent.split(' (')[0]}`; });
+  };
+  assert.equal(await mark('#707070'), 'ratio faint A little faint');
+  assert.equal(await mark('#404040'), 'ratio bad Hard to read here');
+  assert.equal(await mark('#ffffff'), 'ratio Easy to read');
 });
 
 // The switch does add fable to show=; what the page can't do is let juice read the login.

@@ -7,8 +7,8 @@ Thanks for helping.
 - juice is plain Node.js (24 or newer) with no dependencies. There is nothing to install.
 - `main` is what everyone installs: the plugin store serves it straight away. Work on a branch and open a pull request. Changes reach `main` only through a pull request whose checks pass.
 - Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
-- Tests: `node --test`. GitHub runs them on Windows, macOS and Linux with Node 24 and 26 for every branch.
-- Before a release, also run `node scripts/e2e.mjs` (end to end), `node scripts/bench.js` (speed: juice may add at most 75 ms) and `node scripts/check-customizer.js` (the web customizer, needs Playwright). The full list is in [docs/release/checklist.md](docs/release/checklist.md).
+- Tests: `node --test`, then `node scripts/e2e.mjs` (end to end, in a throwaway home). GitHub runs both on Windows, macOS and Linux with Node 24 and 26 for every branch, and a pull request needs them green.
+- Before a release, also run `node scripts/bench.js` (speed: juice may add at most 75 ms) and `node scripts/check-customizer.js` (the web customizer, needs Playwright). The full list is in [docs/release/checklist.md](docs/release/checklist.md).
 
 ## Never touch your real Claude folder while testing
 

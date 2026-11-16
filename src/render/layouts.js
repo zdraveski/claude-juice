@@ -1,4 +1,4 @@
-import { fg, bg, bold, inkOn } from './ansi.js';
+import { fg, bg, bold, inkOn, readable } from './ansi.js';
 import { assess, memLevel } from './limits.js';
 import { limitNote, memoryNote, saysOut, LABELS, EFFORT } from './words.js';
 import { tone } from './palette.js';
@@ -7,7 +7,8 @@ import { ramp, chip, battery, batteryPct, batterySeg, batteryLow, form, isForm, 
 const lbl = (ctx, t) => fg(ctx.P.mute, t);
 const num = (ctx, t, level) => fg(level === 'ok' ? ctx.P.text : tone(ctx, level), t);
 const join = (parts, gap = '   ') => parts.filter(Boolean).join(gap);
-const money = (n) => (n < 0.01 ? '<$0.01' : `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+// Not toLocaleString: a fresh Node builds its number formatter cold, about 40 ms a refresh. Same output ("$1,234.50").
+const money = (n) => (n < 0.01 ? '<$0.01' : '$' + Number(Math.round(n + 'e2') + 'e-2').toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
 
 const badges = (data, ctx) => (ctx.fit.badges ? '' : data.badges.filter(Boolean).map((b) => fg(ctx.P.sub, b)).join(' '));
 
@@ -64,7 +65,7 @@ function items(data, ctx) {
     const i = make[id]();
     if (i && i.used >= 100) out.push(i);
   }
-  if (settings.order === 'urgent') out.sort(byNeed);
+  if (settings.order === 'urgent' || fit.urgentFirst) out.sort(byNeed);
   else if (settings.order === 'fullest') out.sort((a, b) => b.used - a.used);
   if (fit.onlyTrouble && out.length) {
     const bad = out.filter((i) => i.level !== 'ok');
@@ -74,7 +75,7 @@ function items(data, ctx) {
   // Fable resets with the weekly limit; while Weekly shows that countdown, one is enough. Only while it
   // really shows it: a fine Weekly with reset times off, or squeezed to its run-out time, shows none.
   const weekItem = out.find((i) => i.id === 'week');
-  const weekSaysReset = weekItem && wants(ctx, weekItem) && !(fit.shortWords && saysOut(weekItem.assessed, true));
+  const weekSaysReset = weekItem && wants(ctx, weekItem) && !((fit.shortWords || fit.outOnly) && saysOut(weekItem.assessed, !!fit.shortWords));
   const week = weekSaysReset ? weekItem.assessed.resetsAt : null;
   for (const i of out) if (i.id === 'fable' && week && i.assessed.resetsAt && Math.abs(i.assessed.resetsAt - week) < 60000) i.sameReset = true;
   return out;
@@ -88,7 +89,7 @@ const wants = (ctx, i) => !ctx.fit.noNotes && (!i.sameReset || saysOut(i.assesse
   && (i.level !== 'ok' || ((ctx.fit.noRefills ? 'warnings' : ctx.settings.refills) === 'always' && !!i.assessed));
 function say(ctx, i) {
   const n = i.assessed
-    ? limitNote(i.assessed, ctx.now, { squeezed: !!ctx.fit.shortWords, noReset: !!i.sameReset }) : i.note;
+    ? limitNote(i.assessed, ctx.now, { squeezed: !!ctx.fit.shortWords, noReset: !!i.sameReset || (!!ctx.fit.outOnly && saysOut(i.assessed, !!ctx.fit.shortWords)) }) : i.note;
   return n && n.text ? fg(ctx.P[n.tone], n.text) : '';
 }
 const withSay = (ctx, i, sep) => (wants(ctx, i) && say(ctx, i) ? sep + say(ctx, i) : '');
@@ -135,7 +136,8 @@ export const LAYOUTS = {
 
   panel: (data, ctx) => {
     const picture = (i) => (ctx.fit.bare ? '' : batteryLow(ctx, i.used, paint(i), ctx.fit.small ? 8 : 14, i.assessed?.elapsed) + '  ');
-    const row = (i) => name(ctx, i, true) + ' '.repeat(Math.max(1, 13 - i.long.length)) + picture(i) + num(ctx, `${i.used}%`.padStart(4), i.level) + lbl(ctx, ' used ') + mark(ctx, i) + ' '.repeat(3 - MARK[i.level].length)
+    // In a pane too narrow for the columns, each row keeps just its name, number and warning.
+    const row = (i) => ctx.fit.noNotes ? name(ctx, i, true) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i) : name(ctx, i, true) + ' '.repeat(Math.max(1, 13 - i.long.length)) + picture(i) + num(ctx, `${i.used}%`.padStart(4), i.level) + lbl(ctx, ' used ') + mark(ctx, i) + ' '.repeat(3 - MARK[i.level].length)
       + (wants(ctx, i) ? say(ctx, i) : i.id === 'memory' && !ctx.fit.noNotes ? lbl(ctx, 'in this chat') : '');
     return [join([badges(data, ctx), head(data, ctx), cost(data, ctx)], lbl(ctx, '     ·     ')), ...items(data, ctx).map(row)].filter(Boolean).join('\n');
   },
@@ -147,7 +149,7 @@ export const LAYOUTS = {
     const pill = (i) => {
       if (ctx.fit.bare) return name(ctx, i) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i);
       const c = tone(ctx, paint(i)), fill = i.level === 'ok' ? P.casing : c, pad = ctx.fit.tight ? '' : ' ';
-      const body = bg(fill, fg(i.level === 'ok' ? c : inkOn(c), bold(`${pad}${i.short} ${i.used}%${MARK[i.level] ? pad + MARK[i.level] : ''}${pad}`)));
+      const body = bg(fill, fg(readable(i.level === 'ok' ? c : inkOn(c), fill), bold(`${pad}${i.short} ${i.used}%${MARK[i.level] ? pad + MARK[i.level] : ''}${pad}`)));
       return ctx.round ? fg(fill, '') + body + fg(fill, '') : body;
     };
     // The time sits right after its own capsule, so it needs no name.

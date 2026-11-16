@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { writeAtomic, HOT_WRITE } from './cache.js';
 
 const TEMPLATE = fileURLToPath(new URL('../bin/launcher.js', import.meta.url));
-export const fwd = (s) => s.replaceAll(String.fromCharCode(92), '/');
+// Only Windows spells folders with backslashes; on Linux and macOS a backslash is a letter of the name.
+export const fwd = (s, platform = process.platform) => (platform === 'win32' ? s.replaceAll(String.fromCharCode(92), '/') : s);
 
 // A launcher records which juice it runs: a pinned folder (a checkout) or the plugin store it came from.
 export const constant = (text, name) => {
@@ -25,11 +26,11 @@ export const marketOf = (root) => /\/plugins\/cache\/([^/]+)\//.exec(root)?.[1] 
 
 // The launcher for this copy of juice: installed from Claude Code's plugin store, it follows updates there;
 // anywhere else (a checkout), it pins that folder.
-export function launcherFor(pluginRoot) {
+export function launcherFor(pluginRoot, platform = process.platform) {
   const template = readFileSync(TEMPLATE, 'utf8');
   const pin = 'const PINNED = null;', market = 'const MARKET = null;';
   if (!template.includes(pin) || !template.includes(market)) throw new Error("juice's launcher template is damaged. Reinstall the plugin.");
-  const root = fwd(pluginRoot).replace(/\/+$/, ''); // one spelling, so the same folder always gives the same launcher
+  const root = fwd(pluginRoot, platform).replace(/\/+$/, ''); // one spelling, so the same folder always gives the same launcher
   // A replacer function stops $' and $& in the path being expanded.
   const name = marketOf(root);
   return name

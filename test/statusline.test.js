@@ -1,10 +1,10 @@
-import { fixture, strip, NOW, at } from './helpers.js';
+import { fixture, strip, NOW, at, cleanEnv } from './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, linkSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL, fileURLToPath } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { runStatusLine } from '../src/statusline.js';
 import { resolveTarget, turnedOff } from '../bin/launcher.js';
@@ -33,6 +33,11 @@ test('empty and bad stdin never throw', async () => {
   assert.equal(await run('{bad'), '');
 });
 
+test('stdin that starts with a BOM still draws', async () => {
+  const { run } = setup();
+  assert.match(strip(await run('﻿' + busy)), /Session/);
+});
+
 test('model name alone renders', async () => {
   const { run } = setup();
   assert.match(strip(await run('{"model":{"display_name":"Opus 5.5"}}')), /Opus 5\.5/);
@@ -51,6 +56,18 @@ test('a broken run says where to look: dim, or plain without colour', async () =
   assert.equal(await drawBroken({}, brokenStdin('Opus 5.5')), 'Opus 5.5 \x1b[2mjuice: /juice doctor\x1b[22m');
   assert.equal(await drawBroken({ NO_COLOR: '1' }, brokenStdin('Opus 5.5')), 'Opus 5.5 juice: /juice doctor');
   assert.equal(await drawBroken({ NO_COLOR: '1' }, brokenStdin()), 'juice: /juice doctor');
+});
+
+// Audit (1.4.1): the fallback printed the model name as it came, so a line break in it took a second row,
+// and a long one pushed the hint off the window.
+test('a broken run stays on one row inside the window, and a long name gives way to the hint', async () => {
+  assert.equal(await drawBroken({ NO_COLOR: '1' }, brokenStdin('Opus\n 5.5')), 'Opus 5.5 juice: /juice doctor');
+  const long = await drawBroken({ NO_COLOR: '1', COLUMNS: '40' }, brokenStdin('x'.repeat(100)));
+  assert.ok(strip(long).length <= 36, long);
+  assert.match(long, /^x+ juice: \/juice doctor$/);
+  const dimmed = await drawBroken({ COLUMNS: '40' }, brokenStdin('x'.repeat(100)));
+  assert.ok(strip(dimmed).length <= 36 && dimmed.endsWith('\x1b[2mjuice: /juice doctor\x1b[22m'), JSON.stringify(dimmed));
+  assert.ok(strip(await drawBroken({ COLUMNS: '12' }, brokenStdin('Opus'))).length <= 8);
 });
 
 test('a run that works shows no hint, even with empty stdin', async () => {
@@ -116,7 +133,7 @@ test('the stashed stdin is private to the person', { skip: process.platform === 
 
 test('a stdin pipe that never closes still ends in a drawn line', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'juice-hang-'));
-  const c = spawn(process.execPath, [fileURLToPath(new URL('../bin/juice-statusline.js', import.meta.url))], { env: { ...process.env, CLAUDE_CONFIG_DIR: dir }, stdio: ['pipe', 'pipe', 'ignore'] });
+  const c = spawn(process.execPath, [fileURLToPath(new URL('../bin/juice-statusline.js', import.meta.url))], { env: cleanEnv(dir), stdio: ['pipe', 'pipe', 'ignore'] });
   let out = '';
   c.stdout.on('data', (d) => { out += d; });
   c.stdin.write('{"model":{"display_name":"Opus 5.5"}}'); // and never end it
@@ -159,5 +176,4 @@ test('launcher picks the highest version, or the pinned one', async () => {
   assert.equal(turnedOff(dir, 'm'), true, 'turned off in /plugin');
   assert.equal(turnedOff(dir, 'other'), false);
   assert.equal(turnedOff(dir, null), false, 'a pinned dev install has no marketplace to check');
-  assert.ok(pathToFileURL(hi).href);
 });

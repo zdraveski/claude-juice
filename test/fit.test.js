@@ -148,8 +148,8 @@ test('steps run in order and are all tried before a cut', () => {
   assert.ok(cuts > 0, 'no case exercised the cut');
 });
 
-test('FIT_STEPS has the fourteen steps in the agreed order', () => {
-  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'noEffort', 'noModel', 'tight', 'small', 'noAmberOut', 'shortWords', 'bare', 'onlyTrouble', 'onlyRed', 'noNotes']);
+test('FIT_STEPS has the fifteen steps in the agreed order', () => {
+  assert.deepEqual(FIT_STEPS.map((s) => s[0]), ['badges', 'noRefills', 'noEffortWord', 'noCost', 'noEffort', 'noModel', 'tight', 'small', 'noAmberOut', 'outOnly', 'shortWords', 'bare', 'onlyTrouble', 'onlyRed', 'noNotes']);
 });
 
 test('a missing columns count means 120', () => {
@@ -208,5 +208,28 @@ test('the last-resort cut never leaves a tank number without its "left"', () => 
   for (let columns = 8; columns <= 16; columns++) {
     const t = strip(go(SAMPLES.trouble, 'tank', columns).text);
     assert.ok(!/\d+%(?! left)/.test(t), `${columns} columns: ${t}`);
+  }
+});
+
+// A lone red battery in a narrow pane once lost "runs out" and the space before !! together with its countdown:
+// the countdown goes first, the warning words only when even "runs out ~2:33 PM" won't fit.
+test('a red battery gives up its reset countdown before its warning words', () => {
+  const s = SAMPLES.busy.limits.session, low = { ...SAMPLES.busy, limits: { ...SAMPLES.busy.limits, session: { ...s, used: 93 } } };
+  for (const w of [54, 38]) {
+    const r = render(low, { ...DEFAULTS, show: ['session'] }, term(w)), t = strip(r.text);
+    assert.match(t, /^Session \S+ !! runs out ~2:33 PM$/, `${w}: ${t}`);
+    assert.ok(r.dropped.includes('reset times beside a run-out time') && !r.dropped.includes('warning words'), `${w}: ${r.dropped}`);
+  }
+});
+
+// An amber Fable sharing Weekly's reset says nothing of its own. Where Weekly drops its reset beside its run-out
+// time, Fable must say the reset, or no battery on the line says when they refill.
+test('the shared weekly reset time stays on the line while Weekly says when it runs out', () => {
+  const L = SAMPLES.busy.limits, data = { ...SAMPLES.busy, limits: { ...L, week: { ...L.week, used: 93 }, fable: { ...L.fable, used: 50 } } };
+  const draw = (w) => strip(render(data, { ...DEFAULTS, show: ['week', 'fable'] }, term(w)).text);
+  assert.match(draw(200), /Fable \S+ !(?!!)/, 'Fable is amber');
+  for (let w = 30; w <= 140; w++) {
+    const t = draw(w);
+    if (/out ~/.test(t) && t.includes('Fable')) assert.match(t, /resets /, `${w}: ${t}`);
   }
 });

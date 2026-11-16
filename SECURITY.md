@@ -1,6 +1,6 @@
 # Security
 
-juice reads your Claude login token (for the Fable battery) and runs badge commands you add yourself. If you find a security problem in it, please report it privately:
+juice reads your Claude login token only while the Fable battery is on (you are asked first, unless it already showed before 1.4.0 on Windows or Linux), sends it only to `api.anthropic.com`, never stores it, and skips one that has expired. It runs only badge commands approved on this computer: each is signed with a secret that never leaves your Claude folder. If you find a security problem in it, please report it privately:
 
 - [Report a vulnerability](https://github.com/zdraveski/claude-juice/security/advisories/new) on GitHub. Only you and the maintainer can see it.
 - Please don't open a public issue for it.

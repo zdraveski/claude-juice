@@ -29,15 +29,20 @@ const median = (a) => { const s = [...a].sort((x, y) => x - y); return (s[(s.len
 // The real path Claude Code runs: the launcher, installed into a temp config dir only.
 const dir = mkdtempSync(join(tmpdir(), 'juice-bench-'));
 process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
-const env = { ...process.env, CLAUDE_CONFIG_DIR: dir };
+// Full colour whatever terminal runs the bench (Terminal.app, ssh and CI announce none), so each run is the one it names.
+const env = { ...process.env, CLAUDE_CONFIG_DIR: dir, COLORTERM: 'truecolor' };
+delete env.NO_COLOR;
 const p = paths(env);
 install(p, { pluginRoot: root });
 
-const runs = { node: [['-e', '0'], env], juice: [[join(root, 'bin/juice-statusline.js')], env], launcher: [[p.launcherFile], env] };
+// A terminal that doesn't announce full colour gets 256 colours, which costs a colour search on every refresh.
+const { COLORTERM, WT_SESSION, ...env256 } = env;
+const runs = { node: [['-e', '0'], env], juice: [[join(root, 'bin/juice-statusline.js')], env], launcher: [[p.launcherFile], env],
+  launcher256: [[p.launcherFile], env256] };
 // A broken juice can be fast too, so it must really draw the batteries before its time counts.
-for (const k of ['juice', 'launcher']) {
-  const r = spawnSync(process.execPath, runs[k][0], { input, env, encoding: 'utf8' });
-  if (r.status !== 0 || !/Session/.test(r.stdout)) {
+for (const k of ['juice', 'launcher', 'launcher256']) {
+  const r = spawnSync(process.execPath, runs[k][0], { input, env: runs[k][1], encoding: 'utf8' });
+  if (r.status !== 0 || !/Session/.test(r.stdout) || (k === 'launcher256') === /38;2;/.test(r.stdout)) {
     console.log(`FAIL: ${k} did not draw the status line (exit ${r.status}): ${(r.stdout + r.stderr).slice(0, 300)}`);
     process.exit(1);
   }
@@ -45,13 +50,14 @@ for (const k of ['juice', 'launcher']) {
 for (const [args, e] of Object.values(runs)) time(args, e); // warm-up
 const times = Object.fromEntries(Object.keys(runs).map((k) => [k, []]));
 for (let i = 0; i < ROUNDS; i++) for (const [k, [args, e]] of Object.entries(runs)) times[k].push(time(args, e));
-const [n, j, l] = ['node', 'juice', 'launcher'].map((k) => median(times[k]));
+const [n, j, l, l256] = ['node', 'juice', 'launcher', 'launcher256'].map((k) => median(times[k]));
 
 console.log(`Node doing nothing: ${n.toFixed(0)} ms`);
 console.log(`juice: ${j.toFixed(0)} ms (+${(j - n).toFixed(0)})`);
 console.log(`juice via launcher: ${l.toFixed(0)} ms (+${(l - n).toFixed(0)})`);
-const over = l - n > BUDGET_MS;
-console.log(`${over ? 'OVER' : 'OK'}: juice adds ${(l - n).toFixed(0)} ms to Node starting, budget ${BUDGET_MS} ms`);
+console.log(`juice via launcher, 256 colours: ${l256.toFixed(0)} ms (+${(l256 - n).toFixed(0)})`);
+const worst = Math.max(l, l256) - n, over = worst > BUDGET_MS;
+console.log(`${over ? 'OVER' : 'OK'}: juice adds ${worst.toFixed(0)} ms to Node starting (the slower of full and 256 colours), budget ${BUDGET_MS} ms`);
 process.exitCode = over ? 1 : 0;
 
 const dash = join(homedir(), '.claude', 'plugins', 'cache', 'claude-dashboard');

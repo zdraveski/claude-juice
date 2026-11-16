@@ -10,6 +10,9 @@ import { main, friendly } from '../src/cli.js';
 import { isJuice } from '../src/setup.js';
 import { CUSTOMIZER_URL, LOOKS } from '../src/schema.js';
 
+// main() and install() look for project settings above process.cwd(): start in a folder of our own, so the runner's cwd can't change a result.
+process.chdir(mkdtempSync(join(tmpdir(), 'juice-cwd-')));
+
 function env(sub = '.claude') {
   const root = mkdtempSync(join(tmpdir(), 'juice-cli-'));
   const dir = join(root, sub);
@@ -349,6 +352,21 @@ test('a settings.json juice cannot read is never replaced', { skip: process.plat
   assert.equal(readFileSync(f, 'utf8'), mine);
 });
 
+// Temp files are otherwise swept only by the Fable and badge refreshers, which many people never run.
+test('the once-per-update refresh sweeps temp files a killed refresh left behind', async () => {
+  const d = env();
+  await run(d, ['setup']);
+  const { runStatusLine } = await import('../src/statusline.js');
+  const old = new Date('2020-01-01'), cache = join(d, 'juice-cache');
+  mkdirSync(cache, { recursive: true });
+  const stale = join(cache, 'lastseen.json.1.a.tmp'), fresh = join(cache, 'lastseen.json.2.b.tmp');
+  writeFileSync(stale, ''); utimesSync(stale, old, old); writeFileSync(fresh, '');
+  utimesSync(join(d, 'juice-statusline.mjs'), old, old);
+  await runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
+  assert.equal(existsSync(stale), false);
+  assert.equal(existsSync(fresh), true, 'one another window may be writing right now stays');
+});
+
 test('a refresh brings an old or outdated launcher up to date, and leaves a removed one removed', async () => {
   const d = env();
   await run(d, ['setup']);
@@ -596,6 +614,20 @@ test('a read-only settings file gets plain words, not a raw EPERM with the path 
   assert.deepEqual(json(f), OLD, 'left exactly as it was');
 });
 
+// Only Windows lets a read-only settings.json stop the save; elsewhere the file's own mode doesn't stop a rename.
+test('a settings.json juice cannot save leaves the launcher as it was, or absent on a first setup', { skip: process.platform !== 'win32' && 'a read-only file does not stop a rename here' }, async () => {
+  for (const launcher of ['an older launcher', null]) {
+    const d = env(), f = join(d, 'settings.json'), l = join(d, 'juice-statusline.mjs');
+    writeFileSync(f, JSON.stringify(OLD));
+    if (launcher) writeFileSync(l, launcher);
+    chmodSync(f, 0o444);
+    try {
+      assert.equal((await run(d, ['setup'])).code, 1);
+    } finally { chmodSync(f, 0o644); }
+    assert.equal(existsSync(l) ? readFileSync(l, 'utf8') : null, launcher);
+  }
+});
+
 test('restore treats a saved copy that is valid JSON but not an object as damaged, never crashing', async () => {
   for (const content of ['"x"', '5', 'true', 'null']) {
     const d = env();
@@ -692,7 +724,7 @@ test('badges add needs --yes, then add/list/remove', async () => {
   assert.match((await run(d, ['badges', 'list', '--show'])).out, /1. rtk gain/);
   const ask = await run(d, ['badges', 'remove', '1']);
   assert.equal(ask.code, 2);
-  assert.match(ask.out, /This would remove badge 1: rtk gain/);
+  assert.match(ask.out, /This would remove badge 1: rtk …/, 'its first word only, as badges list shows it');
   assert.match((await run(d, ['badges', 'list', '--show'])).out, /1\. rtk gain/, 'asking removed nothing');
   assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 0);
   assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 1);
@@ -759,6 +791,9 @@ test('badges list says which badges this computer never approved, so they never 
   const out = (await run(d, ['badges', 'list', '--show'])).out;
   assert.match(out, /1\. echo copied \(not approved on this computer/);
   assert.match(out, /2\. echo mine$/m);
+  // Adding it again approves it where it stands, so removing it first would only lose its place.
+  assert.match(out, /add the same command again to approve it\)/);
+  assert.doesNotMatch(out, /remove it/);
 });
 
 test('get says whether the Fable battery is on', async () => {
@@ -783,6 +818,76 @@ test('the /juice flow for removing one of two badges removes only that one', asy
   await run(d, ['badges', 'remove', '1']); // first run: shows what it would do
   await run(d, ['badges', 'remove', '1', '--yes']); // re-run after the user agrees
   assert.equal((await run(d, ['badges', 'list', '--show'])).out, '1. echo B');
+});
+
+test('a juice.json that is JSON but not settings is called unreadable and never overwritten', async () => {
+  for (const text of ['[]', '"x"', '42']) {
+    const d = env(), f = join(d, 'juice.json');
+    writeFileSync(f, text);
+    assert.match((await run(d, ['get'])).out, /Warning: juice\.json is unreadable/, text);
+    assert.equal((await run(d, ['set', 'layout=tank'])).code, 1, text);
+    assert.equal(readFileSync(f, 'utf8'), text);
+  }
+});
+
+test('badges list hides a key set in front of the command, and remove never shows it either', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'GITHUB_TOKEN=ghp_SECRET123 gh pr list', '--yes']);
+  await run(d, ['badges', 'add', 'A="sec ret" B=z uptime', '--yes']);
+  await run(d, ['badges', 'add', 'TOKEN=only', '--yes']);
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. GITHUB_TOKEN=… gh …\n2. A=… B=… uptime\n3. TOKEN=…');
+  assert.doesNotMatch((await run(d, ['badges', 'remove', '1'])).out, /SECRET/);
+  assert.doesNotMatch((await run(d, ['badges', 'remove', '1', '--yes'])).out, /SECRET/);
+});
+
+test('badges list hides all of a key, however its value is quoted or escaped', async () => {
+  const d = env();
+  for (const c of ['TOKEN="sk-ant"rest gh', 'TOKEN=sk\\ ant gh', "TOKEN=$'sk ant' gh", 'TOKEN=sk-"a b" gh', 'TOKEN=$(echo sk-ant-xyz) gh', 'TOKEN=`echo sk-ant` gh',
+    'TOKEN="abc\\" sk-two" gh', "TOKEN=$'abc\\' sk-two' gh", 'TOKEN=${SECRET:-a sk-two} gh']) await run(d, ['badges', 'add', c, '--yes']);
+  assert.equal((await run(d, ['badges', 'list'])).out, Array.from({ length: 9 }, (_, i) => `${i + 1}. TOKEN=… gh`).join('\n'));
+});
+
+test('adding a badge that is already there adds no second copy', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'uptime', '--yes']);
+  const r = await run(d, ['badges', 'add', 'uptime']);
+  assert.equal(r.code, 0);
+  assert.match(r.out, /already/);
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. uptime');
+});
+
+// A copied juice.json brings badges this computer never approved; adding one again approves it where it stands.
+test('adding a badge that is there but not approved asks, then approves it without a second copy', async () => {
+  const d = env();
+  writeFileSync(join(d, 'juice.json'), JSON.stringify({ badges: [{ command: 'uptime' }, { command: 'echo b' }] }));
+  assert.equal((await run(d, ['badges', 'add', 'uptime'])).code, 2);
+  assert.match((await run(d, ['badges', 'add', 'uptime', '--yes'])).out, /^Approved badge: uptime$/m);
+  const lines = (await run(d, ['badges', 'list'])).out.split('\n');
+  assert.equal(lines[0], '1. uptime');
+  assert.match(lines[1], /^2\. echo … \(not approved/);
+  assert.equal(lines.length, 2);
+});
+
+// juice 1.4.0 added a second copy instead of approving the first, so a copied badge added again can sit beside its
+// approved twin. Adding it once more changes nothing, so the list must say to remove the copy instead.
+test('badges list says to remove a copy that never runs when the same badge is approved', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'uptime', '--yes']);
+  const f = join(d, 'juice.json'), saved = JSON.parse(readFileSync(f, 'utf8'));
+  writeFileSync(f, JSON.stringify({ ...saved, badges: [{ command: 'uptime' }, ...saved.badges] }));
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. uptime (a copy of badge 2 that never runs: remove it)\n2. uptime');
+  assert.match((await run(d, ['badges', 'add', 'uptime', '--yes'])).out, /already there, as badge 2/);
+  await run(d, ['badges', 'remove', '1', '--yes']);
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. uptime');
+});
+
+// 1.4.0 also let `badges add --yes` run twice: two approved copies, both drawn.
+test('badges list says to remove a second approved copy of a badge', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'uptime', '--yes']);
+  const f = join(d, 'juice.json'), saved = JSON.parse(readFileSync(f, 'utf8'));
+  writeFileSync(f, JSON.stringify({ ...saved, badges: [...saved.badges, { command: 'echo b' }, ...saved.badges] }));
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. uptime\n2. echo … (not approved on this computer, so it never runs: add the same command again to approve it)\n3. uptime (a second copy of badge 1: remove it)');
 });
 
 test('an unreadable juice.json is never overwritten with defaults', async () => {
@@ -844,8 +949,11 @@ test('setup after a manual change asks for --yes and keeps the old backup under 
   assert.equal(r.code, 2);
   assert.match(r.out, /--yes/);
   assert.equal(readFileSync(join(d, 'settings.json'), 'utf8'), before);
-  assert.equal((await run(d, ['setup', '--yes'])).code, 0);
-  assert.ok(readdirSync(d).some((f) => /^juice-backup-\d+\.json$/.test(f)));
+  const yes = await run(d, ['setup', '--yes']);
+  assert.equal(yes.code, 0);
+  const kept = readdirSync(d).find((f) => /^juice-backup-\d+\.json$/.test(f));
+  assert.ok(kept);
+  assert.ok(yes.out.includes(kept), 'the person is told where the earlier copy went');
   await run(d, ['restore']);
   assert.equal(statusOf(d).command, 'node Y.js');
 });
@@ -890,4 +998,89 @@ test('a BOM in settings.json is accepted and not written back', async () => {
   const raw = readFileSync(join(d, 'settings.json'), 'utf8');
   assert.notEqual(raw.charCodeAt(0), 0xFEFF);
   assert.equal(JSON.parse(raw).theme, 'dark');
+});
+
+test('setup takes the same status line with its keys in another order as unchanged', async () => {
+  const d = env();
+  put(d, { type: 'command', command: 'node X.js', padding: 0 });
+  await run(d, ['setup']);
+  put(d, { padding: 0, command: 'node X.js', type: 'command' });
+  assert.equal((await run(d, ['setup'])).code, 0);
+});
+
+test('doctor gives the user-level disableAllHooks line its own fix, not "that file" from a project line', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ disableAllHooks: true }));
+  const line = (await run(d, ['doctor'])).out.split('\n').find((l) => /disableAllHooks/.test(l));
+  assert.ok(line);
+  assert.doesNotMatch(line, /that file|juice there/);
+});
+
+test('set takes names and values in any case', async () => {
+  const d = env();
+  assert.match((await run(d, ['set', 'Layout=TANK', 'colors=Ocean'])).out, /Changed: layout, colors/);
+  assert.equal(json(join(d, 'juice.json')).layout, 'tank');
+});
+
+test('a bad colours value next to your own colours says it keeps them, not their JSON', async () => {
+  const d = env();
+  await run(d, ['set', 'colors=dark:#111111,#222222,#333333,#444444/light:#555555,#666666,#777777,#888888']);
+  const out = (await run(d, ['set', 'colors=dark:#112233'])).out;
+  assert.match(out, /keeping your own colours/);
+  assert.doesNotMatch(out, /\{/);
+});
+
+test('motion on says so when the status line keeps a refresh time of its own', async () => {
+  const d = env();
+  await run(d, ['setup']);
+  const s = json(join(d, 'settings.json'));
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 5 } }));
+  assert.match((await run(d, ['set', 'motion=on'])).out, /every 5 seconds/);
+});
+
+test('a file where the Claude folder should be gets plain words, not a raw EEXIST or ENOTDIR', async () => {
+  const f = join(env(), 'not-a-folder');
+  writeFileSync(f, 'x');
+  for (const args of [['setup'], ['set', 'layout=tank']]) {
+    const r = await run(f, args);
+    assert.equal(r.code, 1, args.join(' '));
+    assert.match(r.err, /a folder it needs is really a file/, args.join(' '));
+    assert.doesNotMatch(r.err, /EEXIST|ENOTDIR/);
+  }
+});
+
+test('doctor and badges list --show print no escape sequences from juice.json or the cache', async () => {
+  const d = env();
+  mkdirSync(join(d, 'juice-cache'), { recursive: true });
+  writeFileSync(join(d, 'juice-cache', 'last-error.json'), JSON.stringify({ at: +new Date(2026, 9, 28) - 60000, message: 'boom\x1b[2J\x1b]52;c;aGk=\x07' }));
+  const doc = (await run(d, ['doctor'])).out;
+  assert.match(doc, /boom/);
+  assert.doesNotMatch(doc, /\x1b/);
+  await run(d, ['badges', 'add', 'echo \x1b[2Jhi', '--yes']);
+  assert.doesNotMatch((await run(d, ['badges', 'list', '--show'])).out, /\x1b/);
+});
+
+test('refresh-badges deletes the stashed stdin once it has read it', async () => {
+  const d = env(), key = '0123456789abcdef', f = join(d, 'juice-cache', 'badges', `${key}.stdin.json`);
+  mkdirSync(join(f, '..'), { recursive: true });
+  writeFileSync(f, '{"cwd":"/home/someone/project"}');
+  assert.equal((await run(d, ['refresh-badges', key])).code, 0);
+  assert.equal(existsSync(f), false);
+});
+
+test('refresh-badges still hands the badges their stdin when the stash cannot be deleted', async (t) => {
+  const d = env(), key = 'fedcba9876543210', f = join(d, 'juice-cache', 'badges', `${key}.stdin.json`);
+  // An echo that starts in milliseconds: node itself can take over the 2 s badge limit to start on a busy machine.
+  await run(d, ['badges', 'add', process.platform === 'win32' ? 'findstr "^"' : 'cat', '--yes']);
+  mkdirSync(join(f, '..'), { recursive: true });
+  writeFileSync(f, 'from-stdin');
+  const real = fs.rmSync;
+  t.mock.method(fs, 'rmSync', function (file, ...rest) {
+    if (String(file).endsWith('.stdin.json')) throw Object.assign(new Error('busy'), { code: 'EBUSY' });
+    return real.call(this, file, ...rest);
+  });
+  syncBuiltinESMExports();
+  try { assert.equal((await run(d, ['refresh-badges', key])).code, 0); }
+  finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
+  assert.deepEqual(json(join(d, 'juice-cache', 'badges', `${key}.json`)).texts, ['from-stdin']);
 });

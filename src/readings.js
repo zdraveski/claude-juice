@@ -48,6 +48,8 @@ export const fetchedCounts = (fetchedAt, now) => Number.isFinite(fetchedAt) && n
 
 // After a failed fetch, wait this long before asking again.
 export const BACKOFF_MS = 900000;
+// The Fable refresher may wait on a macOS Keychain dialog, then fetch; its lock must outlast both, with margin.
+export const KEYCHAIN_TIMEOUT_MS = 25000, FETCH_TIMEOUT_MS = 5000, FABLE_LOCK_MS = 60000;
 
 // Whether to fetch again: the last reading is over 5 minutes old, and no wait after a failure is running.
 // now is a Date or epoch ms. A fetch time in the future (clock skew) is never trusted, and a wait longer than

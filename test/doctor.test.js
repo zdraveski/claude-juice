@@ -10,6 +10,9 @@ import { paths, hideHome } from '../src/paths.js';
 import { runStatusLine } from '../src/statusline.js';
 import { NOW } from './helpers.js';
 
+// main() and install() look for project settings above process.cwd(): start in a folder of our own, so the runner's cwd can't change a result.
+process.chdir(mkdtempSync(join(tmpdir(), 'juice-cwd-')));
+
 const config = () => {
   const d = join(mkdtempSync(join(tmpdir(), 'juice-doctor-')), '.claude');
   mkdirSync(d, { recursive: true });
@@ -242,6 +245,17 @@ test('doctor: Fable off, failing, and checked', () => {
   const old = check(d, { ...proxy, node: '22.21.0' });
   assert.match(old, /company proxy, which juice can only get through with Node 24 or newer \(this is 22\.21\.0\)/);
   assert.doesNotMatch(old, /22\.21 or newer/, 'juice needs Node 24 everywhere');
+  // Each failure gets the advice that fits it: /login only when Anthropic refused the login.
+  const failed = (why) => {
+    writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 10 * 60000, why }));
+    return check(d);
+  };
+  assert.match(failed('login'), /tries again in 10 min\. If it keeps failing, type \/login/);
+  assert.match(failed('expired'), /sign-in was due for renewal/);
+  for (const why of ['expired', 'busy', 'changed', 'offline']) assert.doesNotMatch(failed(why), /\/login/, why);
+  assert.match(failed('busy'), /Anthropic's server was busy/);
+  assert.match(failed('changed'), /github\.com\/zdraveski\/claude-juice\/issues/);
+  assert.match(failed('offline'), /couldn't reach Anthropic/);
   // Stamped by a clock that was ahead: juice ignores these, and so does the doctor.
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 30 * 86400000 }));
   assert.doesNotMatch(check(d), /last check failed/);
@@ -249,6 +263,30 @@ test('doctor: Fable off, failing, and checked', () => {
   assert.match(check(d), /^· Fable battery: not checked in the last hour/m);
   writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ used: 5, fetchedAt: NOW.getTime() - 3 * 60000 }));
   assert.match(check(d), /^· Fable battery: last checked 3 min ago$/m);
+});
+
+test('hideHome leaves a folder that only starts like the home folder alone', () => {
+  assert.equal(hideHome('/rootfs/x and /root/y and /root', { HOME: '/root' }, 'linux'), '/rootfs/x and ~/y and ~');
+  assert.equal(hideHome('C:\\Users\\Kire2\\y and C:\\Users\\Kire\\z', { USERPROFILE: 'C:\\Users\\Kire' }, 'win32'), 'C:\\Users\\Kire2\\y and ~\\z');
+  assert.equal(hideHome('/root.bak/x', { HOME: '/root' }, 'linux'), '/root.bak/x');
+});
+
+// Final review (1.4.1): a home at a drive's root hid every path on that drive, and a name that goes on with an
+// accent written as a separate mark was cut before the mark.
+test('hideHome leaves a drive-root home alone, and a name that goes on with an accent mark', () => {
+  assert.equal(hideHome('C:\\Windows\\x and D:\\y', { HOME: 'C:\\', USERPROFILE: 'C:\\' }, 'win32'), 'C:\\Windows\\x and D:\\y');
+  const accented = `/home/kire${String.fromCodePoint(0x301)}/x`;
+  assert.equal(hideHome(accented, { HOME: '/home/kire' }, 'linux'), accented);
+});
+
+// The boundary first hid the home only before a slash or the end, so a quoted one kept the name (review, 1.4.1).
+test('hideHome hides the home folder wherever it ends: quoted, before a full stop, or written with a final slash', () => {
+  const linux = (t, HOME = '/home/kire') => hideHome(t, { HOME }, 'linux');
+  assert.equal(linux("open '/home/kire' failed"), "open '~' failed");
+  assert.equal(linux('"/home/kire": no access, and /home/kire, too.'), '"~": no access, and ~, too.');
+  assert.equal(linux('your home is /home/kire.'), 'your home is ~.');
+  assert.equal(linux('/home/kire/.claude/x', '/home/kire/'), '~/.claude/x');
+  assert.equal(hideHome('C:\\Users\\a\\.claude', { USERPROFILE: 'C:\\Users\\a\\' }, 'win32'), '~\\.claude');
 });
 
 test('hideHome: the home folder becomes ~ with either slash, and on Windows in any letter case', () => {

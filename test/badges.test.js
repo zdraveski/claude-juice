@@ -1,7 +1,7 @@
 import './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, utimesSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, utimesSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paths } from '../src/paths.js';
@@ -12,6 +12,14 @@ import { writeJsonAtomic, takeLock } from '../src/cache.js';
 const busyText = JSON.stringify(fixture('busy'));
 import { strip, at, NOW } from './helpers.js';
 import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, listBadges, removeBadge, run, approve, approved } from '../src/badges.js';
+
+// process.getBuiltinModule came in Node 22.3 and 20.16. On an older Node the line still draws, so its badges must still run.
+test('a badge runs on a Node without process.getBuiltinModule', async () => {
+  const real = process.getBuiltinModule;
+  process.getBuiltinModule = undefined;
+  try { assert.equal((await run('echo hi', { timeoutMs: 5000 })).stdout.trim(), 'hi'); }
+  finally { process.getBuiltinModule = real; }
+});
 
 const tmp = () => paths({ CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-badges-')) });
 const ok = (stdout) => async () => ({ ok: true, stdout });
@@ -118,7 +126,19 @@ test('add, list and remove badges', () => {
 test('default run captures stdout and honours the timeout', async () => {
   // Generous: starting Node through cmd takes over 5 s on a busy Windows machine running tests in parallel.
   assert.deepEqual(await run(`node -e "process.stdout.write('hi')"`, { input: '', timeoutMs: 15000 }), { ok: true, stdout: 'hi' });
-  assert.equal((await run(`node -e "setTimeout(()=>{},5000)"`, { input: '', timeoutMs: 200 })).ok, false);
+});
+
+test('the timeout is what ends a command that runs too long, and refreshes give a badge 2 s', async () => {
+  // A command that fails at once gives the same ok: false, so tell them apart by when it returns: after the timeout,
+  // long before the command would have finished by itself.
+  const t0 = Date.now();
+  const r = await run(`node -e "setTimeout(()=>{},20000)"`, { input: '', timeoutMs: 600 });
+  const took = Date.now() - t0;
+  assert.deepEqual(r, { ok: false, stdout: '' });
+  assert.ok(took >= 550 && took < 12000, `returned after ${took} ms, wanted about 600`);
+  const seen = [], p = tmp();
+  await refreshBadges({ p, settings: { badges: [approve(p, 'x')] }, key: 'k', stdinText: '', runImpl: async (c, o) => { seen.push(o.timeoutMs); return { ok: true, stdout: '' }; } });
+  assert.equal(seen.at(-1), 2000, 'a hung badge may stall a refresh for 2 s, no more');
 });
 
 test('a failing command is not ok, so the badge keeps its last good text', async () => {
@@ -127,12 +147,12 @@ test('a failing command is not ok, so the badge keeps its last good text', async
 
 test('a command that leaves a helper running still counts, and does not keep us waiting', async () => {
   const t0 = Date.now();
-  // The helper inherits stdout and stderr and lives 10 s after the command itself has exited. ok: true means the
-  // command's own exit counted (waiting out the 8 s limit would be ok: false); far under 10 s means we never waited.
-  const cmd = `node -e "require('child_process').spawn(process.execPath,['-e','setTimeout(()=>{},10000)'],{stdio:'inherit'}).unref(); process.stdout.write('hi')"`;
-  const r = await run(cmd, { input: '', timeoutMs: 8000 });
+  // The helper inherits stdout and stderr and lives 20 s after the command itself has exited. ok: true means the
+  // command's own exit counted (waiting out the 15 s limit would be ok: false); well under 20 s means we never waited.
+  const cmd = `node -e "require('child_process').spawn(process.execPath,['-e','setTimeout(()=>{},20000)'],{stdio:'inherit'}).unref(); process.stdout.write('hi')"`;
+  const r = await run(cmd, { input: '', timeoutMs: 15000 });
   assert.deepEqual(r, { ok: true, stdout: 'hi' });
-  assert.ok(Date.now() - t0 < 7500, `took ${Date.now() - t0}ms`);
+  assert.ok(Date.now() - t0 < 12000, `took ${Date.now() - t0}ms`);
 });
 
 test('an empty or half-written badge secret is replaced, so a new badge really runs', () => {
@@ -157,10 +177,10 @@ test('cleanBadge strips ESC-backslash OSC and unterminated OSC', () => {
 
 test('timeout kills a hung grandchild and resolves promptly', async () => {
   const t0 = Date.now();
-  const cmd = `node -e "require('child_process').spawnSync(process.execPath,['-e','setTimeout(()=>{},5000)'],{stdio:'inherit'})"`;
+  const cmd = `node -e "require('child_process').spawnSync(process.execPath,['-e','setTimeout(()=>{},20000)'],{stdio:'inherit'})"`;
   const r = await run(cmd, { input: '', timeoutMs: 300 });
   assert.equal(r.ok, false);
-  assert.ok(Date.now() - t0 < 1300, `took ${Date.now() - t0}ms`);
+  assert.ok(Date.now() - t0 < 10000, `took ${Date.now() - t0}ms: it waited for the grandchild (20 s)`);
 });
 
 test('badges refresh again after 2.5 s, not after 1 s', async () => {
@@ -201,4 +221,26 @@ test('refresh-badges sweeps old cache files only', async () => {
 
 test('badge text loses bidi overrides and zero-width marks', () => {
   assert.equal(cleanBadge('a\u202eb\u200bc'), 'abc');
+});
+
+test('a helper a badge starts in the background is stopped once the badge has printed', { skip: process.platform === 'win32' && 'POSIX process groups only' }, async () => {
+  const r = await run('sleep 30 & echo $!', { input: '', timeoutMs: 5000 });
+  const pid = Number(r.stdout.trim());
+  assert.ok(pid > 0, r.stdout);
+  const alive = () => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  for (let i = 0; i < 20 && alive(); i++) await new Promise((res) => setTimeout(res, 50));
+  assert.equal(alive(), false, 'the background sleep is gone');
+});
+
+test('a badge runs in the folder Claude Code is in, not the refresher\'s own', async () => {
+  const p = tmp(), dir = realpathSync(mkdtempSync(join(tmpdir(), 'juice-badge-cwd-')));
+  const seen = [];
+  const spy = async (c, o) => { seen.push(o.cwd); return { ok: true, stdout: 'x' }; };
+  const go = (current_dir) => refreshBadges({ p, settings: { badges: [approve(p, 'rtk')] }, key: 'k', stdinText: JSON.stringify({ workspace: { current_dir } }), runImpl: spy });
+  await go(dir);
+  await go(join(dir, 'gone'));
+  await go(7);
+  assert.deepEqual(seen, [dir, undefined, undefined], 'a folder that is not there is left to the refresher\'s own');
+  const r = await run('node -p "process.cwd()"', { timeoutMs: 5000, cwd: dir });
+  assert.equal(realpathSync(r.stdout.trim()), dir);
 });

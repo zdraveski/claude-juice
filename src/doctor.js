@@ -9,6 +9,7 @@ import { loadSettings } from './settings.js';
 import { fableEnabled, NOTHING_SHOWN } from './schema.js';
 import { detectTerminal, readClaudeTheme } from './terminal.js';
 import { render } from './render/index.js';
+import { strip } from './render/ansi.js';
 import { LABELS } from './render/words.js';
 import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
@@ -84,7 +85,7 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
       if (runs && runs !== version) out.push(bad(`These /juice commands are juice ${version} but the status line runs ${runs}. Restarting Claude Code usually lines them up.`));
     }
   }
-  if (settings) out.push(...overrides(p, settings, cwd, platform).map((o) => bad(`${o} To use juice there, take that setting out of that file (Claude can do it for you).`)));
+  if (settings) out.push(...overrides(p, settings, cwd, platform).map((o) => bad(/in that project\.$/.test(o) ? `${o} To use juice there, take that setting out of that file (Claude can do it for you).` : o)));
 
   // 2. juice's own settings, and whether drawing works with them.
   const { settings: mine, warnings } = loadSettings(p);
@@ -106,7 +107,7 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
   // A problem from more than a day ago has passed; one this recent is worth a look.
   const err = readJson(p.lastErrorFile);
   if (Number.isFinite(err?.at) && typeof err.message === 'string' && t - err.at >= 0 && t - err.at < DAY) {
-    out.push(bad(`The status line hit a problem ${ago(t - err.at)}: ${err.message}${err.where ? ` (${err.where})` : ''}. Run /juice setup; if it keeps happening, tell us what /juice doctor says.`));
+    out.push(bad(`The status line hit a problem ${ago(t - err.at)}: ${strip(err.message)}${err.where ? ` (${err.where})` : ''}. Run /juice setup; if it keeps happening, tell us what /juice doctor says.`));
   }
 
   // 3. Where the numbers come from.
@@ -121,10 +122,14 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
     const f = readJson(p.fableFile);
     if (fableCacheState(f, t).backedOff) {
       // Behind a company proxy (HTTPS_PROXY), Node's fetch reaches Anthropic only from Node 24 on.
-      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && Number(node.split('.')[0]) < 24;
-      out.push(bad(`Fable battery: the last check failed; juice tries again in ${Math.ceil((f.backoffUntil - t) / 60000)} min. ${proxyBlocks
-        ? `You're behind a company proxy, which juice can only get through with Node 24 or newer (this is ${node}): install the newest from nodejs.org.`
-        : 'If it keeps failing, type /login to sign in to Claude Code again.'}`));
+      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && Number(node.split('.')[0]) < 24 && [undefined, 'offline'].includes(f.why);
+      const advice = proxyBlocks ? `You're behind a company proxy, which juice can only get through with Node 24 or newer (this is ${node}): install the newest from nodejs.org.`
+        : f.why === 'expired' ? 'Your Claude sign-in was due for renewal; Claude Code renews it on your next message, and juice picks it up after that.'
+        : f.why === 'busy' ? "Anthropic's server was busy; nothing to do."
+        : f.why === 'changed' ? "Anthropic's answer wasn't what juice expects. If it lasts a day, tell us at https://github.com/zdraveski/claude-juice/issues."
+        : f.why === 'offline' ? "juice couldn't reach Anthropic: check you're online. Behind a company proxy, set HTTPS_PROXY (and NODE_EXTRA_CA_CERTS if it checks secure connections)."
+        : 'If it keeps failing, type /login to sign in to Claude Code again.';
+      out.push(bad(`Fable battery: the last check failed; juice tries again in ${Math.ceil((f.backoffUntil - t) / 60000)} min. ${advice}`));
     } else out.push(info(fetchedCounts(f?.fetchedAt, now) ? `Fable battery: last checked ${ago(t - f.fetchedAt)}`
       : f?.fetchedAt ? 'Fable battery: not checked in the last hour; juice asks again soon.'
       : 'Fable battery: not checked yet. juice asks in the background for plan subscribers.'));

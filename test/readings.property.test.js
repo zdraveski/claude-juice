@@ -1,4 +1,4 @@
-// Plays thousands of made-up histories (several sessions, idle windows, /clear, limits resetting, an account switch,
+// Plays 150 made-up histories of 40 steps each, the same 150 every run (several sessions, idle windows, /clear, limits resetting, an account switch,
 // numbers fetched from Anthropic, a clock that jumps back) through juice's readings rules and requires:
 // 1. a limit that has reset is never shown while any source has a current one;
 // 2. a session seen for the first time never lowers a number in the same window.
@@ -150,5 +150,11 @@ function history(seed) {
 test('readings: no reset limit hiding a current one, no new session lowering a number', () => {
   const only = process.env.JUICE_SEED;
   const seeds = only ? [Number(only)] : Array.from({ length: HISTORIES }, (_, i) => i + 1);
-  for (const seed of seeds) history(seed);
+  // On CI, 10 more histories from a random place, so over many runs it sees states the fixed ones never reach.
+  const base = process.env.CI && !only ? 1000 + Math.floor(Math.random() * 1e9) : 0;
+  if (base) seeds.push(...Array.from({ length: 10 }, (_, i) => base + i));
+  for (const seed of seeds) {
+    try { history(seed); } catch (e) { e.message = `${e.message}
+replay with JUICE_SEED=${seed}`; throw e; }
+  }
 });

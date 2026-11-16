@@ -8,6 +8,7 @@ import { paths } from '../src/paths.js';
 import { readJson, writeJsonAtomic, takeLock } from '../src/cache.js';
 import { readToken, fetchFable, refreshFable, keychainService } from '../src/fable.js';
 import { fableCacheState } from '../src/readings.js';
+import * as readings from '../src/readings.js';
 import { createHash } from 'node:crypto';
 import { fableEnabled } from '../src/schema.js';
 
@@ -64,8 +65,8 @@ test('readToken darwin uses security with exact args', () => {
   const calls = [];
   const execFileSync = (...a) => { calls.push(a); return creds(); };
   assert.equal(readToken({ platform: 'darwin', p: setup(), execFileSync }), TOKEN);
-  assert.deepEqual(calls[0], ['security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], { timeout: 3000, encoding: 'utf8' }]);
-  assert.equal(readToken({ platform: 'darwin', p: setup(), execFileSync: noExec }), null);
+  assert.deepEqual(calls[0], ['security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], { timeout: 25000, encoding: 'utf8' }]);
+  assert.equal(readToken({ platform: 'darwin', p: paths({ CLAUDE_CONFIG_DIR: join(setup().config, 'nope') }), execFileSync: noExec }), null);
 });
 
 test('fetchFable sends the exact request and picks the Fable entry', async () => {
@@ -87,14 +88,36 @@ test('fetchFable still finds the entry when it carries a version, like "Fable 5.
   assert.equal((await fetchFable(TOKEN, okFetch(b), 'v')).used, 41);
 });
 
-test('fetchFable returns null on bad responses', async () => {
-  assert.equal(await fetchFable(TOKEN, async () => ({ ok: false, status: 401 }), 'v'), null);
-  assert.equal(await fetchFable(TOKEN, async () => { throw new Error('net'); }, 'v'), null);
-  assert.equal(await fetchFable(TOKEN, async () => ({ ok: true, json: async () => { throw new Error('x'); } }), 'v'), null);
-  assert.equal(await fetchFable(TOKEN, okFetch({ limits: [] }), 'v'), null);
-  assert.equal(await fetchFable(TOKEN, okFetch({}), 'v'), null);
-  assert.equal(await fetchFable(TOKEN, okFetch(body('x')), 'v'), null);
-  assert.equal(await fetchFable(TOKEN, okFetch(body(10, 'not a date')), 'v'), null);
+test('fetchFable says why a check failed, so the doctor can give the right advice', async () => {
+  const status = (s) => async () => ({ ok: false, status: s });
+  assert.equal(await fetchFable(TOKEN, status(401), 'v'), 'login');
+  assert.equal(await fetchFable(TOKEN, status(403), 'v'), 'login');
+  assert.equal(await fetchFable(TOKEN, status(429), 'v'), 'busy');
+  assert.equal(await fetchFable(TOKEN, status(503), 'v'), 'busy');
+  assert.equal(await fetchFable(TOKEN, status(404), 'v'), 'changed', 'the address moved');
+  assert.equal(await fetchFable(TOKEN, async () => { throw new Error('net'); }, 'v'), 'offline');
+  assert.equal(await fetchFable(TOKEN, async () => ({ ok: true, json: async () => { throw new Error('x'); } }), 'v'), 'offline', 'a sign-in page or proxy answered instead');
+  assert.equal(await fetchFable(TOKEN, okFetch({ limits: [] }), 'v'), 'changed');
+  assert.equal(await fetchFable(TOKEN, okFetch({}), 'v'), 'changed');
+  assert.equal(await fetchFable(TOKEN, okFetch(body('x')), 'v'), 'changed');
+  assert.equal(await fetchFable(TOKEN, okFetch(body(10, 'not a date')), 'v'), 'changed');
+});
+
+// 5 minutes, as often as a working login is asked: an idle window's login stays expired, and sooner only starts more processes.
+test('an expired login is never sent; juice looks again in 5 minutes, after Claude Code renews it', async () => {
+  const p = setup();
+  const save = (expiresAt) => writeFileSync(join(p.config, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: TOKEN, expiresAt } }));
+  save(NOW - 1);
+  assert.equal(readToken({ platform: 'win32', p, now: NOW, execFileSync: noExec }), false);
+  let called = false;
+  const r = await refreshFable({ p, platform: 'win32', execFileSync: noExec, now: NOW, version: 'v', fetchImpl: async () => { called = true; } });
+  assert.equal(r, false);
+  assert.equal(called, false, 'an expired token would only earn a 401');
+  assert.deepEqual(readJson(cacheFile(p)), { backoffUntil: NOW + 300000, why: 'expired' });
+  save(NOW + 60000);
+  assert.equal(readToken({ platform: 'win32', p, now: NOW, execFileSync: noExec }), TOKEN);
+  save('soon');
+  assert.equal(readToken({ platform: 'win32', p, now: NOW, execFileSync: noExec }), TOKEN, 'an expiry juice cannot read is not a reason to stop');
 });
 
 test('fetchFable also reads Session and Weekly, and works with no Fable entry', async () => {
@@ -103,7 +126,7 @@ test('fetchFable also reads Session and Weekly, and works with no Fable entry', 
   const session = { used: 15, resetsAt: '2026-10-28T16:39:59.960Z' }, week = { used: 95, resetsAt: '2026-11-01T00:00:00.000Z' };
   assert.deepEqual(await fetchFable(TOKEN, okFetch({ ...body(), five_hour, seven_day }), 'v'), { used: 41, resetsAt: '2026-11-01T00:00:00.000Z', session, week });
   assert.deepEqual(await fetchFable(TOKEN, okFetch({ five_hour, seven_day }), 'v'), { session, week });
-  assert.deepEqual(await fetchFable(TOKEN, okFetch({ five_hour: { utilization: 'x', resets_at: 'y' } }), 'v'), null);
+  assert.deepEqual(await fetchFable(TOKEN, okFetch({ five_hour: { utilization: 'x', resets_at: 'y' } }), 'v'), 'changed');
 });
 
 test('refreshFable failure keeps Session and Weekly too', async () => {
@@ -111,14 +134,14 @@ test('refreshFable failure keeps Session and Weekly too', async () => {
   const old = { session: { used: 15, resetsAt: '2026-10-28T16:40:00Z' }, week: { used: 95, resetsAt: '2026-11-01T00:00:00Z' }, fetchedAt: NOW - 400000 };
   writeJsonAtomic(cacheFile(p), old);
   await refreshFable({ p, platform: 'win32', execFileSync: noExec, now: NOW, version: 'v', fetchImpl: async () => ({ ok: false }) });
-  assert.deepEqual(readJson(cacheFile(p)), { ...old, backoffUntil: NOW + 900000 });
+  assert.deepEqual(readJson(cacheFile(p)), { ...old, backoffUntil: NOW + 900000, why: 'changed' });
 });
 
 test('fetchFable stores the date it understood, and refuses an absurdly long one', async () => {
   const r = await fetchFable(TOKEN, okFetch(body(41, '2026-11-01 00:00:00Z')), 'v');
   assert.equal(r.resetsAt, '2026-11-01T00:00:00.000Z');
   const long = `2026-11-01T00:00:00Z${' '.repeat(100000)}`;
-  assert.equal(await fetchFable(TOKEN, okFetch(body(41, long)), 'v'), null);
+  assert.equal(await fetchFable(TOKEN, okFetch(body(41, long)), 'v'), 'changed');
 });
 
 test('a cache that cannot be written still holds the refresher back for the backoff', async () => {
@@ -131,10 +154,10 @@ test('a cache that cannot be written still holds the refresher back for the back
 });
 
 test('fetchFable aborts a hanging request', async () => {
-  const f = (url, { signal }) => new Promise((_, rej) => signal.addEventListener('abort', () => rej(new Error('aborted'))));
-  const t0 = Date.now();
-  assert.equal(await fetchFable(TOKEN, f, 'v', 50), null);
-  assert.ok(Date.now() - t0 < 2000);
+  let aborted = false;
+  const f = (url, { signal }) => new Promise((_, rej) => signal.addEventListener('abort', () => { aborted = true; rej(new Error('aborted')); }));
+  assert.equal(await fetchFable(TOKEN, f, 'v', 50), 'offline'); // a request nobody aborts never returns, so no clock is needed
+  assert.equal(aborted, true);
 });
 
 test('refreshFable success writes cache without the token', async () => {
@@ -151,7 +174,7 @@ test('refreshFable failure keeps old values and sets backoff; recovery clears it
   writeJsonAtomic(cacheFile(p), old);
   const args = { p, platform: 'win32', execFileSync: noExec, now: NOW, version: 'v' };
   assert.equal(await refreshFable({ ...args, fetchImpl: async () => ({ ok: false, status: 401 }) }), false);
-  assert.deepEqual(readJson(cacheFile(p)), { ...old, backoffUntil: NOW + 900000 });
+  assert.deepEqual(readJson(cacheFile(p)), { ...old, backoffUntil: NOW + 900000, why: 'login' });
   assert.equal(await refreshFable({ ...args, fetchImpl: async () => { throw new Error(`boom ${TOKEN}`); } }), false);
   assert.equal(readJson(cacheFile(p)).used, 30);
   assert.ok(!readFileSync(cacheFile(p), 'utf8').includes(TOKEN));
@@ -165,7 +188,7 @@ test('refreshFable with no token and no old cache backs off, never throws', asyn
   const r = await refreshFable({ p, platform: 'linux', fetchImpl: async () => { called = true; }, execFileSync: noExec, now: NOW, version: 'v' });
   assert.equal(r, false);
   assert.equal(called, false);
-  assert.deepEqual(readJson(cacheFile(p)), { backoffUntil: NOW + 900000 });
+  assert.deepEqual(readJson(cacheFile(p)), { backoffUntil: NOW + 900000, why: 'login' });
 });
 
 test('fableCacheState', () => {
@@ -202,4 +225,29 @@ test('refreshFable sweeps temp files a cancelled refresh left behind, but not on
   await refreshFable({ p, platform: 'win32', execFileSync: noExec, now: NOW_DATE, version: 'v', fetchImpl: okFetch() });
   assert.equal(existsSync(old), false, 'left behind two hours ago: swept');
   assert.equal(existsSync(fresh), true, 'another window may be writing it right now');
+});
+
+test('the Keychain read waits long enough to answer the macOS dialog, and with the fetch ends before the fable lock does', () => {
+  let opts;
+  readToken({ platform: 'darwin', env: {}, execFileSync: (c, a, o) => { opts = o; return '{}'; } });
+  assert.ok(opts.timeout >= 20000 && opts.timeout < readings.FABLE_LOCK_MS - readings.FETCH_TIMEOUT_MS, String(opts.timeout));
+});
+
+test('a Keychain item that security prints as hex is read too', () => {
+  const hex = Buffer.from(JSON.stringify({ claudeAiOauth: { accessToken: TOKEN }, mcpOAuth: { 'café': {} } })).toString('hex');
+  assert.equal(readToken({ platform: 'darwin', env: {}, execFileSync: () => `${hex}\n` }), TOKEN);
+});
+
+test('on a Mac whose Keychain holds no login, juice reads .credentials.json, where Claude Code keeps it then', () => {
+  const p = setup();
+  assert.equal(readToken({ platform: 'darwin', p, env: {}, execFileSync: () => { throw new Error('not found'); } }), TOKEN);
+  assert.equal(readToken({ platform: 'darwin', p, env: {}, execFileSync: () => '{}' }), TOKEN);
+  // An expired login in the Keychain is the answer: the file is not asked to overrule it.
+  const old = JSON.stringify({ claudeAiOauth: { accessToken: 'old', expiresAt: NOW - 1 } });
+  assert.equal(readToken({ platform: 'darwin', p, env: {}, now: NOW, execFileSync: () => old }), false);
+});
+
+test('the fable lock outlasts the Keychain wait plus the fetch, so a second refresher never starts meanwhile', () => {
+  const { FABLE_LOCK_MS, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS } = readings;
+  assert.ok(FABLE_LOCK_MS >= KEYCHAIN_TIMEOUT_MS + FETCH_TIMEOUT_MS + 10000, 'margin of at least 10 s');
 });

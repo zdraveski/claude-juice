@@ -1,8 +1,8 @@
 // Badges: user-added shell commands whose first output line is shown before the batteries.
-import { spawn } from 'node:child_process';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import { cut, ESCAPES } from './render/ansi.js';
 import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
 import { loadSettings, saveSettings } from './settings.js';
@@ -26,7 +26,7 @@ export function cleanBadge(raw) {
 
 export function badgeKey(stdin) {
   const text = `${stdin?.session_id}\0${stdin?.workspace?.current_dir}`;
-  return createHash('sha1').update(text).digest('hex').slice(0, 16);
+  return createHash('sha256').update(text).digest('hex').slice(0, 16);
 }
 
 const file = (p, key) => join(p.cacheDir, 'badges', `${key}.json`);
@@ -41,6 +41,10 @@ export function readBadges(p, key, now, commands) {
   return { texts: commands.map((cmd) => { const t = textFor(c, cmd); return typeof t === 'string' ? cleanBadge(t) : ''; }), stale: !(age >= 0 && age <= FRESH_MS) };
 }
 
+// child_process is loaded only when a command runs: the status line reads badges far more often than it runs them.
+// getBuiltinModule came in Node 22.3 and 20.16; an older Node, which still draws the line, loads it the old way.
+const spawn = (...a) => (process.getBuiltinModule?.('node:child_process') ?? createRequire(import.meta.url)('node:child_process')).spawn(...a);
+
 // Kills the shell and anything it started, and frees the pipe so it can't keep us alive.
 function killTree(child) {
   try {
@@ -50,13 +54,13 @@ function killTree(child) {
   try { child.stdout.destroy(); } catch {}
 }
 
-export function run(command, { input, timeoutMs }) {
+export function run(command, { input, timeoutMs, cwd }) {
   return new Promise((resolve) => {
     let out = '', done = false;
     const finish = (r) => { if (!done) { done = true; clearTimeout(timer); resolve(r); } };
     let child;
     // stderr is never read, so it is not opened: a helper the command starts could otherwise hold it, and us, open.
-    try { child = spawn(command, { shell: true, windowsHide: true, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'ignore'] }); } catch { return resolve({ ok: false, stdout: '' }); }
+    try { child = spawn(command, { shell: true, cwd, windowsHide: true, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'ignore'] }); } catch { return resolve({ ok: false, stdout: '' }); }
     const timer = setTimeout(() => { killTree(child); finish({ ok: false, stdout: '' }); }, timeoutMs);
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (d) => { if (out.length < MAX_OUT) out = (out + d).slice(0, MAX_OUT); });
@@ -65,7 +69,13 @@ export function run(command, { input, timeoutMs }) {
     child.on('close', (code) => finish({ ok: code === 0, stdout: out }));
     // 'close' waits for stdout to end, which never happens while a helper it started still holds it.
     // So once the command itself has exited, take what arrived and stop waiting.
-    child.on('exit', (code) => setTimeout(() => { try { child.stdout.destroy(); } catch {} finish({ ok: code === 0, stdout: out }); }, 100));
+    // A helper it left behind would pile up, one per refresh, so its process group goes too. Windows has no
+    // groups, and taskkill /T can't find the children of a process that has already exited.
+    child.on('exit', (code) => setTimeout(() => {
+      if (process.platform !== 'win32') { try { process.kill(-child.pid, 'SIGKILL'); } catch {} }
+      try { child.stdout.destroy(); } catch {}
+      finish({ ok: code === 0, stdout: out });
+    }, 100));
     child.stdin.end(input);
   });
 }
@@ -106,9 +116,12 @@ export async function refreshBadges({ p, settings, key, stdinText, runImpl = run
     // The old text of a failing command is kept only briefly after its last success: an old branch name is not current.
     const okAtFor = (c) => prev?.okAt?.[prev.commands?.indexOf(c)];
     const keep = (c) => (now - okAtFor(c) <= GRACE_MS ? [textFor(prev, c) ?? '', okAtFor(c)] : ['', undefined]);
+    // Claude's current folder, which the cache key already uses: a command like git branch must see that repo.
+    let cwd;
+    try { const d = JSON.parse(stdinText)?.workspace?.current_dir; if (typeof d === 'string' && statSync(d).isDirectory()) cwd = d; } catch {}
     const results = await Promise.all(commands.map(async (command) => {
       try {
-        const r = await runImpl(command, { input: stdinText, timeoutMs: TIMEOUT_MS });
+        const r = await runImpl(command, { input: stdinText, timeoutMs: TIMEOUT_MS, cwd });
         return r.ok ? [cleanBadge(r.stdout), now] : keep(command);
       } catch { return keep(command); }
     }));
@@ -129,7 +142,10 @@ function sweep(p) {
 export function addBadge(p, command) {
   const { settings } = loadSettings(p);
   if (typeof command !== 'string' || command.length < 1 || command.length > 500) throw new Error('A badge command must be 1 to 500 characters.');
-  saveSettings(p, { badges: sanitize({ ...settings, badges: [...settings.badges, approve(p, command)] }, { allowBadges: true }).settings.badges });
+  // A copy this computer never approved (from a copied juice.json) is approved where it stands, so it keeps its place.
+  const ok = new Set(approved(p, settings.badges)), i = settings.badges.findIndex((b) => b.command === command && !ok.has(b));
+  const badges = i < 0 ? [...settings.badges, approve(p, command)] : settings.badges.map((b, j) => (j === i ? approve(p, command) : b));
+  saveSettings(p, { badges: sanitize({ ...settings, badges }, { allowBadges: true }).settings.badges });
 }
 
 export const listBadges = (p) => loadSettings(p).settings.badges.map((b) => b.command);

@@ -1,7 +1,7 @@
 import './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULTS, LAYOUT_IDS, PRESET_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink, CUSTOMIZER_URL, BATTERY_IDS } from '../src/schema.js';
+import { DEFAULTS, LAYOUT_IDS, PRESET_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink, CUSTOMIZER_URL, BATTERY_IDS, SHOW_IDS } from '../src/schema.js';
 
 const A = { plentyLeft: '#11AA22', goingFast: '#223344', almostEmpty: '#abcdef', accent: '#000000' };
 const custom = { dark: A, light: { ...A, accent: '#ffffff' } };
@@ -55,7 +55,7 @@ test('sanitize colours', () => {
 
 test('sanitize other enums fall back', () => {
   const r = sanitize({ cost: 'x', ends: 'x', terminal: 'x', refills: 'x', fable: 'x' }, { allowBadges: true });
-  assert.deepEqual(r.settings, DEFAULTS);
+  assert.deepEqual(r.settings, { ...DEFAULTS, fable: 'off' }, 'a mistyped fable falls back to off, never auto');
   assert.equal(r.warnings.length, 5);
   const old = sanitize({ clock: '24h' }, { allowBadges: true });
   assert.deepEqual([old.settings, old.warnings], [DEFAULTS, []], 'an old clock setting is ignored quietly');
@@ -133,6 +133,22 @@ test('applySet colours', () => {
     dark: { plentyLeft: '#11aa22', goingFast: '#223344', almostEmpty: '#abcdef', accent: '#000000' },
     light: { plentyLeft: '#11aa22', goingFast: '#223344', almostEmpty: '#abcdef', accent: '#ffffff' },
   });
+});
+
+// Audit (1.4.1): your own colours were saved without a word even when they vanish into the background, and Dark: failed.
+test('applySet says when your own colour is hard to read, and takes Dark: as well as dark:', () => {
+  const good = '#7fd8a0,#f3c467,#ff7f86,#e2885f', goodLight = '#1c874c,#a6680a,#d0394a,#b85932';
+  assert.deepEqual(applySet(DEFAULTS, [`colors=dark:${good}/light:${goodLight}`]).warnings, []);
+  const mixed = applySet(DEFAULTS, [`colors=Dark:${good}/LIGHT: ${goodLight}`]);
+  assert.deepEqual(mixed.warnings, []);
+  assert.equal(mixed.settings.colors.light.plentyLeft, '#1c874c');
+  // Dark grey on a dark terminal, and a pale yellow on a light one.
+  const r = applySet(DEFAULTS, [`colors=dark:${good.replace('#7fd8a0', '#333333')}/light:${goodLight.replace('#a6680a', '#e0c060')}`]);
+  assert.equal(r.settings.colors.dark.plentyLeft, '#333333', 'still saved: they are your colours');
+  assert.equal(r.warnings.length, 2, r.warnings.join('\n'));
+  assert.match(r.warnings[0], /^colors: your dark .*#333333 is hard to read .*\(1\.\d:1/);
+  assert.match(r.warnings[1], /#e0c060.*light/);
+  assert.match(applySet(DEFAULTS, ['colors=dark:#12,#1,#1,#1/light:#1']).warnings[0], /6-digit/);
 });
 
 test('toCommand', () => {
@@ -214,6 +230,46 @@ test('the /juice skill numbers the looks and names the colour sets exactly as th
   const numbered = /numbered list: ([^(]+?) \(/.exec(skill)[1].split(', ').map((x) => x.split(' ')[1]);
   assert.deepEqual(numbered, LOOKS.map((l) => l.id));
   for (const id of PRESET_IDS) assert.ok(skill.includes(`${id} (${PRESETS[id].name}`), `colour set ${id} (${PRESETS[id].name}) is not named in the skill`);
+});
+
+// Every "key: a, b, c" list in the skill is the set of values juice accepts for that key, no more and no fewer.
+test('the /juice skill lists exactly the values the code accepts for every key', async () => {
+  const { readFileSync } = await import('node:fs');
+  const skill = readFileSync(new URL('../skills/juice/SKILL.md', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+  const listed = (key) => {
+    const line = new RegExp(`^   - ${key}[ ,:].*$`, 'm').exec(skill)?.[0];
+    assert.ok(line, `no "${key}" line in the skill`);
+    if (key === 'show') return /from ([a-z,]+)/.exec(line)[1].split(',');
+    let v = line.slice(line.indexOf(': ') + 2);
+    while (/\([^()]*\)/.test(v)) v = v.replace(/\([^()]*\)/g, '');
+    return v.split('.')[0].split(',').map((x) => /[a-z]+$/.exec(x.trim())?.[0]).filter(Boolean);
+  };
+  // The accepted values come from the warning a wrong one gets: it lists the table that checks them.
+  const accepted = (key) => /Use one of: ([^.]+)\./.exec(applySet(DEFAULTS, [`${key}=zzz`]).warnings[0])[1].split(', ');
+  for (const key of ['layout', 'order', 'cost', 'ends', 'battery', 'terminal', 'refills', 'fable', 'motion']) assert.deepEqual([...listed(key)].sort(), accepted(key).sort(), key);
+  assert.deepEqual(listed('show'), [...SHOW_IDS], 'show');
+  assert.deepEqual([...listed('colors')].sort(), [...PRESET_IDS].sort(), 'colors');
+});
+
+// A command the skill tells Claude to run must be allowed, or the person gets a permission prompt mid-chat.
+// The few that change things or print secrets are meant to ask, so they must not be allowed.
+test('every juice command the /juice skill runs matches its allowed-tools line, except the ones that must ask', async () => {
+  const { readFileSync } = await import('node:fs');
+  const skill = readFileSync(new URL('../skills/juice/SKILL.md', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+  const allowed = /^allowed-tools: (.*)$/m.exec(skill)[1].split(/, (?=Bash\(|PowerShell\()/);
+  const PREFIX = 'node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js"';
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const ok = (tool, cmd) => allowed.some((a) => a.startsWith(`${tool}(`) && new RegExp(`^${a.slice(tool.length + 1, -1).split('*').map(esc).join('.*')}$`).test(cmd));
+  const MUST_ASK = ['setup --yes', 'badges list --show', 'badges add', 'badges remove'];
+  const body = skill.slice(skill.indexOf('\n---', 4));
+  const spans = [...body.matchAll(/`JUICE ([^`]+)`/g)].map((m) => m[1]).filter((x) => !x.startsWith('<that'));
+  assert.ok(spans.length >= 8, `only ${spans.length} commands found`);
+  for (const rest of spans) {
+    const ask = MUST_ASK.some((a) => rest.startsWith(a));
+    for (const tool of ['Bash', 'PowerShell']) assert.equal(ok(tool, `${PREFIX} ${rest}`), !ask, `${tool}: JUICE ${rest}`);
+  }
+  for (const tool of ['Bash', 'PowerShell']) for (const sub of ['get', 'looks', 'customize', 'setup', 'restore', 'doctor', 'badges list']) assert.ok(ok(tool, `${PREFIX} ${sub}`), `${tool}: ${sub}`);
+  assert.ok(ok('Bash', 'node --version') && ok('PowerShell', 'node --version'));
 });
 
 test('battery setting: default glossy, all fourteen ids accepted, junk falls back with a warning', () => {

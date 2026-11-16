@@ -12,7 +12,7 @@ Free, open source and unofficial: juice is not made by Anthropic.
 
 </div>
 
-<img src="docs/images/hero.png" alt="claude-juice: your Claude usage at a glance. A battery-style status line for Claude Code, showing Memory, Session and Weekly, and when Session and Weekly reset." width="480">
+<img src="docs/images/hero.png" alt="juice for Claude Code: four batteries under your prompt. Memory is 91% and red with !! summary soon, Session is 47% and resets in 2h 10m, Fable is 41% in violet and resets Sat 7:20 PM, and Weekly is 50% and amber with ! because it is going a bit fast." width="480">
 
 ## Install
 
@@ -75,11 +75,11 @@ If you use the VS Code chat panel or the desktop app, open a terminal and type `
 
 ## What you get
 
-<img src="docs/images/features.png" alt="Everything juice gives you: used % like Anthropic, when every limit resets, ! and !! warnings, a violet Fable battery, 14 ready-made looks, 13 colour sets, live numbers in every window (with the Fable battery on), the /juice command, and a one-step undo." width="480">
+<img src="docs/images/features.png" alt="What juice gives you, in five parts: when every limit resets, right next to it; amber ! when you are going fast and red !! when nearly out; Fable in its own violet battery; 14 looks and 13 colour sets, with colour-blind safe and light-terminal sets; and safe to try, because /juice restore brings your old status line back." width="480">
 
 ## What the batteries mean
 
-<img src="docs/images/anatomy.png" alt="Reading the status line, each part labelled: the model, the effort level from low to max, Memory (room used in this chat), Session (your 5-hour limit), when it resets, Fable (its own weekly limit), Weekly (your weekly limit), and ! or !! when it is going fast or nearly out." width="480">
+<img src="docs/images/anatomy.png" alt="Reading the status line: the whole line, wrapped to fit, with its six parts numbered. 1 the model. 2 the effort level, more bars for more effort. 3 Memory, how full this chat is, with no reset time. 4 Session, the 5-hour limit and the time before it resets. 5 Fable, its own limit in a violet battery. 6 Weekly, the weekly limit with its reset day and time, where ! or !! warns you." width="480">
 
 | Battery | What it shows |
 |:---|:---|
@@ -91,11 +91,13 @@ If you use the VS Code chat panel or the desktop app, open a terminal and type `
 
 Next to the batteries you also see the model's name and its effort level: a little staircase from 1 step (low) to 5 steps (max), with the word beside it. By default the staircase and the batteries stand still at their true level, and juice refreshes once a minute, so the numbers and reset times stay current while Claude Code is idle at almost no cost.
 
-To make them move, type `/juice set motion=on`. The staircase then climbs up to your level, one step every 2 seconds, holds there, then starts again; the word always says the level (when a narrow window hides the word, the staircase stands still). The batteries' pictures climb the same way, in four steps from a quarter of the way up to the real amount, and everything starts again together every 12 seconds; the number and words beside them never move, and a red battery stands still. With motion on, juice refreshes every second (twice a step, so no step is skipped). That costs about a sixth of a CPU core per open Claude Code window. A `refreshInterval` you set yourself in Claude Code's settings, such as 10 or 20 seconds, is kept either way (but not 1, 30 or 60, which juice writes itself).
+To make them move, type `/juice set motion=on`. The staircase then climbs up to your level, one step every 2 seconds, holds there, then starts again; the word always says the level (when a narrow window hides the word, the staircase stands still). The batteries' pictures climb the same way, in four steps from a quarter of the way up to the real amount, and everything starts again together every 12 seconds; the number and words beside them never move, and a red battery stands still. With motion on, juice refreshes every second (twice a step, so no step is skipped). That costs about a sixth of one processor core for each open Claude Code window.
+
+If you set your own refresh time in Claude Code's settings (`refreshInterval`, in seconds), such as 10 or 20, juice keeps it either way. It changes only 1, 30 and 60, the times juice writes itself.
 
 The rounded battery ends in the pictures show on their own in VS Code. Other terminals get plain ends, because some fonts draw the rounded ones as boxes; if yours can draw them, type `/juice use round ends`.
 
-Session and Weekly also say when they reset: "resets in 1h 31m" when it is less than a day away, otherwise the day and time ("resets Sat 7:20 PM"). Times are in your computer's time zone; on a computer set to UTC, such as a server you reach over SSH, they say "UTC".
+Session and Weekly also say when they reset: "resets in 1h 31m" when it is less than a day away, otherwise the day and time ("resets Sat 7:20 PM"). Times are in your computer's time zone; on a computer set to UTC, such as a remote computer you work on from yours, they say "UTC".
 
 The colours for Session, Weekly and Fable depend on your pace as well as on how much is used:
 
@@ -106,21 +108,21 @@ The colours for Session, Weekly and Fable depend on your pace as well as on how 
 
 While Fable is fine it has its own colour (violet in most colour sets), so you can tell it apart. When it goes fast or runs low it turns amber or red with ! or !! like the others.
 
-<img src="docs/images/colours.png" alt="Colours tell you how it is going: green means plenty left, amber with ! means going a bit fast, red with !! means nearly out and says when it runs out, and Fable is violet while it is fine. A thin line on each battery marks an even pace." width="480">
+<img src="docs/images/colours.png" alt="Colours tell you how it is going: green means plenty left, with a thin line marking an even pace; amber with ! means a bit fast; violet is Fable while it is fine; red with !! means nearly out and says when it runs out." width="480">
 
-In every layout except Classic segments, a thin line on these batteries marks where you would be if you used the limit evenly. If the colour reaches past the line, you are going faster than that. Before the line, you have time to spare.
+In the Status bar, Tightest first and Panel layouts, a thin line on these batteries marks where you would be if you used the limit evenly. If the colour reaches past the line, you are going faster than that. Before the line, you have time to spare. The Pace style shows the same thing as a softer fill up to that point. Of the shapes, only Pace race and Ruler draw the line.
 
 A limit that is used up always shows, even in a look that leaves it out (Fable while you are using Fable), so you never see "all fine" while you are locked out.
 
 Memory has no pace or reset. It turns amber, then red, as the chat fills up.
 
-Pro and Max plans show the limits that apply to them. If you pay as you go with an API key, you see your cost instead.
+Pro and Max plans show the limits that apply to them. If you pay as you go with an API key (billed for what you use, instead of a plan), you see your cost instead.
 
 ## Ready-made looks
 
-A look sets the layout, the colours, what shows, the cost, the reset times and the battery ends, all in one go. Your terminal colour, Fable setting and badges stay as they are. Pick one, then change anything you like. (If you chose round or plain ends yourself, type `/juice use round ends` or `/juice use plain ends` again after picking a look.)
+A look sets the layout, the colours, what shows and in what order, the cost, the reset times and the battery ends, all in one go. Your battery style, terminal colour, motion, Fable setting and badges stay as they are. Pick one, then change anything you like. (If you chose round or plain ends yourself, type `/juice use round ends` or `/juice use plain ends` again after picking a look.)
 
-<img src="docs/images/looks.png" alt="Four of the 14 ready-made looks, each drawn as it really looks: Juice, Just the basics, Retro phone and Easy to see, then the names of the other 10." width="480">
+<img src="docs/images/looks.png" alt="Four of the 14 ready-made looks, numbered as /juice look takes them: 1 Juice, 5 Retro phone, 8 Easy to see and 14 Road trip, each showing Session and Weekly, then the numbers and names of the other 10." width="480">
 
 <details>
 <summary>The 14 looks in words</summary>
@@ -135,7 +137,7 @@ A look sets the layout, the colours, what shows, the cost, the reset times and t
 | Quiet | Grey until something needs you. Reset times only show then. |
 | Night owl | Neon bars for dark terminals. |
 | Easy to see | Like Spotlight, in bright high-contrast colours. |
-| Colour-blind friendly | Blue, yellow and orange instead of green and red. |
+| Colour-blind friendly | Blue, amber and red that every kind of colour blindness tells apart. |
 | Works everywhere | For older terminals that show boxes instead of rounded ends. |
 | Cost watcher | Shows what this chat would have cost. |
 | Fable first | The Fable battery leads, and lights up while you use Fable. |
@@ -161,7 +163,7 @@ The batteries keep the order you chose. To let them move instead, type `/juice p
 
 ### Colour sets
 
-There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose. Or make your own in the customizer.
+There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose. Every colour in them reads at 4.5:1 or more on its terminal. Or make your own in the customizer, which tells you when one is hard to read.
 
 <img src="docs/images/colour-sets.png" alt="Four of the 13 colour sets on a dark terminal, Claude, Colour-blind safe, Midnight and Candy, each showing a fine battery, an amber one with ! and a red one with !!, then the names of the other 9." width="480">
 
@@ -169,7 +171,7 @@ There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe,
 
 [Open the live customizer](https://zdraveski.github.io/claude-juice/web/) to try every look, layout and colour with a live preview, then copy one line into Claude Code. It runs in your browser, so there is nothing to install.
 
-[![The juice customizer web page: a live preview of the status line, options for plan, model, window size, dark or light terminal and situation, and the ready-made looks to start from.](docs/images/customizer.gif)](https://zdraveski.github.io/claude-juice/web/)
+[![The juice customizer on a phone: tapping the Juice, Spotlight and Colour-blind friendly looks, then a light and a dark terminal, while the live preview at the top changes with each tap.](docs/images/customizer.gif)](https://zdraveski.github.io/claude-juice/web/)
 
 Or type `/juice` and then say what you want, in your own words. For example:
 
@@ -214,7 +216,7 @@ In a narrow window juice drops the extras first and keeps the batteries that nee
 <details>
 <summary>What a narrow window drops, in order</summary>
 
-In a narrow window juice makes room step by step: first badges, reset times, the effort word and cost, then the effort level and the model name, then spacing, battery size, an amber battery's run-out time and shorter words, then every battery as words only (`Session 88%!! out ~2:44 PM`), then the batteries that are fine, then the amber ones, and last a red battery's words ("out ~2:44 PM"), so a red battery itself is the last thing to go. Whatever freed room gets used again, so a battery keeps its picture whenever it fits. Only in a very small window is the end of the line cut.
+In a narrow window juice makes room step by step. First go badges, reset times, the effort word and cost, then the effort level and the model name. Next come spacing, battery size, an amber battery's run-out time, the reset time beside a run-out time, and shorter warning words. Then every battery shows as words only (`Session 88%!! out ~2:44 PM`). After that go the batteries that are fine, then the amber ones, and last a red battery's words ("out ~2:44 PM"), so a red battery itself is the last thing to go. Whatever freed room gets used again, so a battery keeps its picture whenever it fits. Only in a very small window is the end of the line cut.
 
 </details>
 
@@ -229,10 +231,11 @@ Badges are small optional extras that show the output of a command you choose. T
 - Only the first line of the output shows, up to 40 characters.
 - A command that takes longer than 2 seconds is stopped and keeps its last text.
 - The command gets the same details Claude Code gives the status line (the folder, chat and cost).
+- A badge runs in the folder Claude Code is working in. A `git` badge there also follows that folder's own git settings, which can start other programs, so take care in a folder someone handed you (a cloned project doesn't bring its settings along).
 - Badges are the first thing a narrow window hides.
-- On Windows, badge commands run in the Windows command prompt (cmd), not Git Bash, so write them for cmd.
+- On Windows, badge commands run in the Windows command prompt (cmd), not Git Bash, so write them for cmd. cmd's own commands, like `echo`, turn letters such as é into plain ones; programs like `git` show them as they are.
 
-juice only runs badges you added yourself on this computer: each one is approved with a secret that stays on this computer, so a `juice.json` copied from somewhere else never runs anything. Badges added before juice 0.2.5 need adding again; `/juice badges list` marks them.
+juice only runs badges you added yourself on this computer: each one is approved with a secret that stays on this computer, so a `juice.json` copied from somewhere else never runs anything. `/juice badges list` marks each badge that isn't approved here, including badges added before juice 0.2.5. To approve one, add the same command again with `/juice badges add` (`/juice badges list --show` shows it). It keeps its place in the list. If the list calls a badge a copy of another one, remove that copy instead.
 
 ## If something looks wrong
 
@@ -242,7 +245,9 @@ Type `/juice doctor` first (when juice itself hits a problem, the line says `jui
 - **The text is hard to read on a light background.** Type `/juice my terminal is light`.
 - **You see boxes or question marks instead of round battery ends.** Type `/juice use plain ends`.
 - **You want round battery ends outside VS Code.** Type `/juice use round ends`.
-- **The Fable battery doesn't show at work, behind a company proxy.** There it needs Node 24 or newer, like the rest of juice.
+- **The line runs past the edge or wraps.** Some terminals set up for Chinese, Japanese or Korean draw symbols like `■`, `░` and `·` two columns wide. Look for a setting called "ambiguous width" (iTerm2 and GNOME Terminal have one) and set it to narrow.
+- **There is no Fable battery.** juice asks before it reads your login, so type `/juice set fable=on` if you said no. Then `/juice doctor` says how the last check went and what to do, for example to type `/login` when Anthropic refused your sign-in.
+- **The Fable battery doesn't show at work, behind a company proxy.** juice goes through the proxy named in `HTTPS_PROXY` (or `https_proxy`), so set it where you start Claude Code. If your company inspects secure connections, also point `NODE_EXTRA_CA_CERTS` at its certificate file.
 - **It says "juice is turned off" or "juice is not installed".** Turn juice back on, or install it again, in `/plugin`. Then `/juice setup` uses it, or `/juice restore` gives you your old status line back. If you don't want juice back, delete the `statusLine` entry in `~/.claude/settings.json`; your old one is in `~/.claude/juice-backup.json`.
 
 ## Update, undo and uninstall
@@ -254,17 +259,20 @@ Type `/juice doctor` first (when juice itself hits a problem, the line says `jui
 <details>
 <summary>Remove every juice file</summary>
 
-After uninstalling, juice's own files are still in your Claude folder (`~/.claude`, or your `CLAUDE_CONFIG_DIR` folder): `juice.json` (your settings and badge commands), the `juice-cache` folder (usage numbers, a list of recent chats, and, if you use badges, their approval and what Claude Code told the status line about each chat, including its project folder), any older `juice-backup-….json` copies, and, if you uninstalled before `/juice restore`, `juice-statusline.mjs`, `juice-backup.json` (your old status line) and the `statusLine` entry in `settings.json` (Claude can remove it for you). Delete them if you want nothing left. (Deleting `juice-cache` while juice is installed is harmless, except that your badges then need adding again.)
+After uninstalling, juice's own files are still in your Claude folder (`~/.claude`, or your `CLAUDE_CONFIG_DIR` folder): `juice.json` (your settings and badge commands), the `juice-cache` folder (usage numbers, a list of recent chats, and, if you use badges, their approval and what Claude Code told the status line about each chat, including its project folder), any older `juice-backup-….json` copies, and, if you uninstalled before `/juice restore`, `juice-statusline.mjs`, `juice-backup.json` (your old status line) and the `statusLine` entry in `settings.json` (Claude can remove it for you). Delete them if you want nothing left. (Deleting `juice-cache` while juice is installed is harmless, except that your badges stop running until you approve each one again by adding the same command with `/juice badges add`.)
 
 </details>
 
 ## Privacy
 
-- The Fable battery needs your Claude login token, the key Claude Code keeps on your computer to sign you in. juice reads it from `~/.claude/.credentials.json`.
-- juice asks before it reads the token, on every system: `/juice setup` asks once, and `/juice set fable=on` or `/juice set fable=off` changes your answer later. If you used juice before 1.4.0 on Windows or Linux and already have a Fable battery, it stays on. On a Mac, macOS also asks once for permission to read the token from the Keychain (the Mac's password store). This is new on the Mac: if macOS asks more than once, or the battery doesn't appear within a few minutes, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) what `/juice doctor` says. Share links and the customizer's command never turn it on or off; only you do.
-- juice sends that token only to `api.anthropic.com`, to read your usage, about every 5 minutes. It never stores or logs it.
-- If `HTTPS_PROXY` is set, the proxy it names carries juice's connection to Anthropic, as it does for Claude Code.
-- The usage address juice reads (`api.anthropic.com/api/oauth/usage`) is not a documented API and may stop working.
+- The Fable battery needs your Claude login token, the key Claude Code keeps on your computer to sign you in. juice reads it from `.credentials.json` in your Claude folder (`~/.claude`, or your `CLAUDE_CONFIG_DIR` folder), or on a Mac from the Keychain (the Mac's password store).
+- juice asks before it reads the token, on every system. `/juice setup` asks once, and `/juice set fable=on` or `/juice set fable=off` changes your answer later. If you used juice before 1.4.0 on Windows or Linux and already have a Fable battery, it stays on.
+- On a Mac, macOS also asks once for permission to read the token from the Keychain. This is new on the Mac. If macOS asks more than once, or the battery doesn't appear within a few minutes, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) what `/juice doctor` says.
+- Share links and the customizer's command never turn the Fable battery on or off; only you do.
+- juice sends that token only to `api.anthropic.com`, to read your usage, about every 5 minutes. It never stores or logs it. juice keeps only your usage numbers, in `juice-cache/fable.json`.
+- If your login has expired, juice sends nothing and looks again in 5 minutes. If a check fails, it waits 15 minutes before the next one.
+- If `HTTPS_PROXY` (or `https_proxy`) is set, the proxy it names carries juice's connection to Anthropic, as it does for Claude Code.
+- Anthropic doesn't publish the usage address juice reads (`api.anthropic.com/api/oauth/usage`) for others to use, so it may stop working.
 - The same usage reading also keeps Session and Weekly up to date in every window, including idle ones and brand-new chats. With the Fable battery off, those two come only from Claude Code itself, so an idle window can show older numbers.
 - To switch the Fable battery off, run `/juice set fable=off`.
 - Badges only run commands you added yourself with `/juice badges add`, after juice shows you the command.

@@ -24,9 +24,11 @@ once and under whatever version number `main` says. So:
 - [ ] `node scripts/e2e.mjs` passes (GitHub runs it after the tests; it uses a fake home and never touches yours). A changed default, message or step it checks needs it changed too.
 - [ ] `node scripts/check-customizer.js` passes every browser check (needs Playwright: `npm i -g playwright`; GitHub runs it too, as `customizer`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
-- [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json`, and CHANGELOG.md has its `## X.Y.Z` section (tests fail if the versions differ or the section is missing; Claude Code uses plugin.json's version to find updates).
-- [ ] `CHANGELOG.md` has a section for the new version, in plain words for users, with `[Changes since <previous>](https://github.com/zdraveski/claude-juice/compare/v<previous>...v<version>)` under its heading.
-- [ ] After merging: tag `v<version>` and publish a GitHub release with that section as its notes (`gh release create v<version> --verify-tag --notes-file -`).
+- [ ] The pinned Playwright in `.github/workflows/test.yml` (`npm i -g playwright@...`) is bumped when it ages (dependabot can't see it): bump it, and check the customizer job is still green.
+- [ ] If a look or layout changed since the last release, rebuild the pictures in `docs/images` (`node scripts/pictures/readme.mjs`, plus `hero-features.mjs` and `customizer.mjs` there for the hero and the customizer; they need Playwright) so the README shows what juice draws now.
+- [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json` (tests fail if they differ; Claude Code uses plugin.json's version to find updates).
+- [ ] `CHANGELOG.md` has a `## X.Y.Z` section for the new version (tests fail if it is missing), in plain words for users, with `[Changes since <previous>](https://github.com/zdraveski/claude-juice/compare/v<previous>...v<version>)` under its heading (every version from 1.0.1 on has one; earlier ones have no tags).
+- [ ] After merging: tag `v<version>` and publish a GitHub release with that section as its notes (`gh release create v<version> --verify-tag --title <version> --notes-file -`; every release is titled with its bare version).
 
 ## 2. Inside Claude Code, on each system you have
 
@@ -61,6 +63,8 @@ Use a normal session, not auto mode: auto mode approves on its own, so permissio
 14. **Token.** Start Claude Code with `CLAUDE_CONFIG_DIR` set to an empty folder, sign in, then `/juice setup`.
     Pass: it asks before juice reads anything. Answer no. Pass: after Claude's first reply, `juice-cache/fable.json` does not exist.
     On a Mac, answering yes brings the Keychain prompt.
+15. **Copied badge.** Copy a `juice.json` with a badge in it from another computer (or another `CLAUDE_CONFIG_DIR`).
+    Pass: `/juice badges list` marks it not approved, and after you say yes to `/juice badges add` with the same command, it is approved as the same badge number and shows on the line.
 
 ## 3. On a Mac
 
@@ -86,6 +90,10 @@ Run `node scripts/terminal-check.js` in the terminal and answer its five questio
 - [ ] macOS Terminal: dark / light, rounded ends OK / truecolor OK
 - [ ] One Linux terminal (name it here): dark / light, rounded ends OK / truecolor OK
 
+## History (not a to-do)
+
+What was checked and decided before, kept for the record.
+
 ## Results for 1.0.0 (2026-10-31, Windows 10, Claude Code 2.1.316)
 
 - Section 1: 282 tests, GitHub 9/9 with e2e and the Mac Keychain check, 9 browser checks, bench 65 ms of 75.
@@ -109,7 +117,7 @@ The repo is named `claude-juice` because other projects already use the name jui
 
 - Searched the web on 2026-10-29 with two queries: no existing Claude Code plugin or marketplace entry named `juice`.
 - Similar status line plugins exist under other names: claude-statusline, claudeline, claude-code-plugin-hud, ccstatusline.
-- [ ] Check Anthropic's plugin directory for `juice` before submitting there.
+- [ ] Later, only when juice is submitted to Anthropic's plugin directory: check it has no `juice` first.
 
 ## Hosting (public since 2026-10-29)
 

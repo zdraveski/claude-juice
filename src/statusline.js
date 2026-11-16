@@ -3,20 +3,20 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, chmodSync } from 'node:fs';
 import { paths, hideHome } from './paths.js';
-import { readJson, takeLock, writeAtomic, writeJsonAtomic, HOT_WRITE } from './cache.js';
+import { readJson, takeLock, writeAtomic, writeJsonAtomic, removeOld, HOT_WRITE } from './cache.js';
 import { loadSettings } from './settings.js';
 import { fableEnabled } from './schema.js';
-import { detectTerminal, readClaudeTheme } from './terminal.js';
+import { detectTerminal, readClaudeTheme, columnsOf } from './terminal.js';
 import { remember } from './lastseen.js';
 import { normalize } from './data.js';
-import { fableCacheState } from './readings.js';
+import { fableCacheState, FABLE_LOCK_MS } from './readings.js';
 import { render } from './render/index.js';
-import { strip, dim } from './render/ansi.js';
+import { strip, dim, vis, cut } from './render/ansi.js';
 import { upgradeLauncher } from './launcher-file.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-const parse = (text) => { try { return JSON.parse(text); } catch { return null; } };
+const parse = (text) => { try { return JSON.parse(text.replace(/^﻿/, '')); } catch { return null; } }; // a BOM: PowerShell 5.1 pipes one in
 const quiet = (fn) => { try { fn(); } catch {} };
 
 export async function runStatusLine({ stdinText, env, now, platform, spawnDetached }) {
@@ -45,7 +45,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     const { text } = render(data, settings, { ...terminal, animate: settings.motion === 'on' });
 
     // Only subscribers have these limits, so nobody else's login is sent to Anthropic for nothing.
-    if (fableOn && data.account === 'subscriber' && fableCacheState(fableCache, now).stale && takeLock(p, 'fable', now)) {
+    if (fableOn && data.account === 'subscriber' && fableCacheState(fableCache, now).stale && takeLock(p, 'fable', now, FABLE_LOCK_MS)) {
       quiet(() => spawnDetached(['refresh-fable']));
     }
     if (badges?.stale && takeLock(p, `badges-${key}`, now, 2500)) {
@@ -59,6 +59,8 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     // Folders made before 1.4.0 kept the default permissions, so they are made private here too.
     if (upgradeLauncher(p, ROOT)) {
       if (platform !== 'win32') for (const d of [p.cacheDir, join(p.cacheDir, 'badges')]) quiet(() => chmodSync(d, 0o700));
+      // Temp files a killed refresh left: the Fable and badge refreshers sweep them too, but not everyone runs those.
+      quiet(() => removeOld(p.cacheDir, (f) => f.endsWith('.tmp'), 3600000));
       try { (await import('./setup.js')).matchRefresh(p, { platform, write: HOT_WRITE }); } catch {}
     }
     return text;
@@ -72,8 +74,11 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     }, HOT_WRITE));
     // A bare model name looks like "no data yet", so say where to look; the next run that works drops it.
     // Plain under NO_COLOR (no-color.org: any non-empty value), as terminal.js reads it.
+    // One row inside the window, like the real line: the hint is what matters, so a long name gives way to it.
     const hint = env?.NO_COLOR ? 'juice: /juice doctor' : dim('juice: /juice doctor');
-    const name = typeof stdin?.model?.display_name === 'string' ? strip(stdin.model.display_name) : '';
-    return name ? `${name} ${hint}` : hint;
+    const cols = columnsOf(env), room = cols - vis(hint) - 1;
+    const name = typeof stdin?.model?.display_name === 'string' ? strip(stdin.model.display_name).replace(/\s+/g, ' ').trim() : '';
+    if (name && room > 0) return `${strip(cut(name, room))} ${hint}`;
+    return vis(hint) > cols ? strip(cut(hint, cols)) : hint;
   }
 }

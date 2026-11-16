@@ -24,6 +24,7 @@ const SHOW = {
   session: ['Session', 'Your 5-hour limit'],
   week: ['Weekly', 'Your weekly limit'],
   fable: ['Fable weekly', 'The separate weekly limit for Fable'],
+  budget: ['Budget', 'A spending limit set by your company. It shows only if you have one, so the preview never draws it'],
 };
 const NOT_ON = { session: { payg: 'API keys have no session limit' }, week: { payg: 'API keys have no weekly limit' }, fable: { payg: 'API keys have no Fable limit', pro: 'The preview hides it on Pro' } };
 const DETAILS = [
@@ -38,6 +39,8 @@ const DETAILS = [
   ['terminal', 'Terminal colour', 'Automatic follows Claude Code’s theme. Pick Light if the text is hard to read on a light background', [['auto', 'Automatic'], ['dark', 'Dark'], ['light', 'Light']]],
 ];
 
+const phone = matchMedia('(max-width:700px)');
+// Wide on a phone too: Small still ran past a phone's edge and dropped the battery pictures. The line scrolls sideways instead.
 const view = { state: 'busy', term: 'dark', width: 'wide', plan: 'max', model: 'Opus 5.5', hover: null };
 let s, order, customs; // settings, full row order (hidden ones too), colour-picker values per terminal
 
@@ -116,7 +119,7 @@ function buildShow() {
   const batRow = (k, i) => `<div class="row" draggable="true" data-bat="${k}"><span class="grip" aria-hidden="true">⋮⋮</span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}<em data-noton="${k}"></em>${k === 'fable' ? '<span id="fabletail"></span>' : ''}</div></div>`
     + `<button class="mv" type="button" data-move="${k}" data-dir="-1" aria-label="Move ${SHOW[k][0]} up" ${i === 0 ? 'disabled' : ''}>▲</button><button class="mv" type="button" data-move="${k}" data-dir="1" aria-label="Move ${SHOW[k][0]} down" ${i === BATTERIES.length - 1 ? 'disabled' : ''}>▼</button>`
     + `<button class="sw" type="button" role="switch" data-show="${k}" aria-labelledby="lbl-${k}"></button></div>`;
-  $('show').innerHTML = fixedRow('model') + fixedRow('effort') + order.map(batRow).join('')
+  $('show').innerHTML = fixedRow('model') + fixedRow('effort') + order.map(batRow).join('') + fixedRow('budget')
     + `<div class="row"><span class="grip none"></span><div class="txt"><div class="t">Cost</div><div class="d">Auto shows it only on an API key, where you really pay it. On Pro and Max it's only what the chat would have cost.</div></div>${segHtml('cost', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], 'Cost')}</div>`;
 }
 $('looks').innerHTML = LOOKS.map((l) =>
@@ -129,7 +132,8 @@ $('presets').innerHTML = Object.entries(PRESETS).map(([id, p]) =>
 $('custom').innerHTML = COLOR_NAMES.map((t, i) => `<label>${t}<input type="color" data-custom="${i}"><span class="ratio" data-ratio="${i}"></span></label>`).join('');
 $('details').innerHTML = DETAILS.map(([k, t, d, opts]) => `<div class="drow"><div><div class="t">${t}</div><div class="d" data-hint="${k}">${d}</div></div>${segHtml(k, opts, t)}</div>`).join('');
 
-function update() {
+// The preview alone. Hovering a card redraws only this, since nothing chosen has changed.
+function preview() {
   // A chosen terminal colour wins, as in the real line (terminal.js): the preview's Dark/Light only stands in for Automatic.
   if (s.terminal !== 'auto') view.term = s.terminal;
   const cols = WIDTHS[view.width], p = peek(view.hover);
@@ -140,8 +144,22 @@ function update() {
   $('win').classList.toggle('light', view.term === 'light');
   $('win').style.maxWidth = view.width === 'wide' ? '100%' : `calc(${cols}ch * 13.5 / 15 + 40px)`;
   $('cols').textContent = view.width === 'wide' ? '' : `${cols} columns`;
-  $('fitnote').innerHTML = (p ? `Previewing <b>${p.name}</b>. Click it to use it. ` : '')
+  $('fitnote').innerHTML = (p ? `Previewing <b>${p.name}</b>. ${view.hoverBy === 'focus' ? 'Press Enter' : 'Click it'} to use it. ` : '')
     + (dropped.length ? `Too narrow for everything, so it drops or shrinks <b>${dropped.join(', ')}</b>.` : view.width === 'wide' ? '' : 'Everything fits at this width.');
+  edge();
+}
+
+// The line fades at the right edge while more of it is out of view.
+function edge() {
+  const o = $('out');
+  o.classList.toggle('more', o.scrollWidth - o.clientWidth - o.scrollLeft > 1);
+}
+$('out').addEventListener('scroll', edge, { passive: true });
+addEventListener('resize', edge);
+$('win').addEventListener('transitionend', edge);
+
+function update() {
+  preview();
 
   // Layout cards show just the batteries; look cards show the whole look, because what shows is part of it.
   const thumb = (el, over, whole) => {
@@ -175,21 +193,46 @@ function update() {
   document.querySelectorAll('[data-custom]').forEach((inp) => { inp.value = set[inp.dataset.custom]; });
   document.querySelectorAll('[data-ratio]').forEach((el) => {
     const r = contrast(set[el.dataset.ratio], NEUTRAL[view.term].bg);
-    el.textContent = r < 3 ? `Hard to read here (${r.toFixed(1)}:1)` : `Easy to read (${r.toFixed(1)}:1)`;
+    // The same bar juice holds its own colours to, and /juice set warns below.
+    el.textContent = r < 3 ? `Hard to read here (${r.toFixed(1)}:1)` : r < 4.5 ? `A little faint (${r.toFixed(1)}:1)` : `Easy to read (${r.toFixed(1)}:1)`;
     el.classList.toggle('bad', r < 3);
+    el.classList.toggle('faint', r >= 3 && r < 4.5);
   });
   $('cmd').textContent = toCommand(s, { terminalChosen: !!view.terminalChosen, motionChosen: !!view.motionChosen });
   $('json').textContent = JSON.stringify(s, null, 2);
-  history.replaceState(null, '', '#c=' + encodeLink(s));
+  save();
+}
+// The address and the saved copy follow the settings at most 5 times a second: dragging a colour picker sends dozens of
+// changes a second, and Safari throws after 100 address changes in 10 seconds.
+let saved = 0, pending = 0;
+function write() {
+  pending = 0; saved = performance.now();
+  try { history.replaceState(null, '', '#c=' + encodeLink(s)); } catch {}
   try { localStorage.setItem(SAVED, JSON.stringify(s)); } catch {} // remembered for the next visit
 }
-const toast = (t) => { $('toast').textContent = t; };
-const copy = (t, ok) => (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast(ok), () => toast('Couldn’t copy automatically. Select the text and copy it.'));
+function save() {
+  if (pending) return; // the write already waiting takes the newest settings
+  const wait = saved + 200 - performance.now();
+  if (wait <= 0) write(); else pending = setTimeout(write, wait);
+}
+const flush = () => { if (pending) { clearTimeout(pending); write(); } };
+addEventListener('pagehide', flush);
+let toastTimer;
+const toast = (t) => { $('toast').textContent = t; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').textContent = ''; }, 4000); };
+const say = (t) => { $('say').textContent = t; };
+// The button itself says Copied for a moment, where the eye already is. It keeps its width meanwhile, so a second
+// tap lands on it again and not on the button that slid in beside it (Reset, next to Copy link).
+const done = (b) => {
+  b.style.minWidth ||= getComputedStyle(b).width; // the content width: on a desktop the border and padding come on top
+  b.dataset.label ??= b.textContent; b.textContent = 'Copied'; b.dataset.done = '';
+  clearTimeout(b.timer); b.timer = setTimeout(() => { b.textContent = b.dataset.label; delete b.dataset.done; b.style.minWidth = ''; }, 1600);
+};
+const copy = (t, ok, b) => (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { toast(ok); done(b); }, () => toast('Couldn’t copy automatically. Select the text and copy it.'));
 function move(k, dir) {
   const i = order.indexOf(k), j = i + dir;
   if (j < 0 || j >= order.length) return;
   [order[i], order[j]] = [order[j], order[i]];
-  reorder(); buildShow(); update();
+  reorder(); buildShow(); update(); say(`${SHOW[k][0]} moved ${dir < 0 ? 'up' : 'down'}`);
   const btn = document.querySelector(`[data-move="${k}"][data-dir="${dir}"]`);
   (btn && !btn.disabled ? btn : document.querySelector(`[data-move="${k}"]:not([disabled])`))?.focus();
 }
@@ -197,8 +240,8 @@ const customColors = () => ({ dark: obj(customs.dark), light: obj(customs.light)
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
-  if (t.dataset.look) { adopt(applySet(s, [`look=${t.dataset.look}`]).settings); buildShow(); view.hover = null; }
-  else if (t.dataset.layout) { s = { ...s, layout: t.dataset.layout }; view.hover = null; }
+  if (t.dataset.look) { adopt(applySet(s, [`look=${t.dataset.look}`]).settings); buildShow(); view.hover = null; say(`${LOOK[t.dataset.look].name} chosen`); }
+  else if (t.dataset.layout) { s = { ...s, layout: t.dataset.layout }; view.hover = null; say(`${LAYOUTS[t.dataset.layout][0]} chosen`); }
   else if (t.dataset.show) setShow(t.dataset.show, !s.show.includes(t.dataset.show));
   else if (t.dataset.move) return move(t.dataset.move, Number(t.dataset.dir));
   else if (t.dataset.preset) {
@@ -213,8 +256,8 @@ document.addEventListener('click', (e) => {
     }
   }
   else if (t.closest('[data-view]')) view[t.closest('[data-view]').dataset.view] = t.dataset.v;
-  else if (t.dataset.copy) return copy($(t.dataset.copy).textContent, 'Copied. Paste it into Claude Code.');
-  else if (t.id === 'link') return copy(location.href, 'Link copied. Anyone who opens it gets these settings.');
+  else if (t.dataset.copy) return copy($(t.dataset.copy).textContent, 'Copied. Paste it into Claude Code.', t);
+  else if (t.id === 'link') { flush(); return copy(location.href, 'Link copied. Anyone who opens it gets these settings.', t); }
   else if (t.id === 'reset') { adopt(sanitize({}, { allowBadges: false }).settings); buildShow(); toast('Back to the default.'); }
   else return;
   update();
@@ -225,33 +268,66 @@ document.addEventListener('input', (e) => {
   customs[view.term][e.target.dataset.custom] = e.target.value;
   s = { ...s, colors: customColors() }; update();
 });
-// Hovering or focusing a look or layout card previews it without choosing it.
+// Hovering a look or layout card with a mouse, or reaching it with the keyboard, previews it without choosing it.
+// A tap on a phone sends a fake hover first, so touch screens skip the preview and the tap simply chooses.
+const mouse = matchMedia('(hover:hover)');
 for (const box of [$('looks'), $('layouts')]) {
-  const hover = (e) => {
+  const hover = (e, by) => {
     const b = e.target.closest('[data-look],[data-layout]');
     const key = b ? (b.dataset.look ? `look:${b.dataset.look}` : `layout:${b.dataset.layout}`) : null;
-    if (key !== view.hover) { view.hover = key; update(); }
+    if (key === view.hover) return;
+    // While you hover from card to card the preview only grows, so the cards under the mouse never jump.
+    if (!view.hover) $('out').style.minHeight = '';
+    else $('out').style.minHeight = `${$('out').offsetHeight}px`;
+    view.hover = key; view.hoverBy = by; preview();
   };
-  box.addEventListener('mouseover', hover); box.addEventListener('focusin', hover);
-  box.addEventListener('mouseleave', () => { view.hover = null; update(); });
-  box.addEventListener('focusout', (e) => { if (!box.contains(e.relatedTarget)) { view.hover = null; update(); } });
+  const leave = () => { view.hover = null; $('out').style.minHeight = ''; preview(); };
+  box.addEventListener('mouseover', (e) => { if (mouse.matches) hover(e, 'mouse'); });
+  box.addEventListener('focusin', (e) => { if (e.target.matches(':focus-visible')) hover(e, 'focus'); });
+  box.addEventListener('mouseleave', () => { if (view.hoverBy === 'mouse') leave(); });
+  box.addEventListener('focusout', (e) => { if (!box.contains(e.relatedTarget) && view.hoverBy === 'focus') leave(); });
 }
 // Drag the battery rows to reorder them (the ▲▼ buttons do the same from the keyboard).
 let dragged = null;
 $('show').addEventListener('dragstart', (e) => { const r = e.target.closest('[data-bat]'); if (!r) return; dragged = r.dataset.bat; r.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
-$('show').addEventListener('dragover', (e) => { const r = e.target.closest('[data-bat]'); if (!r || !dragged) return; e.preventDefault(); document.querySelectorAll('.row.over').forEach((x) => x.classList.remove('over')); r.classList.add('over'); });
+$('show').addEventListener('dragover', (e) => {
+  const r = e.target.closest('[data-bat]'); if (!r || !dragged) return; e.preventDefault();
+  document.querySelectorAll('.row.over').forEach((x) => x.classList.remove('over', 'below'));
+  // Dropped on a row, the battery takes that row's place: the line shows above it going up, below it going down.
+  r.classList.add('over'); r.classList.toggle('below', order.indexOf(r.dataset.bat) > order.indexOf(dragged));
+});
 $('show').addEventListener('drop', (e) => {
   const r = e.target.closest('[data-bat]'); if (!r || !dragged) return; e.preventDefault();
   if (r.dataset.bat === dragged) return; // dropped where it was: nothing moves
-  order = order.filter((k) => k !== dragged); order.splice(order.indexOf(r.dataset.bat), 0, dragged);
+  const to = order.indexOf(r.dataset.bat);
+  order.splice(order.indexOf(dragged), 1); order.splice(to, 0, dragged);
+  say(`${SHOW[dragged][0]} moved`);
   dragged = null; reorder(); buildShow(); update();
 });
-$('show').addEventListener('dragend', () => { dragged = null; document.querySelectorAll('.row.dragging,.row.over').forEach((x) => x.classList.remove('dragging', 'over')); });
+$('show').addEventListener('dragend', () => { dragged = null; document.querySelectorAll('.row.dragging,.row.over').forEach((x) => x.classList.remove('dragging', 'over', 'below')); });
+
+// On a computer the preview options are always out; on a phone they start folded under one button.
+const popts = $('popts');
+const fold = () => { popts.open = !phone.matches; };
+phone.addEventListener('change', fold); fold();
+
+// The skip link moves focus itself: following its #opts would change the address, and a new address re-reads the
+// settings from it, throwing away what the person just picked.
+document.querySelector('.skip').addEventListener('click', (e) => { e.preventDefault(); $('opts').focus(); });
+
+// The sticky preview would hide whatever a link or the skip link scrolls to, so scrolling leaves room for it.
+new ResizeObserver(() => {
+  const st = document.querySelector('.stage');
+  document.documentElement.style.scrollPaddingTop = getComputedStyle(st).position === 'sticky' ? `${st.offsetHeight + 8}px` : '0px';
+}).observe(document.querySelector('.stage'));
 
 // On load and whenever the hash changes: a valid shared link wins, then the settings saved last time, then the defaults.
 const fromHash = () => {
   let next;
+  $('linknote').hidden = true;
   try { next = parseLink(location.hash); } catch {
+    // A link that was cut short or mangled in a chat app should say so, not quietly show something else.
+    if (location.hash.startsWith('#c=')) { $('linknote').textContent = 'This settings link is damaged, so the page opened with your last settings instead.'; $('linknote').hidden = false; }
     try { next = sanitize(JSON.parse(localStorage.getItem(SAVED)), { allowBadges: false }).settings; } catch { next = sanitize({}, { allowBadges: false }).settings; }
   }
   if (next.terminal !== 'auto') view.term = next.terminal; // a link made for a light terminal previews as light

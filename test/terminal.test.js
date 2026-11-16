@@ -9,11 +9,11 @@ import { paths } from '../src/paths.js';
 import { DEFAULTS } from '../src/schema.js';
 import { detectTerminal, readClaudeTheme } from '../src/terminal.js';
 import { remember, recall } from '../src/lastseen.js';
-import { NOW, at } from './helpers.js';
+import { NOW, at, cleanEnv } from './helpers.js';
 
 // The release checklist runs this test card in every terminal, so it must at least start.
 test('the terminal test card runs', () => {
-  const r = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/terminal-check.js', import.meta.url))], { encoding: 'utf8', env: { ...process.env, CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-')) } });
+  const r = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/terminal-check.js', import.meta.url))], { encoding: 'utf8', env: cleanEnv(mkdtempSync(join(tmpdir(), 'juice-'))) });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /juice would pick here on its own: ends/);
 });
@@ -160,6 +160,14 @@ test('a stamp from the future is rewritten, not kept', () => {
   remember(busy, p, at(7200)); // clock 2 hours ahead
   remember(busy, p, at(60)); // clock corrected
   assert.equal(recall(p).subscriberSeenAt, at(60).getTime());
+});
+
+test('reset times sent in milliseconds count like seconds, so a window that ended still ends', () => {
+  const p = tmpPaths();
+  const reading = (session_id, used, resets_at) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at } } });
+  remember(reading('a', 80, NOW.getTime() + 60000), p, NOW); // this window ends a minute from now
+  remember(reading('b', 5, NOW.getTime() + 18000000), p, at(120)); // a new chat, once it has ended
+  assert.equal(recall(p).fiveHour.used, 5);
 });
 
 test('remember never throws; recall of corrupt file is null', () => {

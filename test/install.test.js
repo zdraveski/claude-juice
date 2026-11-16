@@ -1,5 +1,5 @@
 // juice installed into a Claude folder, the way Claude Code runs it: the launcher, the plugin store, links.
-import { fixture } from './helpers.js';
+import { fixture, cleanEnv } from './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, symlinkSync, lstatSync, cpSync } from 'node:fs';
@@ -9,13 +9,13 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { paths } from '../src/paths.js';
 import { install, restore } from '../src/setup.js';
-import { launcherFor, constant } from '../src/launcher-file.js';
+import { launcherFor, constant, fwd } from '../src/launcher-file.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '');
 const tmp = () => mkdtempSync(join(tmpdir(), 'juice-install-'));
 const busyText = JSON.stringify(fixture('busy'));
 // Always a temp CLAUDE_CONFIG_DIR: juice must never see the real login.
-const node = (args, dir, input = '') => spawnSync(process.execPath, args, { input, encoding: 'utf8', env: { ...process.env, CLAUDE_CONFIG_DIR: dir } });
+const node = (args, dir, input = '') => spawnSync(process.execPath, args, { input, encoding: 'utf8', env: cleanEnv(dir) });
 const installed = () => {
   const d = tmp();
   const p = paths({ CLAUDE_CONFIG_DIR: d });
@@ -57,7 +57,7 @@ test('installed from the plugin store and turned off in /plugin, the launcher sa
 test('launcher works through a junction or symlink', (t) => {
   const { d } = installed();
   const link = join(tmp(), 'link');
-  try { symlinkSync(d, link, 'junction'); } catch { return t.skip('cannot create a link here'); }
+  try { symlinkSync(d, link, 'junction'); } catch (e) { if (process.env.CI) throw e; return t.skip('cannot create a link here'); } // on CI a missing link would hide the very thing tested
   const r = node([join(link, 'juice-statusline.mjs')], d, busyText);
   assert.equal(r.status, 0);
   assert.match(r.stdout, /Session/);
@@ -76,7 +76,7 @@ test('a broken juice folder gives the doctor hint, not a blank line', () => {
   const bin = join(d, 'plugins', 'cache', 'm', 'juice', '1.0.0', 'bin');
   mkdirSync(bin, { recursive: true });
   writeFileSync(join(bin, 'juice-statusline.js'), 'import "./missing-file.js";');
-  const run = (extra) => spawnSync(process.execPath, [join(ROOT, 'bin', 'launcher.js')], { input: busyText, encoding: 'utf8', env: { ...process.env, CLAUDE_CONFIG_DIR: d, NO_COLOR: '', ...extra } });
+  const run = (extra) => spawnSync(process.execPath, [join(ROOT, 'bin', 'launcher.js')], { input: busyText, encoding: 'utf8', env: cleanEnv(d, extra) });
   const r = run({});
   assert.equal(r.status, 0);
   assert.equal(r.stdout.trim(), '\x1b[2mjuice: /juice doctor\x1b[22m');
@@ -86,7 +86,7 @@ test('a broken juice folder gives the doctor hint, not a blank line', () => {
 test('setup and restore write through a symlinked settings.json', (t) => {
   const d = tmp(), real = join(tmp(), 'real.json');
   writeFileSync(real, JSON.stringify({ theme: 'dark', statusLine: { type: 'command', command: 'old' } }));
-  try { symlinkSync(real, join(d, 'settings.json'), 'file'); } catch { return t.skip('cannot create a symlink here'); }
+  try { symlinkSync(real, join(d, 'settings.json'), 'file'); } catch (e) { if (process.env.CI) throw e; return t.skip('cannot create a symlink here'); }
   const p = paths({ CLAUDE_CONFIG_DIR: d });
   install(p, { pluginRoot: ROOT.replaceAll('\\', '/') });
   assert.ok(lstatSync(join(d, 'settings.json')).isSymbolicLink());
@@ -101,11 +101,33 @@ test('the launcher follows updates when the plugins folder is a link, and stays 
   const linked = launcherFor('D:/shared/claude-plugins/cache/my-market/juice/1.3.1');
   assert.equal(constant(linked, 'MARKET'), 'my-market');
   assert.equal(constant(linked, 'PINNED'), null);
-  assert.equal(constant(launcherFor('C:\\Users\\a\\.claude\\plugins\\cache\\m2\\juice\\41f619d61b99'), 'MARKET'), 'm2');
+  assert.equal(constant(launcherFor('C:\\Users\\a\\.claude\\plugins\\cache\\m2\\juice\\41f619d61b99', 'win32'), 'MARKET'), 'm2');
   assert.equal(constant(launcherFor('/home/a/.claude/plugins/cache/m3/juice/1.0.0'), 'MARKET'), 'm3');
   // A checkout, even one with juice in its path, is not a plugin version folder.
   for (const checkout of ['/home/a/code/juice', '/home/a/dev/juice/main']) {
     assert.equal(constant(launcherFor(checkout), 'PINNED'), checkout);
     assert.equal(constant(launcherFor(checkout), 'MARKET'), null);
+  }
+});
+
+test('a backslash in a Linux or macOS folder name stays a backslash; only Windows paths get slashes', () => {
+  assert.equal(fwd('/home/a/we\\ird/.claude', 'linux'), '/home/a/we\\ird/.claude');
+  assert.equal(fwd('C:\\Users\\a\\.claude', 'win32'), 'C:/Users/a/.claude');
+  assert.equal(constant(launcherFor('/home/a/we\\ird/juice', 'darwin'), 'PINNED'), '/home/a/we\\ird/juice');
+});
+
+// Final review (1.4.1): setup wrote the launcher before saving the old status line, so a save that failed left the
+// launcher pointing at this copy of juice while settings.json still pointed elsewhere.
+test('a backup juice cannot save leaves the launcher as it was, or absent on a first setup', () => {
+  for (const launcher of ['an older launcher', null]) {
+    const d = tmp(), p = paths({ CLAUDE_CONFIG_DIR: d });
+    writeFileSync(join(d, 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'other' } }));
+    if (launcher) writeFileSync(p.launcherFile, launcher);
+    writeFileSync(join(d, 'a-file'), '');
+    const blocked = { ...p, backupFile: join(d, 'a-file', 'juice-backup.json') }; // a folder inside a file: never made
+    assert.throws(() => install(blocked, { pluginRoot: ROOT.replaceAll('\\', '/') }));
+    let now = null;
+    try { now = readFileSync(p.launcherFile, 'utf8'); } catch {}
+    assert.equal(now, launcher);
   }
 });

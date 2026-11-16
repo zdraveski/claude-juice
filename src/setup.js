@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, renameSync, unlinkSync, realpathSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { readJson, writeJsonAtomic, writeAtomic } from './cache.js';
 import { NOTHING_SHOWN } from './schema.js';
@@ -7,7 +7,9 @@ import { loadSettings } from './settings.js';
 import { fwd, constant, launcherTarget, launcherFor } from './launcher-file.js';
 
 export { fwd, constant };
-const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+// Keys in another order (a hand edit, another tool) are the same status line.
+const sorted = (_, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort()) : v);
+const same = (a, b) => JSON.stringify(a ?? null, sorted) === JSON.stringify(b ?? null, sorted);
 // A saved copy of the old status line is usable when it is an object with a statusLine (valid JSON may still be "x" or 5).
 const usableBackup = (b) => !!b && typeof b === 'object' && 'statusLine' in b;
 export const readText = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
@@ -33,7 +35,7 @@ const NODE = String.raw`(?:node|"(?:[^"]*[\\/])?node(?:js)?(?:\.exe)?"|\S*[\\/]n
 const JUICE_COMMAND = new RegExp(String.raw`^\s*(?:PATH="[^"]*"\s+)?${NODE}\s+"[^"]*[\\/]juice-statusline\.mjs"\s*$`, 'i');
 export const isJuice = (statusLine) => typeof statusLine?.command === 'string' && JUICE_COMMAND.test(statusLine.command);
 // Windows paths ignore case and slash direction.
-const samePath = (a, b, platform) => (platform === 'win32' ? fwd(a).toLowerCase() === fwd(b).toLowerCase() : a === b);
+const samePath = (a, b, platform) => (platform === 'win32' ? fwd(a, 'win32').toLowerCase() === fwd(b, 'win32').toLowerCase() : a === b);
 // Whether a juice line runs this config folder's launcher, whatever way it finds Node.
 export const runsLauncher = (p, command, platform) => samePath(command.replace(/^.*\s(?="[^"]*"\s*$)/, '').trim(), `"${fwd(p.launcherFile)}"`, platform);
 
@@ -53,7 +55,8 @@ function nodeCommand(platform, env) {
 
 // The shell Claude Code runs the status line in (Git Bash on Windows, sh elsewhere) would change a $ or a
 // backtick inside the quoted path, cmd a %, and a " would end the quotes, so such a path can't be set up safely.
-// (Backslashes never reach the shell: the command is written with forward slashes.)
+// (On Windows backslashes never reach the shell: the command is written with forward slashes. On Linux and macOS a
+// backslash is part of the name, and inside double quotes the shell keeps a single one (shortcut: a doubled one would be halved).)
 const SHELL_UNSAFE = /[$`%"]/;
 
 // Settings that beat the person's own: a project's .claude/settings(.local).json in this folder or any folder
@@ -102,15 +105,17 @@ export function readClaudeSettings(p) {
 
 // Sets the refresh of this folder's juice line to what motion wants, unless it was chosen by hand. Run by set motion, and
 // once after each update (1.3.x wrote every second, which costs CPU while the line stands still).
-// Throws on a broken settings.json; returns the time it wrote, or null when there was nothing to change.
+// Throws on a broken settings.json. Returns { seconds, kept: false } when it wrote the time, { seconds, kept: true } when
+// the person's own time stays, or null when there was nothing to change.
 // write: HOT_WRITE from a refresh, which must not wait on a file another program holds open.
 export function matchRefresh(p, { platform = process.platform, write } = {}) {
   const settings = readClaudeSettings(p), line = settings.statusLine;
   if (!isJuice(line) || !runsLauncher(p, line.command, platform)) return null;
   const want = refreshFor(line, loadSettings(p).settings.motion);
-  if (line.refreshInterval === want) return null;
+  // A time the person chose stays, and set motion says so: else motion=on looks broken with no word.
+  if (line.refreshInterval === want) return keepsRefresh(line) ? { seconds: want, kept: true } : null;
   writeSettings(p, { ...settings, statusLine: { ...line, refreshInterval: want } }, write);
-  return want;
+  return { seconds: want, kept: false };
 }
 
 export function install(p, { pluginRoot, yes = false, platform = process.platform, env = process.env, cwd = process.cwd() }) {
@@ -135,34 +140,43 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   const before = readText(p.launcherFile);
   const fix = before === null || !launcherTarget(before) ? 'Its launcher file was missing or from an older juice, so juice put it back.'
     : launcherTarget(before) !== launcherTarget(launcher) ? 'It now uses the juice you just ran setup from.' : '';
-  writeAtomic(p.launcherFile, launcher);
-
   if (stale || damaged) {
-    renameSync(p.backupFile, p.backupFile.replace(/\.json$/, `-${Date.now()}.json`));
-    lines.push(damaged ? "juice's saved copy of your old status line was damaged, so juice set it aside under a new name." : 'Kept the earlier saved copy next to it under a new name.');
+    const aside = p.backupFile.replace(/\.json$/, `-${Date.now()}.json`);
+    renameSync(p.backupFile, aside);
+    lines.push(damaged ? `juice's saved copy of your old status line was damaged, so juice set it aside as ${basename(aside)} in your Claude folder.`
+      : `Kept the earlier saved copy as ${basename(aside)} in your Claude folder.`);
   }
   if (!ours && (stale || damaged || !backupThere)) {
     // As private as settings.json itself: the old status line command can hold a key.
     writeJsonAtomic(p.backupFile, { statusLine: settings.statusLine ?? null, savedAt: new Date().toISOString() }, { modeFrom: p.claudeSettings });
     lines.push(settings.statusLine ? 'Saved your current status line so you can get it back.' : 'You had no status line, so there is nothing to save.');
   }
+  // Written only once the old line is saved. A settings.json juice can't save must not leave the launcher pointing
+  // at this copy of juice either.
+  writeAtomic(p.launcherFile, launcher);
+  const save = (s) => {
+    try { writeSettings(p, s); } catch (e) {
+      try { if (before === null) unlinkSync(p.launcherFile); else writeAtomic(p.launcherFile, before); } catch {}
+      throw e;
+    }
+  };
   const current = ours && samePath(settings.statusLine.command, command, platform);
   // Another tool's refresh time was chosen for that tool, so a first setup starts from juice's own.
   const want = refreshFor(ours ? settings.statusLine : null, loadSettings(p).settings.motion);
   if (current && settings.statusLine.refreshInterval === want) lines.push(fix ? 'juice is already your status line.' : 'juice is already your status line. Nothing changed.');
   else if (current) {
-    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, refreshInterval: want } });
+    save({ ...settings, statusLine: { ...settings.statusLine, refreshInterval: want } });
     lines.push(want === 1 ? 'juice now refreshes every second, so its pictures climb and its numbers stay current.'
       : 'juice now refreshes once a minute, so its numbers and reset times stay current while Claude Code is idle.');
   } else if (ours) {
     // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing;
     // one with the right launcher but an older way of finding Node just gets the current one.
     const sameLauncher = runsLauncher(p, settings.statusLine.command, platform);
-    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: want } });
+    save({ ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: want } });
     lines.push(sameLauncher ? 'juice is your status line, now set up to find Node even when Claude Code starts from an app.'
       : 'juice was your status line but pointed somewhere else, so it now points at this copy of juice.');
   } else {
-    writeSettings(p, { ...settings, statusLine: { type: 'command', command, padding: 0, refreshInterval: want } });
+    save({ ...settings, statusLine: { type: 'command', command, padding: 0, refreshInterval: want } });
     lines.push("juice is now your status line. It shows up the next time Claude Code redraws it, and the batteries fill in after Claude's first reply.");
   }
   if (fix && ours) lines.push(fix); // a first setup has no launcher yet: nothing to say about putting it back

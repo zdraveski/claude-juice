@@ -159,8 +159,8 @@ test('climbing never changes a picture\'s width or where its number sits', () =>
 });
 
 test('palette', () => {
-  assert.equal(palette(DEFAULTS, 'light').good, '#1d8a4e');
-  assert.equal(palette({ ...DEFAULTS, colors: 'safe' }, 'dark').bad, '#ff8b4d');
+  assert.equal(palette(DEFAULTS, 'light').good, '#1c874c');
+  assert.equal(palette({ ...DEFAULTS, colors: 'safe' }, 'dark').bad, '#de5253');
   assert.equal(palette({ ...DEFAULTS, colors: 'nope' }, 'dark').good, PRESETS.claude.dark[0]);
   const c = { plentyLeft: '#111111', goingFast: '#222222', almostEmpty: '#333333', accent: '#444444' };
   const p = palette({ ...DEFAULTS, colors: { dark: c, light: c } }, 'dark');
@@ -188,6 +188,41 @@ test('every colour set is readable on its terminal background', () => {
     }
   }
   for (const t of ['dark', 'light']) assert.ok(contrast(NEUTRAL[t].fable, NEUTRAL[t].bg) >= 3, `fable ${t}`);
+});
+
+// On a light terminal its "going fast" and "almost empty" were the same colour to protanopes, and "almost empty"
+// read at 3.9:1 (audit, 1.4.1). Seen through full protanopia, deuteranopia and tritanopia (Machado 2009, linear RGB),
+// its four battery colours stay apart (CIE76 distance in Lab) and each reads at 4.5:1.
+test('the colour-blind set keeps its four battery colours apart for every kind of colour blindness', () => {
+  const SIGHT = {
+    normal: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    protan: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+    deutan: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.01182, 0.04294, 0.968881]],
+    tritan: [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.3039]],
+  };
+  const lab = (hex, m) => {
+    const c = [1, 3, 5].map((i) => { const v = parseInt(hex.slice(i, i + 2), 16) / 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+    const [r, g, b] = m.map((row) => Math.min(1, Math.max(0, row[0] * c[0] + row[1] * c[1] + row[2] * c[2])));
+    const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+    const [X, Y, Z] = [(0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047, 0.2126 * r + 0.7152 * g + 0.0722 * b, (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883];
+    return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+  };
+  for (const theme of ['dark', 'light']) {
+    const P = palette({ colors: 'safe' }, theme), names = ['good', 'watch', 'bad', 'fable'];
+    for (const n of names) assert.ok(contrast(P[n], P.bg) >= 4.5, `${theme} ${n} ${P[n]} reads at ${contrast(P[n], P.bg).toFixed(2)}`);
+    for (const [sight, m] of Object.entries(SIGHT)) for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
+      const a = lab(P[names[i]], m), b = lab(P[names[j]], m), d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      assert.ok(d >= 15, `${theme} ${sight}: ${names[i]} ${P[names[i]]} and ${names[j]} ${P[names[j]]} are only ${d.toFixed(1)} apart`);
+    }
+  }
+});
+
+// It was named "High contrast" while five sets read better on a light terminal (audit, 1.4.1).
+test('High contrast is the easiest set to read: its faintest colour beats every other set\'s, on both backgrounds', () => {
+  for (const t of ['dark', 'light']) {
+    const faintest = (p) => Math.min(...p[t].map((c) => contrast(c, NEUTRAL[t].bg)));
+    for (const [id, p] of Object.entries(PRESETS)) if (id !== 'bold') assert.ok(faintest(PRESETS.bold) > faintest(p) + 0.25, `${t}: bold ${faintest(PRESETS.bold).toFixed(2)} vs ${id} ${faintest(p).toFixed(2)}`);
+  }
 });
 
 test('samples and withAccount', () => {
@@ -296,6 +331,36 @@ test('every style survives 256 colours', () => {
     assert.ok(!/[34]8;2;/.test(to256(batteryPct(sk(style), pct, 'warn', 7, 0.5) + battery(sk(style, 'light'), pct, 'crit', 12, 0.3))), style);
 });
 
+// An xterm colour number as #rrggbb, and #rrggbb as r;g;b.
+const L256 = [0, 95, 135, 175, 215, 255], two = (v) => v.toString(16).padStart(2, '0');
+const xhex = (n) => '#' + (n >= 232 ? Array(3).fill(8 + (n - 232) * 10) : [L256[Math.floor((n - 16) / 36)], L256[Math.floor((n - 16) / 6) % 6], L256[(n - 16) % 6]]).map(two).join('');
+const triple = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(';');
+
+// Final review (1.4.1): a mark drawn on a fill (the pace tick) moved away from the terminal's background, not from the
+// fill under it, and fell below 3:1 on the fills of three colour sets.
+test('on a 256-colour terminal, a mark on a fill reads as well as in full colour', () => {
+  for (const [theme, mark, fill] of [['light', '#d8c9b2', '#a16207'], ['light', '#d0c2ac', '#8f5e15'], ['dark', '#5a3d3b', '#ff5555'],
+    ['light', '#cfc9ac', '#7d6f00'], ['light', '#e4c2be', '#d42e2e']]) {
+    const out = to256(`\x1b[48;2;${triple(fill)}m\x1b[38;2;${triple(mark)}m│\x1b[0m`, NEUTRAL[theme].bg);
+    const f = xhex(Number(/48;5;(\d+)m/.exec(out)[1])), m = xhex(Number(/38;5;(\d+)m/.exec(out)[1]));
+    assert.ok(contrast(m, f) >= Math.min(4.5, contrast(mark, fill)) - 0.005, `${theme} ${mark} on ${fill} became ${m} on ${f}, ${contrast(m, f).toFixed(2)}:1`);
+  }
+});
+
+// The nearest of the 256 colours could be lighter on a light terminal: Claude's red fell from 4.8:1 to 3.7:1 (audit, 1.4.1).
+test('on a 256-colour terminal, words read as well as in full colour (up to 4.5:1), on the background and on a fill', () => {
+  const q = (layer, c, bgc) => xhex(Number(/[34]8;5;(\d+)m/.exec(to256(`\x1b[${layer};2;${triple(c)}m`, bgc))[1]));
+  for (const theme of ['dark', 'light']) {
+    const N = NEUTRAL[theme];
+    for (const [id, p] of Object.entries(PRESETS)) for (const c of [...p[theme], N.text, N.sub, N.fable]) {
+      const text = q(38, c, N.bg), want = Math.min(4.5, contrast(c, N.bg)) - 0.005;
+      assert.ok(contrast(text, N.bg) >= want, `${theme} ${id}: ${c} became ${text}, ${contrast(text, N.bg).toFixed(2)}:1`);
+      const fill = q(48, c, N.bg), ink = q(38, inkOn(c), N.bg), wantInk = Math.min(4.5, contrast(inkOn(c), c)) - 0.005;
+      assert.ok(contrast(ink, fill) >= wantInk, `${theme} ${id}: ink on ${c} became ${ink} on ${fill}, ${contrast(ink, fill).toFixed(2)}:1`);
+    }
+  }
+});
+
 for (const style of SKINS) for (const [left, w, t] of [[35, 7], [45, 7], [50, 7], [82, 7], [60, 5], [62, 7, 0.57], [82, 7, 0.5]]) {
   test(`${style}: ${left}% (w=${w}${t ? `, tick ${t}` : ''}) digits stay whole, one colour each`, () => {
     // Outline's left wall is not a cell.
@@ -334,6 +399,27 @@ test('glossy: a number off the fill sits on the plain casing, as readable as cla
     const digit = cells(batteryPct(ctx, 10, level, 7)).find((x) => x.ch === '1');
     assert.equal(digit.bg, rgb(ctx.P.casing, 48), `${colors} ${theme} ${level}`);
   }
+});
+
+// A number off the fill was drawn in its level colour on the casing, down to 2.5:1 (solar), and one on a tinted
+// fill (pace's soft part, hot, liquid's edge) at 4.3:1, under the 4.5:1 small text needs.
+test('every number in a battery reads at 4.5:1, on the fill or off it, in every set, theme, style and level', () => {
+  for (const theme of ['dark', 'light']) for (const colors of PRESET_IDS) for (const style of SKINS.filter((s) => s !== 'outline'))
+    for (const level of ['ok', 'warn', 'crit', 'fable']) for (const pct of [10, 45, 82]) for (const e of [undefined, 0.5]) {
+      const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, colors, battery: style }, { theme });
+      for (const x of cells(batteryPct(ctx, pct, level, 7, e)).filter((x) => /[\d%]/.test(x.ch) && x.bg))
+        assert.ok(contrast(hexOf(x.fg), hexOf(x.bg)) >= 4.5, `${colors} ${theme} ${style} ${level} ${pct}% ${e}: ${x.ch}`);
+    }
+});
+
+// The even-pace tick on the fill took the casing colour: under 3:1 on light glossy fills.
+test('the pace tick on the fill stands out at 3:1 in every set, theme, style and level', () => {
+  for (const theme of ['dark', 'light']) for (const colors of PRESET_IDS) for (const style of SKINS.filter((s) => s !== 'outline' && s !== 'pace'))
+    for (const level of ['ok', 'warn', 'crit', 'fable']) {
+      const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, colors, battery: style }, { theme });
+      const tick = cells(battery(ctx, 90, level, 8, 0.3)).find((x) => x.ch === '│');
+      assert.ok(tick && contrast(hexOf(tick.fg), hexOf(tick.bg)) >= 3, `${colors} ${theme} ${style} ${level}`);
+    }
 });
 
 // The forms: shapes instead of a battery, the number after them.

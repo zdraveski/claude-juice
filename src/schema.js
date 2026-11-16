@@ -1,5 +1,6 @@
 // The one definition of a valid setting. Files, /juice set and share links all pass through here.
-import { PRESETS } from './render/palette.js';
+import { PRESETS, NEUTRAL } from './render/palette.js';
+import { contrast } from './render/ansi.js';
 export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank'];
 // The layouts that draw the battery style; the others keep their own shapes.
 export const STYLE_LAYOUTS = ['bar', 'focus'];
@@ -40,7 +41,7 @@ export const LOOKS = Object.freeze([
   look('quiet', 'Quiet', 'Grey and silent until something needs you', { show: ['model', 'memory', 'session', 'week', 'budget'], colors: 'calm', refills: 'warnings' }),
   look('nightowl', 'Night owl', 'Neon bars for dark terminals', { layout: 'segments', colors: 'vampire' }),
   look('easy', 'Easy to see', 'Big, bright and high contrast', { layout: 'focus', colors: 'bold', ends: 'plain' }),
-  look('colorblind', 'Colour-blind friendly', 'Blue, yellow and orange instead of green and red', { colors: 'safe' }),
+  look('colorblind', 'Colour-blind friendly', 'Blue, amber and red that every kind of colour blindness tells apart', { colors: 'safe' }),
   look('anywhere', 'Works everywhere', 'For older terminals that show boxes instead of rounded ends', { layout: 'segments', ends: 'plain' }),
   look('costwatch', 'Cost watcher', 'Shows what this chat would have cost', { show: ['model', 'memory', 'session', 'week', 'budget'], colors: 'ocean', cost: 'on' }),
   look('fablefirst', 'Fable first', 'The Fable battery leads and lights up while you use Fable', { show: ['model', 'effort', 'fable', 'memory', 'session', 'week', 'budget'], colors: 'candy' }),
@@ -80,9 +81,9 @@ const CHECK = {
   },
 };
 
-const show = (v) => (typeof v === 'string' ? `'${v}'` : JSON.stringify(v));
+const show = (v) => (typeof v === 'string' ? `'${v}'` : isObj(v) ? 'your own colours' : JSON.stringify(v)); // only colours is an object
 // The right values, from the same table that checks them (show has its own, longer warning).
-const valid = (key) => key === 'colors' ? `Use one of: ${PRESET_IDS.join(', ')}. Or your own: dark:a,b,c,d/light:a,b,c,d, each a hex colour like #22c55e (${COLOR_KEYS.join(', ')} in that order).`
+const valid = (key) => key === 'colors' ? `Use one of: ${PRESET_IDS.join(', ')}. Or your own: dark:a,b,c,d/light:a,b,c,d, each a 6-digit hex colour like #22c55e (${COLOR_KEYS.join(', ')} in that order).`
   : CHECK[key].ids ? `Use one of: ${CHECK[key].ids.join(', ')}.` : '';
 // A misspelt battery name is dropped, but never silently: "sesion" would otherwise just make Session vanish.
 const unknownShow = (v) => (Array.isArray(v) ? v.filter((id) => !SHOW_IDS.includes(id)) : []);
@@ -97,7 +98,9 @@ export function sanitize(x, { allowBadges }) {
   for (const k of Object.keys(CHECK)) {
     if (!(k in src)) continue;
     const v = CHECK[k](src[k]);
-    if (v === undefined) warnings.push(`${k}: ${show(src[k])} isn't valid, using ${show(DEFAULTS[k])}${k === 'show' ? '' : `. ${valid(k)}`}`);
+    // A mistyped fable was most likely a no: auto could read the login on a guess.
+    if (v === undefined && k === 'fable') settings.fable = 'off';
+    if (v === undefined) warnings.push(`${k}: ${show(src[k])} isn't valid, using ${show(settings[k])}${k === 'show' ? '' : `. ${valid(k)}`}`);
     else settings[k] = v;
     if (k === 'show' && v !== undefined && unknownShow(src.show).length) warnings.push(showWarning(unknownShow(src.show)));
   }
@@ -114,9 +117,9 @@ const parseColors = (text) => {
   if (PRESET_IDS.includes(text)) return text;
   const o = {};
   for (const part of text.split('/')) {
-    const m = /^(dark|light):(.*)$/.exec(part);
+    const m = /^\s*(dark|light)\s*:(.*)$/i.exec(part);
     if (!m) return undefined;
-    o[m[1]] = Object.fromEntries(m[2].split(',').map((c, i) => [COLOR_KEYS[i], c]));
+    o[m[1].toLowerCase()] = Object.fromEntries(m[2].split(',').map((c, i) => [COLOR_KEYS[i], c.trim()]));
   }
   return o;
 };
@@ -134,13 +137,15 @@ export function applySet(settings, pairs) {
   for (const pair of pairs) {
     const i = pair.indexOf('=');
     if (i < 1) { warnings.push(`${pair}: not a setting`); continue; }
-    const key = pair.slice(0, i);
-    const text = pair.slice(i + 1);
+    // Every name juice knows is lower case, so Layout=Tank is layout=tank; your own colours keep their hex as typed.
+    // Warnings quote it as typed.
+    const key = pair.slice(0, i).toLowerCase();
+    const typed = pair.slice(i + 1), text = key === 'colors' && typed.includes(':') ? typed : typed.toLowerCase();
     if (key === 'badges') throw new Error('Badges can only be added with /juice badges add');
     if (key === 'look') {
       const l = LOOKS.find((x) => x.id === text);
       if (l) Object.entries(l.set).forEach(([k, v]) => put(k, v));
-      else warnings.push(`look: '${text}' isn't a look. Use one of: ${LOOKS.map((x) => x.id).join(', ')}.`);
+      else warnings.push(`look: '${typed}' isn't a look. Use one of: ${LOOKS.map((x) => x.id).join(', ')}.`);
       continue;
     }
     if (!Object.hasOwn(CHECK, key)) { warnings.push(`${pair}: not a setting`); continue; }
@@ -148,10 +153,11 @@ export function applySet(settings, pairs) {
     const v = CHECK[key](parsed);
     if (v === undefined) {
       // Plain words, not JSON: "sesion,weekly" gets the list of right names (Weekly is "week").
-      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${text}' isn't valid, keeping ${show(next[key])}. ${valid(key)}${key === 'colors' && text.includes(':') ? '' : NEWER}`);
+      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${typed}' isn't valid, keeping ${show(next[key])}. ${valid(key)}${key === 'colors' && text.includes(':') ? '' : NEWER}`);
       continue;
     }
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));
+    if (key === 'colors' && isObj(v)) warnings.push(...faint(v));
     put(key, v);
   }
   // Compared at the end, so a key set twice back to where it was has not changed.
@@ -166,6 +172,13 @@ export function applySet(settings, pairs) {
   }
   return { settings: next, warnings, changed, chosen };
 }
+
+// Your own colours are saved as typed, but a colour that fades into the background is said out loud: juice's own sets
+// all read at 4.5:1 or more, the usual bar for small text.
+const COLOR_WORDS = { plentyLeft: 'plenty left', goingFast: 'going fast', almostEmpty: 'almost empty', accent: 'accent' };
+const faint = (c) => ['dark', 'light'].flatMap((t) => COLOR_KEYS.map((k) => [k, c[t][k], contrast(c[t][k], NEUTRAL[t].bg)])
+  .filter(([, , r]) => r < 4.5)
+  .map(([k, hex, r]) => `colors: your ${t} '${COLOR_WORDS[k]}' colour ${hex} is ${r < 3 ? 'hard to read' : 'a little faint'} on a ${t} terminal (${r.toFixed(1)}:1; 4.5:1 or more reads well). It's saved anyway.`));
 
 const colorWord = (c) => (typeof c === 'string' ? c
   : ['dark', 'light'].map((t) => `${t}:${COLOR_KEYS.map((k) => c[t][k]).join(',')}`).join('/'));

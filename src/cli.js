@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paths, hideHome } from './paths.js';
@@ -13,7 +13,16 @@ import { refreshBadges, addBadge, listBadges, removeBadge, unapprovedBadges } fr
 import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm, Unreadable } from './setup.js';
 
 const ROOT = new URL('..', import.meta.url);
-const USAGE = 'Usage: juice set <key=value>... | get | looks | setup | restore | customize | doctor | badges add|list|remove | refresh-fable | refresh-badges <key>';
+// The /juice skill runs badges list without asking, and a command can hold a key: shown is only its first word,
+// after any NAME=value set in front of it (GITHUB_TOKEN=… gh …), with the values left out.
+const SET = /^([A-Za-z_]\w*)=(?:"(?:[^"\\]|\\.)*"|'[^']*'|\$'(?:[^'\\]|\\.)*'|\$\{[^}]*\}|\$\([^)]*\)|`[^`]*`|\\.|[^\s"'\\])*\s*/;
+function hidden(c) {
+  let rest = c.trim(), shown = '';
+  for (let m; (m = SET.exec(rest));) { shown += `${m[1]}=… `; rest = rest.slice(m[0].length); }
+  const [first, ...more] = rest.split(/\s+/).filter(Boolean);
+  return `${shown}${first ?? ''}${more.length ? ' …' : ''}`.trim();
+}
+const USAGE ='Usage: juice set <key=value>... | get | looks | setup | restore | customize | doctor | badges add|list|remove | refresh-fable | refresh-badges <key>';
 const version = () => JSON.parse(readFileSync(new URL('package.json', ROOT), 'utf8')).version;
 // Claude Code shows command output as plain text, so the previews drop colour and the rounded-end glyphs.
 const PREVIEW = { columns: 160, theme: 'dark', ends: 'plain', colorDepth: 'none' };
@@ -37,8 +46,9 @@ export async function main(argv, io) {
         io.out(changed.length ? `Changed: ${changed.join(', ')}` : 'Nothing changed.');
         if (chosen.includes('motion')) {
           try {
-            const n = matchRefresh(p, { platform: io.platform });
-            if (n) io.out(`juice now refreshes ${refreshWords(n)}.`);
+            const r = matchRefresh(p, { platform: io.platform });
+            if (r) io.out(r.kept ? `Your status line keeps its own refresh time (${refreshWords(r.seconds)}), so juice left it as it is.`
+              : `juice now refreshes ${refreshWords(r.seconds)}.`);
           } catch (e) {
             // An error code means the file couldn't be saved; without one, it couldn't be read, or its JSON is broken.
             io.out(e?.code ? `Warning: motion is saved, but the refresh time stays as it is. ${friendly(e)}`
@@ -92,16 +102,25 @@ export async function main(argv, io) {
         if (sub === 'add') {
           const command = rest.join(' ');
           if (!command) { io.err('Give the command to add, for example: badges add "git branch --show-current" --yes'); return 1; }
+          const l = listBadges(p), off = unapprovedBadges(p), there = l.findIndex((c, i) => c === command && !off.includes(i + 1)) + 1;
+          if (there) { io.out(`That badge is already there, as badge ${there}.`); return 0; }
           if (!yes) { io.out(`This badge would run: ${command}`); io.out('Run again with --yes to add it.'); return 2; }
           addBadge(p, command);
-          io.out(`Added badge: ${command}`);
+          io.out(off.some((n) => l[n - 1] === command) ? `Approved badge: ${command}` : `Added badge: ${command}`);
           return 0;
         }
         if (sub === 'list') {
           const l = listBadges(p), off = unapprovedBadges(p);
-          // The /juice skill runs list without asking, and a command can hold a key: only its first word, unless --show.
-          const name = (c) => (all.includes('--show') || !/\s/.test(c.trim()) ? c : `${c.trim().split(/\s+/)[0]} …`);
-          io.out(l.length ? l.map((c, i) => `${i + 1}. ${name(c)}${off.includes(i + 1) ? ' (not approved on this computer, so it never runs: remove it, then add it again to use it)' : ''}`).join('\n') : 'No badges.');
+          const name = (c) => (all.includes('--show') ? strip(c) : hidden(c));
+          const why = (c, i) => {
+            if (!off.includes(i + 1)) {
+              const first = l.findIndex((d, j) => d === c && !off.includes(j + 1)) + 1; // 1.4.0 could approve the same badge twice
+              return first !== i + 1 ? ` (a second copy of badge ${first}: remove it)` : '';
+            }
+            const twin = l.findIndex((d, j) => d === c && !off.includes(j + 1)) + 1; // 1.4.0 added a second copy instead of approving
+            return twin ? ` (a copy of badge ${twin} that never runs: remove it)` : ' (not approved on this computer, so it never runs: add the same command again to approve it)';
+          };
+          io.out(l.length ? l.map((c, i) => `${i + 1}. ${name(c)}${why(c, i)}`).join('\n') : 'No badges.');
           loadSettings(p).warnings.forEach((w) => io.out(`Warning: ${w}`));
           return 0;
         }
@@ -110,9 +129,9 @@ export async function main(argv, io) {
           const n = Number(all.find((a) => a !== '--yes'));
           const command = listBadges(p)[n - 1];
           if (!Number.isInteger(n) || command === undefined) { io.err('No badge with that number. Run badges list to see them.'); return 1; }
-          if (!all.includes('--yes')) { io.out(`This would remove badge ${n}: ${command}`); io.out('Run again with --yes to remove it.'); return 2; }
+          if (!all.includes('--yes')) { io.out(`This would remove badge ${n}: ${hidden(command)}`); io.out('Run again with --yes to remove it.'); return 2; }
           removeBadge(p, n);
-          io.out(`Removed badge: ${command}`);
+          io.out(`Removed badge: ${hidden(command)}`);
           return 0;
         }
         io.err(USAGE); return 1;
@@ -128,7 +147,10 @@ export async function main(argv, io) {
         const key = args[0];
         if (!/^[0-9a-f]{16}$/.test(key ?? '')) { io.err('refresh-badges needs a 16-character key.'); return 1; }
         let stdinText;
-        try { stdinText = readFileSync(join(p.cacheDir, 'badges', `${key}.stdin.json`), 'utf8'); } catch { stdinText = ''; }
+        // Deleted once read: it holds the chat's project folder and transcript path, and nothing reads it again.
+        const stash = join(p.cacheDir, 'badges', `${key}.stdin.json`);
+        try { stdinText = readFileSync(stash, 'utf8'); } catch { stdinText = ''; }
+        try { rmSync(stash, { force: true }); } catch {} // a week-old one goes with the badge caches
         await refreshBadges({ p, settings: loadSettings(p).settings, key, stdinText });
         return 0;
       }
@@ -155,4 +177,5 @@ const SAVE_FAILS = {
   ENOTDIR: 'a folder it needs is really a file. Check that your Claude folder is the right one, then try again.',
 };
 SAVE_FAILS.EACCES = SAVE_FAILS.EPERM;
+SAVE_FAILS.EEXIST = SAVE_FAILS.ENOTDIR; // making a folder where a file already is
 export const friendly = (e) => (SAVE_FAILS[e?.code] ? CANT_SAVE + SAVE_FAILS[e.code] : hideHome(e?.message || 'Something went wrong.'));
