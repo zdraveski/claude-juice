@@ -15,7 +15,7 @@ import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm, Unread
 const ROOT = new URL('..', import.meta.url);
 // The /juice skill runs badges list without asking, and a command can hold a key: shown is only its first word,
 // after any NAME=value set in front of it (GITHUB_TOKEN=… gh …), with the values left out.
-const SET = /^([A-Za-z_]\w*)=(?:"[^"]*"|'[^']*'|\S*)\s*/;
+const SET = /^([A-Za-z_]\w*)=(?:"[^"]*"|'[^']*'|\$'[^']*'|\\.|[^\s"'\\])*\s*/;
 function hidden(c) {
   let rest = c.trim(), shown = '';
   for (let m; (m = SET.exec(rest));) { shown += `${m[1]}=… `; rest = rest.slice(m[0].length); }
@@ -102,11 +102,11 @@ export async function main(argv, io) {
         if (sub === 'add') {
           const command = rest.join(' ');
           if (!command) { io.err('Give the command to add, for example: badges add "git branch --show-current" --yes'); return 1; }
-          const there = listBadges(p).indexOf(command) + 1;
+          const l = listBadges(p), off = unapprovedBadges(p), there = l.findIndex((c, i) => c === command && !off.includes(i + 1)) + 1;
           if (there) { io.out(`That badge is already there, as badge ${there}.`); return 0; }
           if (!yes) { io.out(`This badge would run: ${command}`); io.out('Run again with --yes to add it.'); return 2; }
           addBadge(p, command);
-          io.out(`Added badge: ${command}`);
+          io.out(off.some((n) => l[n - 1] === command) ? `Approved badge: ${command}` : `Added badge: ${command}`);
           return 0;
         }
         if (sub === 'list') {
@@ -141,7 +141,8 @@ export async function main(argv, io) {
         let stdinText;
         // Deleted once read: it holds the chat's project folder and transcript path, and nothing reads it again.
         const stash = join(p.cacheDir, 'badges', `${key}.stdin.json`);
-        try { stdinText = readFileSync(stash, 'utf8'); rmSync(stash, { force: true }); } catch { stdinText = ''; }
+        try { stdinText = readFileSync(stash, 'utf8'); } catch { stdinText = ''; }
+        try { rmSync(stash, { force: true }); } catch {} // a week-old one goes with the badge caches
         await refreshBadges({ p, settings: loadSettings(p).settings, key, stdinText });
         return 0;
       }

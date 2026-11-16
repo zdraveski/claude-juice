@@ -823,6 +823,12 @@ test('badges list hides a key set in front of the command, and remove never show
   assert.doesNotMatch((await run(d, ['badges', 'remove', '1', '--yes'])).out, /SECRET/);
 });
 
+test('badges list hides all of a key, however its value is quoted or escaped', async () => {
+  const d = env();
+  for (const c of ['TOKEN="sk-ant"rest gh', 'TOKEN=sk\\ ant gh', "TOKEN=$'sk ant' gh", 'TOKEN=sk-"a b" gh']) await run(d, ['badges', 'add', c, '--yes']);
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. TOKEN=… gh\n2. TOKEN=… gh\n3. TOKEN=… gh\n4. TOKEN=… gh');
+});
+
 test('adding a badge that is already there adds no second copy', async () => {
   const d = env();
   await run(d, ['badges', 'add', 'uptime', '--yes']);
@@ -830,6 +836,18 @@ test('adding a badge that is already there adds no second copy', async () => {
   assert.equal(r.code, 0);
   assert.match(r.out, /already/);
   assert.equal((await run(d, ['badges', 'list'])).out, '1. uptime');
+});
+
+// A copied juice.json brings badges this computer never approved; adding one again approves it where it stands.
+test('adding a badge that is there but not approved asks, then approves it without a second copy', async () => {
+  const d = env();
+  writeFileSync(join(d, 'juice.json'), JSON.stringify({ badges: [{ command: 'uptime' }, { command: 'echo b' }] }));
+  assert.equal((await run(d, ['badges', 'add', 'uptime'])).code, 2);
+  assert.equal((await run(d, ['badges', 'add', 'uptime', '--yes'])).code, 0);
+  const lines = (await run(d, ['badges', 'list'])).out.split('\n');
+  assert.equal(lines[0], '1. uptime');
+  assert.match(lines[1], /^2\. echo … \(not approved/);
+  assert.equal(lines.length, 2);
 });
 
 test('an unreadable juice.json is never overwritten with defaults', async () => {
@@ -1008,4 +1026,20 @@ test('refresh-badges deletes the stashed stdin once it has read it', async () =>
   writeFileSync(f, '{"cwd":"/home/someone/project"}');
   assert.equal((await run(d, ['refresh-badges', key])).code, 0);
   assert.equal(existsSync(f), false);
+});
+
+test('refresh-badges still hands the badges their stdin when the stash cannot be deleted', async (t) => {
+  const d = env(), key = 'fedcba9876543210', f = join(d, 'juice-cache', 'badges', `${key}.stdin.json`);
+  await run(d, ['badges', 'add', `"${process.execPath}" -e "process.stdin.pipe(process.stdout)"`, '--yes']);
+  mkdirSync(join(f, '..'), { recursive: true });
+  writeFileSync(f, 'from-stdin');
+  const real = fs.rmSync;
+  t.mock.method(fs, 'rmSync', function (file, ...rest) {
+    if (String(file).endsWith('.stdin.json')) throw Object.assign(new Error('busy'), { code: 'EBUSY' });
+    return real.call(this, file, ...rest);
+  });
+  syncBuiltinESMExports();
+  try { assert.equal((await run(d, ['refresh-badges', key])).code, 0); }
+  finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
+  assert.deepEqual(json(join(d, 'juice-cache', 'badges', `${key}.json`)).texts, ['from-stdin']);
 });

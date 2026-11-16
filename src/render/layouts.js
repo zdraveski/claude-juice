@@ -75,7 +75,7 @@ function items(data, ctx) {
   // Fable resets with the weekly limit; while Weekly shows that countdown, one is enough. Only while it
   // really shows it: a fine Weekly with reset times off, or squeezed to its run-out time, shows none.
   const weekItem = out.find((i) => i.id === 'week');
-  const weekSaysReset = weekItem && wants(ctx, weekItem) && !(fit.shortWords && saysOut(weekItem.assessed, true));
+  const weekSaysReset = weekItem && wants(ctx, weekItem) && !((fit.shortWords || fit.outOnly) && saysOut(weekItem.assessed, !!fit.shortWords));
   const week = weekSaysReset ? weekItem.assessed.resetsAt : null;
   for (const i of out) if (i.id === 'fable' && week && i.assessed.resetsAt && Math.abs(i.assessed.resetsAt - week) < 60000) i.sameReset = true;
   return out;

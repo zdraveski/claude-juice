@@ -104,7 +104,8 @@ export function readClaudeSettings(p) {
 
 // Sets the refresh of this folder's juice line to what motion wants, unless it was chosen by hand. Run by set motion, and
 // once after each update (1.3.x wrote every second, which costs CPU while the line stands still).
-// Throws on a broken settings.json; returns the time it wrote, or null when there was nothing to change.
+// Throws on a broken settings.json. Returns { seconds, kept: false } when it wrote the time, { seconds, kept: true } when
+// the person's own time stays, or null when there was nothing to change.
 // write: HOT_WRITE from a refresh, which must not wait on a file another program holds open.
 export function matchRefresh(p, { platform = process.platform, write } = {}) {
   const settings = readClaudeSettings(p), line = settings.statusLine;

@@ -13,6 +13,14 @@ const busyText = JSON.stringify(fixture('busy'));
 import { strip, at, NOW } from './helpers.js';
 import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, listBadges, removeBadge, run, approve, approved } from '../src/badges.js';
 
+// process.getBuiltinModule came in Node 22.3 and 20.16. On an older Node the line still draws, so its badges must still run.
+test('a badge runs on a Node without process.getBuiltinModule', async () => {
+  const real = process.getBuiltinModule;
+  process.getBuiltinModule = undefined;
+  try { assert.equal((await run('echo hi', { timeoutMs: 5000 })).stdout.trim(), 'hi'); }
+  finally { process.getBuiltinModule = real; }
+});
+
 const tmp = () => paths({ CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-badges-')) });
 const ok = (stdout) => async () => ({ ok: true, stdout });
 

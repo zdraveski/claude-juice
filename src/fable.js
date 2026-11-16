@@ -69,8 +69,9 @@ export async function fetchFable(token, fetchImpl, version, timeoutMs = 5000) {
   } catch { return 'offline'; } finally { clearTimeout(timer); } // no answer, or a page (a proxy's, a hotel's) instead of one
 }
 
-// Claude Code renews an expired login on its next request, so look again soon rather than in 15 minutes.
-const EXPIRED_MS = 120000;
+// Claude Code renews an expired login on its next request, so look again soon rather than in 15 minutes. Not sooner
+// than a working login is asked (5 minutes): an idle window's login stays expired, and each look starts a process.
+const EXPIRED_MS = 300000;
 
 export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fetch, execFileSync = realExec, now, version }) {
   const t = +now; // accepts a Date or epoch ms

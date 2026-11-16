@@ -221,3 +221,15 @@ test('a red battery gives up its reset countdown before its warning words', () =
     assert.ok(r.dropped.includes('reset times beside a run-out time') && !r.dropped.includes('warning words'), `${w}: ${r.dropped}`);
   }
 });
+
+// An amber Fable sharing Weekly's reset says nothing of its own. Where Weekly drops its reset beside its run-out
+// time, Fable must say the reset, or no battery on the line says when they refill.
+test('the shared weekly reset time stays on the line while Weekly says when it runs out', () => {
+  const L = SAMPLES.busy.limits, data = { ...SAMPLES.busy, limits: { ...L, week: { ...L.week, used: 93 }, fable: { ...L.fable, used: 50 } } };
+  const draw = (w) => strip(render(data, { ...DEFAULTS, show: ['week', 'fable'] }, term(w)).text);
+  assert.match(draw(200), /Fable \S+ !(?!!)/, 'Fable is amber');
+  for (let w = 30; w <= 140; w++) {
+    const t = draw(w);
+    if (/out ~/.test(t) && t.includes('Fable')) assert.match(t, /resets /, `${w}: ${t}`);
+  }
+});

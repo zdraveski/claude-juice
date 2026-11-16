@@ -23,11 +23,11 @@ net.Socket.prototype.connect = function (...a) {
 };
 `;
 
-async function viaProxy(variable) {
+async function viaProxy(variable, { oldNode = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'juice-proxy-'));
   writeFileSync(join(dir, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'fake-token-for-the-proxy-test' } }));
   writeFileSync(join(dir, 'juice.json'), JSON.stringify({ fable: 'on' }));
-  writeFileSync(join(dir, 'guard.mjs'), GUARD);
+  writeFileSync(join(dir, 'guard.mjs'), GUARD + (oldNode ? 'delete process.getBuiltinModule;\n' : ''));
   const seen = [];
   const proxy = net.createServer((s) => {
     s.on('data', (d) => { seen.push(String(d).split('\r\n')[0]); s.end('HTTP/1.1 502 Bad Gateway\r\n\r\n'); });
@@ -51,3 +51,8 @@ for (const variable of ['HTTPS_PROXY', 'https_proxy']) {
     assert.deepEqual(await viaProxy(variable), ['CONNECT api.anthropic.com:443 HTTP/1.1']);
   });
 }
+
+// process.getBuiltinModule came in Node 22.3 and 20.16; an older Node must still start the refresher.
+test('on a Node without process.getBuiltinModule, the status line still starts the Fable refresher', { skip: process.platform === 'darwin' && 'a Mac would ask the Keychain for the login' }, async () => {
+  assert.deepEqual(await viaProxy('HTTPS_PROXY', { oldNode: true }), ['CONNECT api.anthropic.com:443 HTTP/1.1']);
+});

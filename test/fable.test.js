@@ -102,7 +102,8 @@ test('fetchFable says why a check failed, so the doctor can give the right advic
   assert.equal(await fetchFable(TOKEN, okFetch(body(10, 'not a date')), 'v'), 'changed');
 });
 
-test('an expired login is never sent; juice looks again in 2 minutes, after Claude Code renews it', async () => {
+// 5 minutes, as often as a working login is asked: an idle window's login stays expired, and sooner only starts more processes.
+test('an expired login is never sent; juice looks again in 5 minutes, after Claude Code renews it', async () => {
   const p = setup();
   const save = (expiresAt) => writeFileSync(join(p.config, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: TOKEN, expiresAt } }));
   save(NOW - 1);
@@ -111,7 +112,7 @@ test('an expired login is never sent; juice looks again in 2 minutes, after Clau
   const r = await refreshFable({ p, platform: 'win32', execFileSync: noExec, now: NOW, version: 'v', fetchImpl: async () => { called = true; } });
   assert.equal(r, false);
   assert.equal(called, false, 'an expired token would only earn a 401');
-  assert.deepEqual(readJson(cacheFile(p)), { backoffUntil: NOW + 120000, why: 'expired' });
+  assert.deepEqual(readJson(cacheFile(p)), { backoffUntil: NOW + 300000, why: 'expired' });
   save(NOW + 60000);
   assert.equal(readToken({ platform: 'win32', p, now: NOW, execFileSync: noExec }), TOKEN);
   save('soon');

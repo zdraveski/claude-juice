@@ -2,6 +2,7 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import { cut, ESCAPES } from './render/ansi.js';
 import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
 import { loadSettings, saveSettings } from './settings.js';
@@ -41,7 +42,8 @@ export function readBadges(p, key, now, commands) {
 }
 
 // child_process is loaded only when a command runs: the status line reads badges far more often than it runs them.
-const spawn = (...a) => process.getBuiltinModule('node:child_process').spawn(...a);
+// getBuiltinModule came in Node 22.3 and 20.16; an older Node, which still draws the line, loads it the old way.
+const spawn = (...a) => (process.getBuiltinModule?.('node:child_process') ?? createRequire(import.meta.url)('node:child_process')).spawn(...a);
 
 // Kills the shell and anything it started, and frees the pipe so it can't keep us alive.
 function killTree(child) {
@@ -137,7 +139,10 @@ function sweep(p) {
 export function addBadge(p, command) {
   const { settings } = loadSettings(p);
   if (typeof command !== 'string' || command.length < 1 || command.length > 500) throw new Error('A badge command must be 1 to 500 characters.');
-  saveSettings(p, { badges: sanitize({ ...settings, badges: [...settings.badges, approve(p, command)] }, { allowBadges: true }).settings.badges });
+  // A copy this computer never approved (from a copied juice.json) is approved where it stands, so it keeps its place.
+  const ok = new Set(approved(p, settings.badges)), i = settings.badges.findIndex((b) => b.command === command && !ok.has(b));
+  const badges = i < 0 ? [...settings.badges, approve(p, command)] : settings.badges.map((b, j) => (j === i ? approve(p, command) : b));
+  saveSettings(p, { badges: sanitize({ ...settings, badges }, { allowBadges: true }).settings.badges });
 }
 
 export const listBadges = (p) => loadSettings(p).settings.badges.map((b) => b.command);

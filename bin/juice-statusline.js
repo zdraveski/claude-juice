@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { runStatusLine } from '../src/statusline.js';
 
 const juice = fileURLToPath(new URL('./juice.js', import.meta.url));
@@ -8,8 +9,9 @@ const juice = fileURLToPath(new URL('./juice.js', import.meta.url));
 // people's own commands and keep the environment they had.
 const proxied = process.env.HTTPS_PROXY || process.env.https_proxy;
 const env = proxied ? { ...process.env, NODE_USE_ENV_PROXY: '1' } : process.env;
-// child_process is loaded only here: most refreshes start nothing.
-const spawnDetached = (args) => process.getBuiltinModule('node:child_process').spawn(process.execPath, [juice, ...args], { detached: true, stdio: 'ignore', windowsHide: true, env: args[0] === 'refresh-fable' ? env : process.env }).on('error', () => {}).unref();
+// child_process is loaded only here: most refreshes start nothing. getBuiltinModule came in Node 22.3 and 20.16.
+const childProcess = () => process.getBuiltinModule?.('node:child_process') ?? createRequire(import.meta.url)('node:child_process');
+const spawnDetached = (args) => childProcess().spawn(process.execPath, [juice, ...args], { detached: true, stdio: 'ignore', windowsHide: true, env: args[0] === 'refresh-fable' ? env : process.env }).on('error', () => {}).unref();
 
 let out = '';
 try {
