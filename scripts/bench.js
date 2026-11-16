@@ -29,7 +29,9 @@ const median = (a) => { const s = [...a].sort((x, y) => x - y); return (s[(s.len
 // The real path Claude Code runs: the launcher, installed into a temp config dir only.
 const dir = mkdtempSync(join(tmpdir(), 'juice-bench-'));
 process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
-const env = { ...process.env, CLAUDE_CONFIG_DIR: dir };
+// Full colour whatever terminal runs the bench (Terminal.app, ssh and CI announce none), so each run is the one it names.
+const env = { ...process.env, CLAUDE_CONFIG_DIR: dir, COLORTERM: 'truecolor' };
+delete env.NO_COLOR;
 const p = paths(env);
 install(p, { pluginRoot: root });
 
