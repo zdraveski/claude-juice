@@ -9,7 +9,7 @@ import { fableEnabled } from './schema.js';
 import { detectTerminal, readClaudeTheme } from './terminal.js';
 import { remember } from './lastseen.js';
 import { normalize } from './data.js';
-import { fableCacheState } from './readings.js';
+import { fableCacheState, FABLE_LOCK_MS } from './readings.js';
 import { render } from './render/index.js';
 import { strip, dim } from './render/ansi.js';
 import { upgradeLauncher } from './launcher-file.js';
@@ -45,7 +45,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     const { text } = render(data, settings, { ...terminal, animate: settings.motion === 'on' });
 
     // Only subscribers have these limits, so nobody else's login is sent to Anthropic for nothing.
-    if (fableOn && data.account === 'subscriber' && fableCacheState(fableCache, now).stale && takeLock(p, 'fable', now)) {
+    if (fableOn && data.account === 'subscriber' && fableCacheState(fableCache, now).stale && takeLock(p, 'fable', now, FABLE_LOCK_MS)) {
       quiet(() => spawnDetached(['refresh-fable']));
     }
     if (badges?.stale && takeLock(p, `badges-${key}`, now, 2500)) {

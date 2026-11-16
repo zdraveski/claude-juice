@@ -8,6 +8,7 @@ import { paths } from '../src/paths.js';
 import { readJson, writeJsonAtomic, takeLock } from '../src/cache.js';
 import { readToken, fetchFable, refreshFable, keychainService } from '../src/fable.js';
 import { fableCacheState } from '../src/readings.js';
+import * as readings from '../src/readings.js';
 import { createHash } from 'node:crypto';
 import { fableEnabled } from '../src/schema.js';
 
@@ -244,4 +245,9 @@ test('on a Mac whose Keychain holds no login, juice reads .credentials.json, whe
   // An expired login in the Keychain is the answer: the file is not asked to overrule it.
   const old = JSON.stringify({ claudeAiOauth: { accessToken: 'old', expiresAt: NOW - 1 } });
   assert.equal(readToken({ platform: 'darwin', p, env: {}, now: NOW, execFileSync: () => old }), false);
+});
+
+test('the fable lock outlasts the Keychain wait plus the fetch, so a second refresher never starts meanwhile', () => {
+  const { FABLE_LOCK_MS, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS } = readings;
+  assert.ok(FABLE_LOCK_MS >= KEYCHAIN_TIMEOUT_MS + FETCH_TIMEOUT_MS + 10000, 'margin of at least 10 s');
 });

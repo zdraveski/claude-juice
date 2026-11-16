@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
-import { BACKOFF_MS } from './readings.js';
+import { BACKOFF_MS, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS } from './readings.js';
 
 // Claude Code's own name for the Keychain entry: with CLAUDE_CONFIG_DIR (or its storage override) set, each
 // config folder has its own login, named after a hash of the folder. The plain name would be another account's.
@@ -19,12 +19,12 @@ export function keychainService(env = {}) {
 export function readToken({ platform, p, env, now, execFileSync = realExec }) {
   const file = () => tokenIn(() => readFileSync(join(p.config, '.credentials.json'), 'utf8'), now);
   if (platform !== 'darwin') return file();
-  // macOS may first ask in a dialog: 25 s leaves time to answer it, and ends before the 30 s fable lock does,
+  // macOS may first ask in a dialog: 25 s leaves time to answer it, and with the fetch ends before the 60 s fable lock does,
   // so no second refresher (and second dialog) starts meanwhile. This runs only in the detached refresher.
   // security prints an item holding bytes it can't show as text in hex. With no Keychain login, Claude Code keeps it
   // in the file, as elsewhere.
   return tokenIn(() => {
-    const out = execFileSync('security', ['find-generic-password', '-s', keychainService(env), '-w'], { timeout: 25000, encoding: 'utf8' }).trim();
+    const out = execFileSync('security', ['find-generic-password', '-s', keychainService(env), '-w'], { timeout: KEYCHAIN_TIMEOUT_MS, encoding: 'utf8' }).trim();
     return /^(?:[0-9a-f]{2})+$/i.test(out) ? Buffer.from(out, 'hex').toString('utf8') : out;
   }, now) ?? file();
 }
@@ -40,7 +40,7 @@ function tokenIn(read, now) {
 // Why a check failed, so the doctor can give the advice that fits (only 'login' needs /login).
 const failure = (status) => (status === 401 || status === 403 ? 'login' : status === 429 || status >= 500 ? 'busy' : 'changed');
 
-export async function fetchFable(token, fetchImpl, version, timeoutMs = 5000) {
+export async function fetchFable(token, fetchImpl, version, timeoutMs = FETCH_TIMEOUT_MS) {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeoutMs);
   try {
