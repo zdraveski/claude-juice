@@ -82,6 +82,20 @@ if (alive) process.kill(pid);
 assert.equal(alive, false, 'the badge command\'s child is still running after the timeout');
 console.log('ok hung badge killed with its child');
 
+// The installed line itself starts the real detached refresher: with one badge, the badge cache file appears within
+// a few seconds, and the line comes back at once instead of waiting for the refresher.
+assert.equal(juice('badges', 'remove', '1', '--yes').status, 0, 'badges remove');
+assert.equal(juice('badges', 'add', `node -e "process.stdout.write('E2EBADGE')"`, '--yes').status, 0, 'badges add');
+const badgeDir = join(config, 'juice-cache', 'badges');
+const tLine = Date.now();
+check('the line with a badge, as Claude Code runs it', 'bash', ['-c', command], env);
+assert.ok(Date.now() - tLine < 15000, `the line took ${Date.now() - tLine} ms: is the refresher holding the pipe?`);
+const written = () => (existsSync(badgeDir) ? readdirSync(badgeDir) : []).filter((f) => f.endsWith('.json') && !f.endsWith('.stdin.json') && !f.startsWith('0123456789abcdef'));
+for (let i = 0; i < 100 && !written().length; i++) await new Promise((r) => setTimeout(r, 100));
+assert.ok(written().length, 'the status line never started the badge refresher: no badge cache file appeared');
+assert.match(readFileSync(join(badgeDir, written()[0]), 'utf8'), /E2EBADGE/);
+console.log('ok the line starts the detached badge refresher');
+
 assert.equal(juice('restore').status, 0, 'restore');
 assert.equal(JSON.parse(readFileSync(join(config, 'settings.json'), 'utf8')).statusLine.command, 'echo old');
 console.log('ok restore');
@@ -98,4 +112,20 @@ if (process.platform !== 'win32') {
   assert.ok(pinned.startsWith(`PATH="${old}:$PATH" node `), pinned);
   rmSync(join(home, 'old-node'), { recursive: true });
   check('after the Node it was set up with is uninstalled', '/bin/sh', ['-c', pinned], { HOME: home, PATH: `${dirname(process.execPath)}:/usr/bin:/bin` });
+}
+
+// People who set CLAUDE_CONFIG_DIR (the documented way to move the folder) get a different command: run that too, with a
+// folder name that has a space, an accent and an apostrophe, through bash.
+{
+  const odd = join(mkdtempSync(join(realpathSync.native(tmpdir()), 'juice-e2e-')), "Ünïcode d'ir (2)");
+  const plugin2 = join(odd, 'plugins', 'cache', 'juice', 'juice', version);
+  for (const f of ['bin', 'src', 'package.json', '.claude-plugin']) copy(join(repo, f), join(plugin2, f));
+  const env2 = { ...env, CLAUDE_CONFIG_DIR: odd };
+  const setup2 = spawnSync(process.execPath, [join(plugin2, 'bin', 'juice.js'), 'setup'], { env: env2, encoding: 'utf8' });
+  assert.equal(setup2.status, 0, `setup with CLAUDE_CONFIG_DIR: ${setup2.stdout}${setup2.stderr}`);
+  const command2 = JSON.parse(readFileSync(join(odd, 'settings.json'), 'utf8')).statusLine.command;
+  assert.ok(command2.includes(odd.replaceAll('\\', '/')), command2);
+  check('CLAUDE_CONFIG_DIR with a space, an accent and an apostrophe, through bash', 'bash', ['-c', command2], env2);
+  const doctor2 = spawnSync(process.execPath, [join(plugin2, 'bin', 'juice.js'), 'doctor'], { env: env2, encoding: 'utf8' });
+  assert.match(doctor2.stdout, /^✓ Drawing works/m, doctor2.stdout);
 }
