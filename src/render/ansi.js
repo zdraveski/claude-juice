@@ -30,6 +30,7 @@ let SEG;
 const JOINS = /[\p{M}\p{Cf}\p{RI}\p{Emoji_Modifier}\u1160-\u11ff\ud7b0-\ud7ff]/u;
 const chars = (t) => (JOINS.test(t) ? Array.from((SEG ??= new Intl.Segmenter(undefined, { granularity: 'grapheme' })).segment(t), (g) => g.segment) : Array.from(t));
 export function cut(s, n) {
+  if (vis(s) <= n) return s + `${E}0m`; // what fits is never segmented: a badge is cut on every refresh
   let out = '', seen = 0;
   for (const m of s.matchAll(/\x1b\[[0-9;]*m|[^\x1b]+|\x1b/g)) {
     if (/^\x1b\[[0-9;]*m$/.test(m[0])) { out += m[0]; continue; }

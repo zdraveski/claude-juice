@@ -53,3 +53,12 @@ test('cutting plain text never builds a text segmenter (making one costs a whole
     process.stdout.write(strip(cut(fg('#ffffff', 'Session ▰▰▱ 88% 日本 😀 left'), 18)));`;
   assert.equal(execFileSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' }), 'Session ▰▰▱ 88% 日');
 });
+
+// Final review (1.4.1): a badge is cut to 40 columns on every refresh, so one showing ☀️ built it every time.
+test('text that already fits is never segmented, even with an emoji or an accent', () => {
+  const url = pathToFileURL(join(import.meta.dirname, '../src/render/ansi.js')).href;
+  const code = `Intl.Segmenter = class { constructor() { throw new Error('built a segmenter'); } };
+    const { cut, strip, fg } = await import(${JSON.stringify(url)});
+    process.stdout.write(strip(cut(fg('#ffffff', '☀️ +12°C café 👍🏽'), 40)));`;
+  assert.equal(execFileSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' }), '☀️ +12°C café 👍🏽');
+});
