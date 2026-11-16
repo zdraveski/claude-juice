@@ -54,7 +54,6 @@ export const KEYCHAIN_TIMEOUT_MS = 25000, FETCH_TIMEOUT_MS = 5000, FABLE_LOCK_MS
 // Whether to fetch again: the last reading is over 5 minutes old, and no wait after a failure is running.
 // now is a Date or epoch ms. A fetch time in the future (clock skew) is never trusted, and a wait longer than
 // BACKOFF_MS can only come from a clock that was ahead, so it is ignored.
-
 export function fableCacheState(cache, now) {
   const t = +now;
   const age = Number.isFinite(cache?.fetchedAt) && cache.fetchedAt <= t ? t - cache.fetchedAt : Infinity;

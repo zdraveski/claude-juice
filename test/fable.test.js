@@ -227,10 +227,10 @@ test('refreshFable sweeps temp files a cancelled refresh left behind, but not on
   assert.equal(existsSync(fresh), true, 'another window may be writing it right now');
 });
 
-test('the Keychain read waits long enough to answer the macOS dialog, but ends before the 30 s fable lock does', () => {
+test('the Keychain read waits long enough to answer the macOS dialog, and with the fetch ends before the fable lock does', () => {
   let opts;
   readToken({ platform: 'darwin', env: {}, execFileSync: (c, a, o) => { opts = o; return '{}'; } });
-  assert.ok(opts.timeout >= 20000 && opts.timeout < 30000, String(opts.timeout));
+  assert.ok(opts.timeout >= 20000 && opts.timeout < readings.FABLE_LOCK_MS - readings.FETCH_TIMEOUT_MS, String(opts.timeout));
 });
 
 test('a Keychain item that security prints as hex is read too', () => {
