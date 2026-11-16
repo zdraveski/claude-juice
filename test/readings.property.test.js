@@ -131,11 +131,12 @@ function history(seed) {
         assert.ok(!current, `${key} shows a reset limit while a current one exists at ${where}`);
       }
 
-      // 2. A session seen for the first time never lowers a number in the same window.
+      // 2. A session seen for the first time never lowers a number in the same window. Only while that window runs:
+      // one that has ended is drawn as 0% refilled whatever its number (assess in render/limits.js).
       if (isNew && prev && prev.now === now && prev.fable === fable && data.account === 'subscriber' && prev.data.account === 'subscriber') {
         for (const key of ['session', 'week']) {
           const a = prev.data.limits[key], b = data.limits[key];
-          if (a?.resetsAt && b?.resetsAt && a.resetsAt.getTime() === b.resetsAt.getTime()) {
+          if (a?.resetsAt && b?.resetsAt && a.resetsAt.getTime() === b.resetsAt.getTime() && a.resetsAt.getTime() > now) {
             assert.ok(b.used >= a.used, `a new session lowered ${key} from ${a.used} to ${b.used} at ${where}`);
           }
         }
@@ -149,7 +150,8 @@ function history(seed) {
 
 test('readings: no reset limit hiding a current one, no new session lowering a number', () => {
   const only = process.env.JUICE_SEED;
-  const seeds = only ? [Number(only)] : Array.from({ length: HISTORIES }, (_, i) => i + 1);
+  // Plus the random histories that once failed on CI, kept so they run every time.
+  const seeds = only ? [Number(only)] : [...Array.from({ length: HISTORIES }, (_, i) => i + 1), 22666363, 926318593, 867336738, 5001128, 7001084, 13000188];
   // On CI, 10 more histories from a random place, so over many runs it sees states the fixed ones never reach.
   const base = process.env.CI && !only ? 1000 + Math.floor(Math.random() * 1e9) : 0;
   if (base) seeds.push(...Array.from({ length: 10 }, (_, i) => base + i));

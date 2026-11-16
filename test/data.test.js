@@ -1,7 +1,11 @@
-import { NOW, fixture } from './helpers.js';
+import { NOW, at, fixture } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { normalize } from '../src/data.js';
+import { remember } from '../src/lastseen.js';
 import { sendsPromptCache } from '../src/readings.js';
 
 const nowS = Math.floor(NOW / 1000);
@@ -142,6 +146,14 @@ test('live usage: a newer window wins even with a lower number, once ours has en
   assert.equal(d.limits.session.windowSec, 18000);
 });
 
+test('live usage: at the reset, a window one source says still runs is not shown as reset', () => {
+  const s = fixture('busy');
+  s.rate_limits.five_hour = { used_percentage: 28, resets_at: nowS }; // this window says it resets right now
+  const d = normalize(s, { fable: live({ used: 28, resetsAt: iso(6) }) }, NOW); // the service: 6 seconds more
+  assert.equal(d.limits.session.used, 28);
+  assert.ok(d.limits.session.resetsAt > NOW, 'not drawn as refilled while the service still counts it');
+});
+
 test('live usage from another window while ours is still running is another account, so ours stays', () => {
   const d = normalize(fixture('busy'), { fable: live({ used: 80, resetsAt: iso(7800 + 9000) }, { used: 70, resetsAt: iso(500000) }) }, NOW);
   assert.equal(d.limits.session.used, 47);
@@ -244,6 +256,24 @@ test('a window signed into another account shows its own numbers, not the saved 
   const d = normalize(s, { lastSeen: other }, NOW);
   assert.equal(d.limits.session.used, 47);
   assert.equal(d.limits.week.used, s.rate_limits.seven_day.used_percentage);
+});
+
+// Plays refreshes through remember() then normalize(), as the status line does, and returns what the last one shows.
+function play(refreshes) {
+  const dir = mkdtempSync(join(tmpdir(), 'juice-data-'));
+  try {
+    let d;
+    for (const [stdin, t] of refreshes) d = normalize(stdin, { lastSeen: remember(stdin, { cacheDir: dir }, t) }, t);
+    return d;
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+test('after an account switch, a /clear window\'s old copy cannot lower what a new chat just sent for the same week', () => {
+  const weekA = nowS + 5 * 86400, weekB = nowS + 86400; // two accounts, both weeks still running
+  const week = (session_id, used, resets_at) => ({ session_id, rate_limits: { seven_day: { used_percentage: used, resets_at } } });
+  const b = week('b', 10, weekB), a = week('a-new', 40, weekA), cleared = week('a-cleared', 22, weekA);
+  assert.equal(play([[b, NOW], [a, at(10)]]).limits.week.used, 40);
+  assert.equal(play([[b, NOW], [a, at(10)], [cleared, at(20)]]).limits.week.used, 40, 'not the 22% the cleared window still carries');
 });
 
 test('a reset time sent in milliseconds is not stretched a thousand times', () => {

@@ -38,8 +38,11 @@ export function normalize(stdin, extras, now) {
   // Fetched readings only refine a known subscriber, so an API-key user who is also logged in never gets limits.
   const reading = (r, sec) => limit(obj(r).used, obj(r).resetsAt, sec);
   if (account === 'subscriber') {
-    const session = toShow({ own: fresh.session, saved: reading(seen.fiveHour, 18000), fetched: live ? reading(f.session, 18000) : undefined }, now);
-    const week = toShow({ own: fresh.week, saved: reading(seen.sevenDay, 604800), fetched: live ? reading(f.week, 604800) : undefined }, now);
+    // Each session's last [fiveHour, sevenDay] as lastseen.js keeps it: a JSON string per session id.
+    const sent = Object.values(obj(seen.sessions)).map((s) => { try { return JSON.parse(s); } catch { return null; } }).filter(Array.isArray);
+    const sentOf = (i, sec) => sent.map((s) => reading(s[i], sec)).filter(Boolean);
+    const session = toShow({ own: fresh.session, saved: reading(seen.fiveHour, 18000), fetched: live ? reading(f.session, 18000) : undefined, sent: sentOf(0, 18000) }, now);
+    const week = toShow({ own: fresh.week, saved: reading(seen.sevenDay, 604800), fetched: live ? reading(f.week, 604800) : undefined, sent: sentOf(1, 604800) }, now);
     if (session) limits.session = session;
     if (week) limits.week = week;
     const fableLimit = live ? limit(f.used, f.resetsAt, 604800) : undefined;
