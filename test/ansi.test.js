@@ -49,3 +49,7 @@ test('strip removes bidi overrides and zero-width marks but keeps joiners for em
   assert.equal(strip('a\u202eb\u200bc\u200e\u200f\u202a\u2066\u2069\u2028\u2029\ufeffd'), 'abcd');
   assert.equal(strip('\u{1F468}\u200d\u{1F469}\u200c'), '\u{1F468}\u200d\u{1F469}\u200c');
 });
+
+test('strip removes the other invisible marks too: Arabic letter mark, word joiners, soft hyphen, tag characters', () => {
+  assert.equal(strip('a؜b⁠c⁤d­e᠎f￹g\u{e0041}\u{e007f}h'), 'abcdefgh');
+});

@@ -5,7 +5,7 @@ import { main } from '../src/cli.js';
 const open = (url) => {
   const [cmd, args] = process.platform === 'win32' ? ['cmd', ['/c', 'start', '""', url]]
     : [process.platform === 'darwin' ? 'open' : 'xdg-open', [url]];
-  try { spawn(cmd, args, { detached: true, stdio: 'ignore' }).on('error', () => {}).unref(); } catch {}
+  try { spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true }).on('error', () => {}).unref(); } catch {}
 };
 
 process.exitCode = await main(process.argv.slice(2), {

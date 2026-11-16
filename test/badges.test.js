@@ -202,3 +202,12 @@ test('refresh-badges sweeps old cache files only', async () => {
 test('badge text loses bidi overrides and zero-width marks', () => {
   assert.equal(cleanBadge('a\u202eb\u200bc'), 'abc');
 });
+
+test('a helper a badge starts in the background is stopped once the badge has printed', { skip: process.platform === 'win32' && 'POSIX process groups only' }, async () => {
+  const r = await run('sleep 30 & echo $!', { input: '', timeoutMs: 5000 });
+  const pid = Number(r.stdout.trim());
+  assert.ok(pid > 0, r.stdout);
+  const alive = () => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  for (let i = 0; i < 20 && alive(); i++) await new Promise((res) => setTimeout(res, 50));
+  assert.equal(alive(), false, 'the background sleep is gone');
+});

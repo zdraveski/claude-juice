@@ -9,6 +9,7 @@ import { loadSettings } from './settings.js';
 import { fableEnabled, NOTHING_SHOWN } from './schema.js';
 import { detectTerminal, readClaudeTheme } from './terminal.js';
 import { render } from './render/index.js';
+import { strip } from './render/ansi.js';
 import { LABELS } from './render/words.js';
 import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
@@ -106,7 +107,7 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
   // A problem from more than a day ago has passed; one this recent is worth a look.
   const err = readJson(p.lastErrorFile);
   if (Number.isFinite(err?.at) && typeof err.message === 'string' && t - err.at >= 0 && t - err.at < DAY) {
-    out.push(bad(`The status line hit a problem ${ago(t - err.at)}: ${err.message}${err.where ? ` (${err.where})` : ''}. Run /juice setup; if it keeps happening, tell us what /juice doctor says.`));
+    out.push(bad(`The status line hit a problem ${ago(t - err.at)}: ${strip(err.message)}${err.where ? ` (${err.where})` : ''}. Run /juice setup; if it keeps happening, tell us what /juice doctor says.`));
   }
 
   // 3. Where the numbers come from.

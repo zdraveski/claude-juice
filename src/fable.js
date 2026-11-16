@@ -18,8 +18,10 @@ export function keychainService(env = {}) {
 // false: the login has expired (given now), so sending it would only earn a refusal.
 export function readToken({ platform, p, env, now, execFileSync = realExec }) {
   try {
+    // macOS may first ask in a dialog: 25 s leaves time to answer it, and ends before the 30 s fable lock does,
+    // so no second refresher (and second dialog) starts meanwhile. This runs only in the detached refresher.
     const raw = platform === 'darwin'
-      ? execFileSync('security', ['find-generic-password', '-s', keychainService(env), '-w'], { timeout: 3000, encoding: 'utf8' })
+      ? execFileSync('security', ['find-generic-password', '-s', keychainService(env), '-w'], { timeout: 25000, encoding: 'utf8' })
       : readFileSync(join(p.config, '.credentials.json'), 'utf8');
     const { accessToken: t, expiresAt } = JSON.parse(raw)?.claudeAiOauth ?? {};
     if (!(typeof t === 'string' && t)) return null;

@@ -987,3 +987,22 @@ test('a file where the Claude folder should be gets plain words, not a raw EEXIS
     assert.doesNotMatch(r.err, /EEXIST|ENOTDIR/);
   }
 });
+
+test('doctor and badges list --show print no escape sequences from juice.json or the cache', async () => {
+  const d = env();
+  mkdirSync(join(d, 'juice-cache'), { recursive: true });
+  writeFileSync(join(d, 'juice-cache', 'last-error.json'), JSON.stringify({ at: +new Date(2026, 9, 28) - 60000, message: 'boom\x1b[2J\x1b]52;c;aGk=\x07' }));
+  const doc = (await run(d, ['doctor'])).out;
+  assert.match(doc, /boom/);
+  assert.doesNotMatch(doc, /\x1b/);
+  await run(d, ['badges', 'add', 'echo \x1b[2Jhi', '--yes']);
+  assert.doesNotMatch((await run(d, ['badges', 'list', '--show'])).out, /\x1b/);
+});
+
+test('refresh-badges deletes the stashed stdin once it has read it', async () => {
+  const d = env(), key = '0123456789abcdef', f = join(d, 'juice-cache', 'badges', `${key}.stdin.json`);
+  mkdirSync(join(f, '..'), { recursive: true });
+  writeFileSync(f, '{"cwd":"/home/someone/project"}');
+  assert.equal((await run(d, ['refresh-badges', key])).code, 0);
+  assert.equal(existsSync(f), false);
+});

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paths, hideHome } from './paths.js';
@@ -111,7 +111,7 @@ export async function main(argv, io) {
         }
         if (sub === 'list') {
           const l = listBadges(p), off = unapprovedBadges(p);
-          const name = (c) => (all.includes('--show') ? c : hidden(c));
+          const name = (c) => (all.includes('--show') ? strip(c) : hidden(c));
           io.out(l.length ? l.map((c, i) => `${i + 1}. ${name(c)}${off.includes(i + 1) ? ' (not approved on this computer, so it never runs: remove it, then add it again to use it)' : ''}`).join('\n') : 'No badges.');
           loadSettings(p).warnings.forEach((w) => io.out(`Warning: ${w}`));
           return 0;
@@ -139,7 +139,9 @@ export async function main(argv, io) {
         const key = args[0];
         if (!/^[0-9a-f]{16}$/.test(key ?? '')) { io.err('refresh-badges needs a 16-character key.'); return 1; }
         let stdinText;
-        try { stdinText = readFileSync(join(p.cacheDir, 'badges', `${key}.stdin.json`), 'utf8'); } catch { stdinText = ''; }
+        // Deleted once read: it holds the chat's project folder and transcript path, and nothing reads it again.
+        const stash = join(p.cacheDir, 'badges', `${key}.stdin.json`);
+        try { stdinText = readFileSync(stash, 'utf8'); rmSync(stash, { force: true }); } catch { stdinText = ''; }
         await refreshBadges({ p, settings: loadSettings(p).settings, key, stdinText });
         return 0;
       }

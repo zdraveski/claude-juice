@@ -12,8 +12,9 @@ export const bold = (s) => `${E}1m${s}${E}22m`;
 export const dim = (s) => `${E}2m${s}${E}22m`;
 // Every escape sequence (CSI, OSC ending in BEL or ESC \, other ESC x) and control character except \n,
 // including C1 controls (\x80-\x9f), which some terminals treat as escapes and git allows in branch names.
-// Also bidi overrides and zero-width marks, which reorder or hide neighbours (U+200C/D stay: emoji and some scripts need them).
-export const ESCAPES = /\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\|$)|\x1b[^[\]]?|[\x00-\x09\x0b-\x1f\x7f-\x9f\u200b\u200e\u200f\u202a-\u202e\u2066-\u2069\u2028\u2029\ufeff]/g;
+// Also bidi overrides and zero-width marks, which reorder or hide neighbours (U+200C/D stay: emoji and some scripts need them),
+// and other invisible ones: the Arabic letter mark, word joiners, soft hyphen, annotation marks and tag characters.
+export const ESCAPES = /\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\|$)|\x1b[^[\]]?|[\x00-\x09\x0b-\x1f\x7f-\x9f\u200b\u200e\u200f\u202a-\u202e\u2066-\u2069\u2028\u2029\ufeff\u00ad\u061c\u180e\u2060-\u2064\ufff9-\ufffb]|\udb40[\udc00-\udc7f]/g;
 export const strip = (s) => s.replace(ESCAPES, '');
 
 // ♥, ♡ and ▪ are pictographic (♡ only in older Node) but draw one column (text presentation by default); lives and outline use them bare.

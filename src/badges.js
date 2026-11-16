@@ -65,7 +65,13 @@ export function run(command, { input, timeoutMs }) {
     child.on('close', (code) => finish({ ok: code === 0, stdout: out }));
     // 'close' waits for stdout to end, which never happens while a helper it started still holds it.
     // So once the command itself has exited, take what arrived and stop waiting.
-    child.on('exit', (code) => setTimeout(() => { try { child.stdout.destroy(); } catch {} finish({ ok: code === 0, stdout: out }); }, 100));
+    // A helper it left behind would pile up, one per refresh, so its process group goes too. Windows has no
+    // groups, and taskkill /T can't find the children of a process that has already exited.
+    child.on('exit', (code) => setTimeout(() => {
+      if (process.platform !== 'win32') { try { process.kill(-child.pid, 'SIGKILL'); } catch {} }
+      try { child.stdout.destroy(); } catch {}
+      finish({ ok: code === 0, stdout: out });
+    }, 100));
     child.stdin.end(input);
   });
 }

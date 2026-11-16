@@ -64,7 +64,7 @@ test('readToken darwin uses security with exact args', () => {
   const calls = [];
   const execFileSync = (...a) => { calls.push(a); return creds(); };
   assert.equal(readToken({ platform: 'darwin', p: setup(), execFileSync }), TOKEN);
-  assert.deepEqual(calls[0], ['security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], { timeout: 3000, encoding: 'utf8' }]);
+  assert.deepEqual(calls[0], ['security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], { timeout: 25000, encoding: 'utf8' }]);
   assert.equal(readToken({ platform: 'darwin', p: setup(), execFileSync: noExec }), null);
 });
 
@@ -223,4 +223,10 @@ test('refreshFable sweeps temp files a cancelled refresh left behind, but not on
   await refreshFable({ p, platform: 'win32', execFileSync: noExec, now: NOW_DATE, version: 'v', fetchImpl: okFetch() });
   assert.equal(existsSync(old), false, 'left behind two hours ago: swept');
   assert.equal(existsSync(fresh), true, 'another window may be writing it right now');
+});
+
+test('the Keychain read waits long enough to answer the macOS dialog, but ends before the 30 s fable lock does', () => {
+  let opts;
+  readToken({ platform: 'darwin', env: {}, execFileSync: (c, a, o) => { opts = o; return '{}'; } });
+  assert.ok(opts.timeout >= 20000 && opts.timeout < 30000, String(opts.timeout));
 });
