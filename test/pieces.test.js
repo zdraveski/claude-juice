@@ -331,12 +331,25 @@ test('every style survives 256 colours', () => {
     assert.ok(!/[34]8;2;/.test(to256(batteryPct(sk(style), pct, 'warn', 7, 0.5) + battery(sk(style, 'light'), pct, 'crit', 12, 0.3))), style);
 });
 
+// An xterm colour number as #rrggbb, and #rrggbb as r;g;b.
+const L256 = [0, 95, 135, 175, 215, 255], two = (v) => v.toString(16).padStart(2, '0');
+const xhex = (n) => '#' + (n >= 232 ? Array(3).fill(8 + (n - 232) * 10) : [L256[Math.floor((n - 16) / 36)], L256[Math.floor((n - 16) / 6) % 6], L256[(n - 16) % 6]]).map(two).join('');
+const triple = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(';');
+
+// Final review (1.4.1): a mark drawn on a fill (the pace tick) moved away from the terminal's background, not from the
+// fill under it, and fell below 3:1 on the fills of three colour sets.
+test('on a 256-colour terminal, a mark on a fill reads as well as in full colour', () => {
+  for (const [theme, mark, fill] of [['light', '#d8c9b2', '#a16207'], ['light', '#d0c2ac', '#8f5e15'], ['dark', '#5a3d3b', '#ff5555'],
+    ['light', '#cfc9ac', '#7d6f00'], ['light', '#e4c2be', '#d42e2e']]) {
+    const out = to256(`\x1b[48;2;${triple(fill)}m\x1b[38;2;${triple(mark)}m│\x1b[0m`, NEUTRAL[theme].bg);
+    const f = xhex(Number(/48;5;(\d+)m/.exec(out)[1])), m = xhex(Number(/38;5;(\d+)m/.exec(out)[1]));
+    assert.ok(contrast(m, f) >= Math.min(4.5, contrast(mark, fill)) - 0.005, `${theme} ${mark} on ${fill} became ${m} on ${f}, ${contrast(m, f).toFixed(2)}:1`);
+  }
+});
+
 // The nearest of the 256 colours could be lighter on a light terminal: Claude's red fell from 4.8:1 to 3.7:1 (audit, 1.4.1).
 test('on a 256-colour terminal, words read as well as in full colour (up to 4.5:1), on the background and on a fill', () => {
-  const L = [0, 95, 135, 175, 215, 255], two = (v) => v.toString(16).padStart(2, '0');
-  const hex = (n) => '#' + (n >= 232 ? Array(3).fill(8 + (n - 232) * 10) : [L[Math.floor((n - 16) / 36)], L[Math.floor((n - 16) / 6) % 6], L[(n - 16) % 6]]).map(two).join('');
-  const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(';');
-  const q = (layer, c, bgc) => hex(Number(/[34]8;5;(\d+)m/.exec(to256(`\x1b[${layer};2;${rgb(c)}m`, bgc))[1]));
+  const q = (layer, c, bgc) => xhex(Number(/[34]8;5;(\d+)m/.exec(to256(`\x1b[${layer};2;${triple(c)}m`, bgc))[1]));
   for (const theme of ['dark', 'light']) {
     const N = NEUTRAL[theme];
     for (const [id, p] of Object.entries(PRESETS)) for (const c of [...p[theme], N.text, N.sub, N.fable]) {

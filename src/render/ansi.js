@@ -80,20 +80,30 @@ function index256(rgb, away) {
 }
 
 // 38;2;r;g;b and 48;2;r;g;b can sit anywhere in one code (a badge may send bold and a colour together).
-// With the terminal's background (bg), words move away from it and a fill moves away from its ink (inkOn), so neither
-// reads worse than in full colour: the nearest of the 256 can be lighter on a light terminal (Claude's red fell to 3.7:1).
-export const to256 = (s, bg) => s.replace(/\x1b\[([0-9;]*)m/g, (_, ps) => {
-  const p = ps.split(';'), out = [];
-  for (let i = 0; i < p.length; i++) {
-    if ((p[i] === '38' || p[i] === '48') && p[i + 1] === '2') {
-      const rgb = p.slice(i + 2, i + 5).map((v) => Math.min(255, Math.max(0, +v || 0)));
-      while (rgb.length < 3) rgb.push(0);
-      const hex = '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
-      const away = !bg ? 0 : p[i] === '38' ? Math.sign(lumOf(rgb) - lum(bg)) : inkOn(hex) === '#ffffff' ? -1 : 1;
-      out.push(p[i], '5', index256(rgb, away)); i += 4;
+// With the terminal's background (bg), words move away from what they sit on (a fill drawn before them, else the
+// background) and a fill moves away from its ink (inkOn), so neither reads worse than in full colour: the nearest of
+// the 256 can be lighter on a light terminal (Claude's red fell to 3.7:1), and the pace tick fell below 3:1 on a fill.
+export const to256 = (s, bg) => {
+  const back = bg ? lum(bg) : 0;
+  let under = back; // shortcut: a fill sent in the same code after its words counts from the next code on
+  return s.replace(/\x1b\[([0-9;]*)m/g, (_, ps) => {
+    const p = ps.split(';'), out = [];
+    for (let i = 0; i < p.length; i++) {
+      if ((p[i] === '38' || p[i] === '48') && p[i + 1] === '2') {
+        const rgb = p.slice(i + 2, i + 5).map((v) => Math.min(255, Math.max(0, +v || 0)));
+        while (rgb.length < 3) rgb.push(0);
+        const hex = '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
+        const away = !bg ? 0 : p[i] === '38' ? Math.sign(lumOf(rgb) - under) : inkOn(hex) === '#ffffff' ? -1 : 1;
+        const n = index256(rgb, away);
+        if (bg && p[i] === '48') under = xterm()[n - 16].y;
+        out.push(p[i], '5', n); i += 4;
+      }
+      else if ((p[i] === '38' || p[i] === '48') && p[i + 1] === '5') { out.push(p[i], '5', p[i + 2]); i += 2; } // its colour number is not a code
+      else {
+        if (p[i] === '0' || p[i] === '' || p[i] === '49') under = back; // the fill ends
+        out.push(p[i]);
+      }
     }
-    else if ((p[i] === '38' || p[i] === '48') && p[i + 1] === '5') { out.push(p[i], '5', p[i + 2]); i += 2; } // its colour number is not a code
-    else out.push(p[i]);
-  }
-  return `${E}${out.join(';')}m`;
-});
+    return `${E}${out.join(';')}m`;
+  });
+};
