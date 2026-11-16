@@ -27,7 +27,7 @@ juice keeps your limits in sight while you work. It colours Session, Weekly and 
 - Amber with ! means you are going a bit fast. At this pace you will use most of it (85% or more) before it resets.
 - Red with !! means almost empty, or half or more used and on track to run out before it resets.
 - An amber or red battery that is on track to run out before it resets also says when, for example "runs out ~4:04 PM · resets in 2h 10m".
-- Fable has its own colour while it is fine, violet in most colour sets.
+- While it is fine, Fable is violet in most colour sets.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/colours-dark.png">
@@ -37,7 +37,7 @@ juice keeps your limits in sight while you work. It colours Session, Weekly and 
 ## Safe to try
 
 - Setup saves your old status line first, and `/juice restore` puts it back.
-- Only the Fable battery needs your Claude login, and juice asks before it reads it, unless you already had the Fable battery before 1.4.0 on Windows or Linux. If you say no, Session, Weekly and Memory still work, though a window you're not using can show older numbers.
+- Only the Fable battery needs your Claude login, and juice asks before it reads it, unless you already had the Fable battery before 1.4.0 on Windows or Linux. If you say no, Session, Weekly and Memory (how full this chat is) still work, though a window you're not using can show older numbers.
 - The only thing juice itself sends anywhere is a usage request to `api.anthropic.com`, and only while the Fable battery is on.
 
 [Privacy](docs/privacy.md) has the details, with links to the code that reads your login and sends it.
@@ -70,7 +70,7 @@ You need Node 24 or newer. To check, type `node --version` in a terminal; if you
    /juice setup
    ```
 
-If Claude Code still doesn't know `/juice`, restart it and type `/juice setup` again. Setup asks you one question, about the Fable battery (see [Safe to try](#safe-to-try)).
+If Claude Code still doesn't know `/juice`, restart it and type `/juice setup` again. Setup may ask you one question, about the Fable battery (see [Safe to try](#safe-to-try)).
 
 The very first time, the batteries fill in after Claude's first reply; until then only the model and effort level show. After that, a new chat shows Session and Weekly straight away, and Memory after the first reply.
 
