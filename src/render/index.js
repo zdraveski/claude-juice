@@ -14,7 +14,8 @@ export function render(data, settings, terminal) {
   // so the line says why it is short instead of looking broken. Only after something shown (empty or bad input
   // stays empty) and only when it fits: it is the least important part.
   const [first, ...rest] = text.split('\n'), add = '    ' + WAIT;
-  if (data.memoryUsed === null && !Object.keys(data.limits).length && vis(first) && vis(first) + vis(add) <= cols) {
+  const batteries = settings.show.some((id) => id !== 'model' && id !== 'effort');
+  if (batteries && data.memoryUsed === null && !Object.keys(data.limits).length && vis(first) && vis(first) + vis(add) <= cols) {
     text = [first + fg(ctx.P.sub, add), ...rest].join('\n');
   }
   const out = terminal.colorDepth === 'none' ? strip(text) : terminal.colorDepth === '256' ? to256(text) : text;

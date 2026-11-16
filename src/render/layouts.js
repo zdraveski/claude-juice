@@ -64,7 +64,7 @@ function items(data, ctx) {
     const i = make[id]();
     if (i && i.used >= 100) out.push(i);
   }
-  if (settings.order === 'urgent') out.sort(byNeed);
+  if (settings.order === 'urgent' || fit.urgentFirst) out.sort(byNeed);
   else if (settings.order === 'fullest') out.sort((a, b) => b.used - a.used);
   if (fit.onlyTrouble && out.length) {
     const bad = out.filter((i) => i.level !== 'ok');
@@ -135,7 +135,8 @@ export const LAYOUTS = {
 
   panel: (data, ctx) => {
     const picture = (i) => (ctx.fit.bare ? '' : batteryLow(ctx, i.used, paint(i), ctx.fit.small ? 8 : 14, i.assessed?.elapsed) + '  ');
-    const row = (i) => name(ctx, i, true) + ' '.repeat(Math.max(1, 13 - i.long.length)) + picture(i) + num(ctx, `${i.used}%`.padStart(4), i.level) + lbl(ctx, ' used ') + mark(ctx, i) + ' '.repeat(3 - MARK[i.level].length)
+    // In a pane too narrow for the columns, each row keeps just its name, number and warning.
+    const row = (i) => ctx.fit.noNotes ? name(ctx, i, true) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i) : name(ctx, i, true) + ' '.repeat(Math.max(1, 13 - i.long.length)) + picture(i) + num(ctx, `${i.used}%`.padStart(4), i.level) + lbl(ctx, ' used ') + mark(ctx, i) + ' '.repeat(3 - MARK[i.level].length)
       + (wants(ctx, i) ? say(ctx, i) : i.id === 'memory' && !ctx.fit.noNotes ? lbl(ctx, 'in this chat') : '');
     return [join([badges(data, ctx), head(data, ctx), cost(data, ctx)], lbl(ctx, '     ·     ')), ...items(data, ctx).map(row)].filter(Boolean).join('\n');
   },

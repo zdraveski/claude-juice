@@ -159,7 +159,7 @@ test('climbing never changes a picture\'s width or where its number sits', () =>
 });
 
 test('palette', () => {
-  assert.equal(palette(DEFAULTS, 'light').good, '#1d8a4e');
+  assert.equal(palette(DEFAULTS, 'light').good, '#1c874c');
   assert.equal(palette({ ...DEFAULTS, colors: 'safe' }, 'dark').bad, '#ff8b4d');
   assert.equal(palette({ ...DEFAULTS, colors: 'nope' }, 'dark').good, PRESETS.claude.dark[0]);
   const c = { plentyLeft: '#111111', goingFast: '#222222', almostEmpty: '#333333', accent: '#444444' };

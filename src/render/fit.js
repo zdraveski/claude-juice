@@ -59,7 +59,8 @@ export function fit(layoutFn, data, ctx, columns) {
   }
   const dropped = FIT_STEPS.filter(([flag]) => flags[flag] && draw(without(flags, flag)) !== text).map(([, label]) => label);
   if (widest(text) > columns) {
-    text = text.split('\n').map((ln) => (vis(ln) > columns ? cut(ln, wholeItems(ln, columns)) + '…' : ln)).join('\n');
+    // The cut keeps the start of the line, so the battery that blocks you first moves to the start.
+    text = draw({ ...flags, urgentFirst: true }).split('\n').map((ln) => (vis(ln) > columns ? cut(ln, wholeItems(ln, columns)) + '…' : ln)).join('\n');
     dropped.push('the end of the line');
   }
   return { text, dropped };

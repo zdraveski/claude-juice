@@ -53,3 +53,16 @@ test('strip removes bidi overrides and zero-width marks but keeps joiners for em
 test('strip removes the other invisible marks too: Arabic letter mark, word joiners, soft hyphen, tag characters', () => {
   assert.equal(strip('a؜b⁠c⁤d­e᠎f￹g\u{e0041}\u{e007f}h'), 'abcdefgh');
 });
+
+// A badge can colour itself with one combined code (bold and red together), which kept its 24-bit colour (1.4.0).
+test('to256 rewrites 24-bit colour wherever it sits in the code, and leaves 256-colour codes alone', () => {
+  assert.equal(to256('\x1b[1;38;2;255;0;0;48;2;0;0;255m'), '\x1b[1;38;5;196;48;5;21m');
+  assert.equal(to256('\x1b[38;5;38;1m'), '\x1b[38;5;38;1m');
+});
+
+// Terminals draw these two columns wide; counting them as one let a line overrun its width (1.4.0).
+test('the less common wide characters count as 2 columns too', () => {
+  for (const ch of ['\u2329', '\ufe10', '\ufe50', '\ua960', '\u{16fe0}', '\u{17000}', '\u{18b00}', '\u{1b000}', '\u{1f200}', '\u{1f260}']) {
+    assert.equal(vis(ch), 2, ch.codePointAt(0).toString(16));
+  }
+});

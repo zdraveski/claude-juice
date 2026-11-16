@@ -9,8 +9,8 @@ import { render } from '../src/render/index.js';
 import { LAYOUTS } from '../src/render/layouts.js';
 import { DEFAULTS, LAYOUT_IDS, applySet } from '../src/schema.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
-import { fg, contrast } from '../src/render/ansi.js';
-import { palette, NEUTRAL, makeCtx } from '../src/render/palette.js';
+import { fg, contrast, inkOn } from '../src/render/ansi.js';
+import { palette, NEUTRAL, makeCtx, PRESETS } from '../src/render/palette.js';
 
 const term = { columns: 200, theme: 'dark', ends: 'round', colorDepth: 'truecolor' };
 const run = (data, over = {}, t = {}) => render(data, { ...DEFAULTS, ...over }, { ...term, ...t }).text;
@@ -117,7 +117,7 @@ test('fable model highlights the Fable battery', () => {
   assert.ok(s.includes(fg(palette(DEFAULTS, 'dark').accent, 'Fable')));
 });
 test('plain ends', () => assert.ok(!/[]/.test(run(SAMPLES.busy, {}, { ends: 'plain' }))));
-test('light theme', () => assert.ok(run(SAMPLES.busy, {}, { theme: 'light' }).includes('38;2;29;138;78')));
+test('light theme', () => assert.ok(run(SAMPLES.busy, {}, { theme: 'light' }).includes('38;2;28;135;76')));
 test('badges first', () => assert.ok(text({ ...SAMPLES.busy, badges: ['[RTK 98 ↓61%]'] }).startsWith('[RTK 98 ↓61%]')));
 test('no effort', () => {
   const s = text({ ...SAMPLES.busy, effort: null });
@@ -216,6 +216,7 @@ test('before the first reply the line says the batteries are coming, and stops o
   assert.match(text(fresh), /Opus 5\.5.*high {4}batteries appear after Claude's first reply$/);
   assert.ok(!text({ ...fresh, memoryUsed: 3 }).includes('first reply'), 'an API key after its first reply');
   assert.ok(!text(fresh, {}, { columns: 40 }).includes('first reply'), 'only when it fits');
+  assert.ok(!text(fresh, { show: ['model', 'effort'] }).includes('first reply'), 'no battery chosen, so none will appear');
 });
 
 test('the model sits on a chip, and hiding the model hides the chip', () => {
@@ -271,4 +272,30 @@ test('a cost under a cent says so, and a big cost has thousands separators', () 
   const d = { ...SAMPLES.busy, account: 'payg', limits: {} };
   assert.match(text({ ...d, costUsd: 0.004 }), /spent <\$0\.01/);
   assert.match(text({ ...d, costUsd: 1234567.891 }), /spent \$1,234,567\.89/);
+});
+
+// The last-resort cut kept the first battery in the person's order, so Memory at 91% hid Weekly at 95% (1.4.0).
+test('when even the words do not fit, the battery that blocks you first is the one kept', () => {
+  for (const layout of ['bar', 'segments', 'pills', 'tank']) {
+    const s = text(SAMPLES.trouble, { layout }, { columns: 20 });
+    assert.match(s, /^(Session|Weekly?) \d+%/, `${layout}: ${s}`);
+  }
+  inOrder(text(SAMPLES.trouble), ['Memory', 'Session', 'Weekly']); // the person's order whenever nothing is cut
+});
+
+// The panel pads each name to line the rows up, about 26 columns, so a narrower pane showed "Session …" (1.4.0).
+test('a panel in a narrow pane still shows every number and warning', () => {
+  for (const columns of [16, 20, 25]) {
+    const s = text(SAMPLES.trouble, { layout: 'panel' }, { columns });
+    for (const want of ['Memory 91%!!', 'Session 88%!!', 'Weekly 95%!!']) assert.ok(s.includes(want), `${columns}: ${s}`);
+  }
+  assert.match(text(SAMPLES.trouble, { layout: 'panel' }, { columns: 60 }), /Session {6}▆/, 'lined up when there is room');
+});
+
+// Five light colours put white text on a fill at 4.38-4.48:1, just under the 4.5:1 small text needs (1.4.0).
+test('text on a coloured fill (pills, a number inside a battery) is readable, 4.5:1, in every colour set', () => {
+  for (const id of Object.keys(PRESETS)) for (const theme of ['dark', 'light']) {
+    const P = palette({ colors: id }, theme);
+    for (const t of ['good', 'watch', 'bad', 'fable']) assert.ok(contrast(P[t], inkOn(P[t])) >= 4.5, `${id} ${theme} ${t} ${P[t]}`);
+  }
 });

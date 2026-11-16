@@ -1,7 +1,7 @@
 // Colour escapes, width counting, cutting and 256-colour mapping. No node: imports.
 const E = '\x1b[';
 const SGR = /\x1b\[[0-9;]*m/g;
-const WIDE = /\p{Extended_Pictographic}|[\u1100-\u115F\u2E80-\u303E\u3040-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{20000}-\u{3FFFD}]/u;
+const WIDE = /\p{Extended_Pictographic}|[\u1100-\u115F\u2329\u232A\u2E80-\u303E\u3040-\uA4CF\uA960-\uA97C\uAC00-\uD7A3\uF900-\uFAFF\uFE10-\uFE19\uFE30-\uFE6B\uFF00-\uFF60\uFFE0-\uFFE6\u{16FE0}-\u{18DFF}\u{1AFF0}-\u{1B2FF}\u{1F200}-\u{1F265}\u{20000}-\u{3FFFD}]/u;
 
 const rgbOf = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 // a blended t of the way toward b (t 0..1), as #rrggbb.
@@ -51,4 +51,13 @@ function index256(r, g, b) {
   return dist([gv, gv, gv]) < dist(cube) ? 232 + grey : 16 + 36 * ri + 6 * gi + bi;
 }
 
-export const to256 = (s) => s.replace(/\x1b\[([34]8);2;(\d+);(\d+);(\d+)m/g, (_, k, r, g, b) => `${E}${k};5;${index256(+r, +g, +b)}m`);
+// 38;2;r;g;b and 48;2;r;g;b can sit anywhere in one code (a badge may send bold and a colour together).
+export const to256 = (s) => s.replace(/\x1b\[([0-9;]*)m/g, (_, ps) => {
+  const p = ps.split(';'), out = [];
+  for (let i = 0; i < p.length; i++) {
+    if ((p[i] === '38' || p[i] === '48') && p[i + 1] === '2') { out.push(p[i], '5', index256(+p[i + 2], +p[i + 3], +p[i + 4])); i += 4; }
+    else if ((p[i] === '38' || p[i] === '48') && p[i + 1] === '5') { out.push(p[i], '5', p[i + 2]); i += 2; } // its colour number is not a code
+    else out.push(p[i]);
+  }
+  return `${E}${out.join(';')}m`;
+});
