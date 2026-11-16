@@ -58,6 +58,18 @@ test('a broken run says where to look: dim, or plain without colour', async () =
   assert.equal(await drawBroken({ NO_COLOR: '1' }, brokenStdin()), 'juice: /juice doctor');
 });
 
+// Audit (1.4.1): the fallback printed the model name as it came, so a line break in it took a second row,
+// and a long one pushed the hint off the window.
+test('a broken run stays on one row inside the window, and a long name gives way to the hint', async () => {
+  assert.equal(await drawBroken({ NO_COLOR: '1' }, brokenStdin('Opus\n 5.5')), 'Opus 5.5 juice: /juice doctor');
+  const long = await drawBroken({ NO_COLOR: '1', COLUMNS: '40' }, brokenStdin('x'.repeat(100)));
+  assert.ok(strip(long).length <= 36, long);
+  assert.match(long, /^x+ juice: \/juice doctor$/);
+  const dimmed = await drawBroken({ COLUMNS: '40' }, brokenStdin('x'.repeat(100)));
+  assert.ok(strip(dimmed).length <= 36 && dimmed.endsWith('\x1b[2mjuice: /juice doctor\x1b[22m'), JSON.stringify(dimmed));
+  assert.ok(strip(await drawBroken({ COLUMNS: '12' }, brokenStdin('Opus'))).length <= 8);
+});
+
 test('a run that works shows no hint, even with empty stdin', async () => {
   const { run } = setup();
   for (const s of ['', '{}', 'not json', busy]) assert.doesNotMatch(strip(await run(s)), /juice doctor/);

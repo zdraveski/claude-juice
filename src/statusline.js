@@ -6,12 +6,12 @@ import { paths, hideHome } from './paths.js';
 import { readJson, takeLock, writeAtomic, writeJsonAtomic, removeOld, HOT_WRITE } from './cache.js';
 import { loadSettings } from './settings.js';
 import { fableEnabled } from './schema.js';
-import { detectTerminal, readClaudeTheme } from './terminal.js';
+import { detectTerminal, readClaudeTheme, columnsOf } from './terminal.js';
 import { remember } from './lastseen.js';
 import { normalize } from './data.js';
 import { fableCacheState, FABLE_LOCK_MS } from './readings.js';
 import { render } from './render/index.js';
-import { strip, dim } from './render/ansi.js';
+import { strip, dim, vis, cut } from './render/ansi.js';
 import { upgradeLauncher } from './launcher-file.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -74,8 +74,11 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     }, HOT_WRITE));
     // A bare model name looks like "no data yet", so say where to look; the next run that works drops it.
     // Plain under NO_COLOR (no-color.org: any non-empty value), as terminal.js reads it.
+    // One row inside the window, like the real line: the hint is what matters, so a long name gives way to it.
     const hint = env?.NO_COLOR ? 'juice: /juice doctor' : dim('juice: /juice doctor');
-    const name = typeof stdin?.model?.display_name === 'string' ? strip(stdin.model.display_name) : '';
-    return name ? `${name} ${hint}` : hint;
+    const cols = columnsOf(env), room = cols - vis(hint) - 1;
+    const name = typeof stdin?.model?.display_name === 'string' ? strip(stdin.model.display_name).replace(/\s+/g, ' ').trim() : '';
+    if (name && room > 0) return `${strip(cut(name, room))} ${hint}`;
+    return vis(hint) > cols ? strip(cut(hint, cols)) : hint;
   }
 }

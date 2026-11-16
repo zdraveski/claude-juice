@@ -18,10 +18,12 @@ function theme(setting, readTheme, env) {
   return 'dark';
 }
 
+// The columns a line may use: never wider than the window.
+export const columnsOf = (env) => { const cols = Number(env?.COLUMNS); return Math.max(1, (Number.isInteger(cols) && cols > 0 ? cols : 120) - RESERVE); };
+
 export function detectTerminal({ env, settings, claudeTheme }) {
-  const cols = Number(env.COLUMNS);
   return {
-    columns: Math.max(1, (Number.isInteger(cols) && cols > 0 ? cols : 120) - RESERVE), // never wider than the window
+    columns: columnsOf(env),
     theme: theme(settings.terminal, claudeTheme, env),
     ends: env.NO_COLOR ? 'plain' : ['round', 'plain'].includes(settings.ends) ? settings.ends : env.TERM_PROGRAM === 'vscode' ? 'round' : 'plain',
     // NO_COLOR (no-color.org): any non-empty value means no colour codes at all.
