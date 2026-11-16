@@ -35,7 +35,7 @@ If the request is `doctor`, or the person says the line is empty, wrong or not w
 
 If the request is empty (the user typed just `/juice`), run `JUICE get`, say in a line or two what is set, and offer to pick a look, open the customizer, or run setup.
 
-5. For anything else, run `JUICE get` to see the current settings. Turn the request into `key=value` pairs, run `JUICE set 'key=value' ...` with each pair in single quotes (custom colours contain `#`, which PowerShell would otherwise read as a comment), and report the `Changed:` line and any `Warning:` lines in plain words. Pass only these keys and values, never the user's own words:
+5. If the request starts with `set ` followed by `key=value` pairs (the line the customizer page copies), run `JUICE set 'key=value' ...` with those pairs unchanged, each in single quotes, without rewording them; then report as below. For anything else, run `JUICE get` to see the current settings. Turn the request into `key=value` pairs, run `JUICE set 'key=value' ...` with each pair in single quotes (custom colours contain `#`, which PowerShell would otherwise read as a comment), and report the `Changed:` line and any `Warning:` lines in plain words. Pass only these keys and values, never the user's own words:
    - layout: bar, segments, focus, panel, pills ("capsules"), tank ("fuel tank": shows what is left)
    - show: comma-separated, in order, from model,effort,memory,session,fable,week,budget
    - order (of the batteries): yours (the order in show, the default, also "keep my order"), urgent ("the one that needs me first"), fullest ("the most used first")

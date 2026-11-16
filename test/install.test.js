@@ -57,7 +57,7 @@ test('installed from the plugin store and turned off in /plugin, the launcher sa
 test('launcher works through a junction or symlink', (t) => {
   const { d } = installed();
   const link = join(tmp(), 'link');
-  try { symlinkSync(d, link, 'junction'); } catch { return t.skip('cannot create a link here'); }
+  try { symlinkSync(d, link, 'junction'); } catch (e) { if (process.env.CI) throw e; return t.skip('cannot create a link here'); } // on CI a missing link would hide the very thing tested
   const r = node([join(link, 'juice-statusline.mjs')], d, busyText);
   assert.equal(r.status, 0);
   assert.match(r.stdout, /Session/);
@@ -86,7 +86,7 @@ test('a broken juice folder gives the doctor hint, not a blank line', () => {
 test('setup and restore write through a symlinked settings.json', (t) => {
   const d = tmp(), real = join(tmp(), 'real.json');
   writeFileSync(real, JSON.stringify({ theme: 'dark', statusLine: { type: 'command', command: 'old' } }));
-  try { symlinkSync(real, join(d, 'settings.json'), 'file'); } catch { return t.skip('cannot create a symlink here'); }
+  try { symlinkSync(real, join(d, 'settings.json'), 'file'); } catch (e) { if (process.env.CI) throw e; return t.skip('cannot create a symlink here'); }
   const p = paths({ CLAUDE_CONFIG_DIR: d });
   install(p, { pluginRoot: ROOT.replaceAll('\\', '/') });
   assert.ok(lstatSync(join(d, 'settings.json')).isSymbolicLink());
