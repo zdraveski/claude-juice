@@ -8,22 +8,21 @@ To update, type `/plugin`, update juice, then restart Claude Code.
 
 Changed:
 - juice starts about 20 ms faster on each refresh, and the cost now draws in a few milliseconds instead of about 40.
-- In a narrow window, a red battery first drops the reset time beside its run-out time, so it reads `Session 93% !! runs out ~2:33 PM` rather than `93%!! out`.
+- In a narrow window, a red battery first drops the reset time beside its run-out time, so it reads `Session 93% !! runs out ~2:33 PM` rather than `Session 93%!! out ~2:33 PM`.
 - When your Claude login has expired, juice no longer sends it. Claude Code renews it on your next message, and juice looks again 5 minutes later.
 - `/juice doctor` says why the last Fable check failed: the login was refused, it had expired, Anthropic was busy, the login changed, or you were offline. Only a refused login gets "type /login".
 
 Fixed:
-- If you said no to the Fable battery, a mistyped or broken `juice.json` (a trailing comma, `"Off"`, a locked file) no longer turns the login read back on.
+- If you said no to the Fable battery, a mistyped or broken `juice.json` (a trailing comma, `"Off"`, a locked file) no longer turns the login read back on. The Fable battery stays off until the file is fixed.
 - On a Mac, the Keychain question now waits 25 seconds for your answer instead of closing after 3. juice also reads a Keychain login macOS prints as hex, and finds the login in `.credentials.json` when the Keychain has none.
 - Windows PowerShell 5.1 could pipe in a hidden mark (a BOM) that left the line blank.
 - A saved reset time could be read 1000 times too far away, so it never ended.
-- `/juice badges list` and `remove` hide the whole value of a key typed before a command, however it is quoted.
-- Adding a badge that is already there adds no second copy. A badge copied over in `juice.json` from another computer is approved where it stands when you add it again. `/juice badges list` now says to do that, instead of removing it first.
+- `/juice badges list` and `remove` hide the whole value of a key typed before a command, however it is quoted, including `$(...)`.
+- Adding a badge that is already there adds no second copy. A badge copied over in `juice.json` from another computer is approved where it stands when you add it again. `/juice badges list` now says to do that, instead of removing it first, and marks a copy 1.4.0 left beside an approved badge so you can remove it.
 - A program a badge leaves running in the background is stopped (Linux and macOS). The project folder and chat path handed to badges are deleted once read.
 - A `juice.json` that holds something other than settings, like `[]`, is left alone instead of replaced by `/juice set`.
 - `/juice setup` takes your status line as unchanged when only the order of its settings differs, and names the copy it sets aside. `/juice set` takes names in any case.
 - In a pane under 26 columns, a panel shows `Session 88%!!` instead of `Session …`. When only one battery fits, it is the one that blocks you first, not the first in your order.
-- An amber Fable battery that resets with Weekly says the reset time when Weekly has no room to.
 - The "batteries appear after Claude's first reply" hint no longer shows when no battery is chosen.
 - Four light colour sets (Claude, Calm, Vampire, Forest) now reach 4.5:1 contrast for white text on a fill.
 - More wide characters (Tangut, Kana supplement, small form variants) count as two columns, so the line doesn't spill.

@@ -828,8 +828,8 @@ test('badges list hides a key set in front of the command, and remove never show
 
 test('badges list hides all of a key, however its value is quoted or escaped', async () => {
   const d = env();
-  for (const c of ['TOKEN="sk-ant"rest gh', 'TOKEN=sk\\ ant gh', "TOKEN=$'sk ant' gh", 'TOKEN=sk-"a b" gh']) await run(d, ['badges', 'add', c, '--yes']);
-  assert.equal((await run(d, ['badges', 'list'])).out, '1. TOKEN=… gh\n2. TOKEN=… gh\n3. TOKEN=… gh\n4. TOKEN=… gh');
+  for (const c of ['TOKEN="sk-ant"rest gh', 'TOKEN=sk\\ ant gh', "TOKEN=$'sk ant' gh", 'TOKEN=sk-"a b" gh', 'TOKEN=$(echo sk-ant-xyz) gh', 'TOKEN=`echo sk-ant` gh']) await run(d, ['badges', 'add', c, '--yes']);
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. TOKEN=… gh\n2. TOKEN=… gh\n3. TOKEN=… gh\n4. TOKEN=… gh\n5. TOKEN=… gh\n6. TOKEN=… gh');
 });
 
 test('adding a badge that is already there adds no second copy', async () => {
@@ -846,11 +846,24 @@ test('adding a badge that is there but not approved asks, then approves it witho
   const d = env();
   writeFileSync(join(d, 'juice.json'), JSON.stringify({ badges: [{ command: 'uptime' }, { command: 'echo b' }] }));
   assert.equal((await run(d, ['badges', 'add', 'uptime'])).code, 2);
-  assert.equal((await run(d, ['badges', 'add', 'uptime', '--yes'])).code, 0);
+  assert.match((await run(d, ['badges', 'add', 'uptime', '--yes'])).out, /^Approved badge: uptime$/m);
   const lines = (await run(d, ['badges', 'list'])).out.split('\n');
   assert.equal(lines[0], '1. uptime');
   assert.match(lines[1], /^2\. echo … \(not approved/);
   assert.equal(lines.length, 2);
+});
+
+// juice 1.4.0 added a second copy instead of approving the first, so a copied badge added again can sit beside its
+// approved twin. Adding it once more changes nothing, so the list must say to remove the copy instead.
+test('badges list says to remove a copy that never runs when the same badge is approved', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'uptime', '--yes']);
+  const f = join(d, 'juice.json'), saved = JSON.parse(readFileSync(f, 'utf8'));
+  writeFileSync(f, JSON.stringify({ ...saved, badges: [{ command: 'uptime' }, ...saved.badges] }));
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. uptime (a copy of badge 2 that never runs: remove it)\n2. uptime');
+  assert.match((await run(d, ['badges', 'add', 'uptime', '--yes'])).out, /already there, as badge 2/);
+  await run(d, ['badges', 'remove', '1', '--yes']);
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. uptime');
 });
 
 test('an unreadable juice.json is never overwritten with defaults', async () => {
