@@ -220,10 +220,12 @@ addEventListener('pagehide', flush);
 let toastTimer;
 const toast = (t) => { $('toast').textContent = t; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').textContent = ''; }, 4000); };
 const say = (t) => { $('say').textContent = t; };
-// The button itself says Copied for a moment, where the eye already is.
+// The button itself says Copied for a moment, where the eye already is. It keeps its width meanwhile, so a second
+// tap lands on it again and not on the button that slid in beside it (Reset, next to Copy link).
 const done = (b) => {
+  b.style.minWidth = `${b.offsetWidth}px`;
   b.dataset.label ??= b.textContent; b.textContent = 'Copied'; b.dataset.done = '';
-  clearTimeout(b.timer); b.timer = setTimeout(() => { b.textContent = b.dataset.label; delete b.dataset.done; }, 1600);
+  clearTimeout(b.timer); b.timer = setTimeout(() => { b.textContent = b.dataset.label; delete b.dataset.done; b.style.minWidth = ''; }, 1600);
 };
 const copy = (t, ok, b) => (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { toast(ok); done(b); }, () => toast('Couldn’t copy automatically. Select the text and copy it.'));
 function move(k, dir) {
@@ -308,6 +310,10 @@ $('show').addEventListener('dragend', () => { dragged = null; document.querySele
 const popts = $('popts');
 const fold = () => { popts.open = !phone.matches; };
 phone.addEventListener('change', fold); fold();
+
+// The skip link moves focus itself: following its #opts would change the address, and a new address re-reads the
+// settings from it, throwing away what the person just picked.
+document.querySelector('.skip').addEventListener('click', (e) => { e.preventDefault(); $('opts').focus(); });
 
 // The sticky preview would hide whatever a link or the skip link scrolls to, so scrolling leaves room for it.
 new ResizeObserver(() => {

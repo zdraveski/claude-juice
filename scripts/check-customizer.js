@@ -210,10 +210,74 @@ test('on a phone every control is at least 44 px to tap', async () => {
   const small = await page.evaluate(() => [...document.querySelectorAll('button,select,input,summary')]
     .filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden')
     .map((e) => {
-      const b = e.getBoundingClientRect(), extra = e.classList.contains('sw') ? 14 : 0; // the switch's invisible margin
-      return Math.min(b.height + extra, b.width) < 44 ? `${e.className || e.tagName} ${Math.round(b.width)}x${Math.round(b.height)}` : '';
+      const b = e.getBoundingClientRect();
+      let h = b.height;
+      if (e.classList.contains('sw')) { // a switch is drawn thinner than it taps: measure what a tap above and below it hits
+        e.scrollIntoView({ block: 'center', behavior: 'instant' });
+        const r = e.getBoundingClientRect(), x = r.left + r.width / 2, hit = (y) => document.elementFromPoint(x, y)?.closest('.sw') === e;
+        let up = 0, down = 0;
+        while (up < 30 && hit(r.top - up - 1)) up++;
+        while (down < 30 && hit(r.bottom + down)) down++;
+        h = r.height + up + down;
+      }
+      return Math.min(h, b.width) < 44 ? `${e.className || e.tagName} ${Math.round(b.width)}x${Math.round(h)}` : '';
     }).filter(Boolean));
   assert.deepEqual([...new Set(small)], []);
+});
+
+// Site review (1.4.1): the skip link moved focus by changing the address, and a new address re-reads the settings from it.
+test('the skip link moves to the options and keeps every setting and the history', async () => {
+  const { page } = await open();
+  const r = await page.evaluate(async () => {
+    document.querySelector('[data-look=nightowl]').click();
+    document.querySelector('[data-layout=tank]').click(); // within 200 ms, so its address is still waiting to be written
+    const before = document.querySelector('#cmd').textContent, h = history.length;
+    document.querySelector('.skip').click();
+    await new Promise((res) => setTimeout(res, 400));
+    return { before, after: document.querySelector('#cmd').textContent, grew: history.length - h, focus: document.activeElement.id, hash: location.hash.slice(0, 3) };
+  });
+  assert.equal(r.after, r.before);
+  assert.deepEqual([r.grew, r.focus, r.hash], [0, 'opts', '#c=']);
+});
+
+// Site review (1.4.1): on a phone "Copied" shortened the button and Reset slid under a second tap, wiping the settings.
+test('tapping Copy link twice never lands on Reset', async () => {
+  for (const width of [360, 390, 430, 520]) for (const where of ['middle', 'end']) {
+    const { page } = await open(width);
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
+    await page.click('[data-look=nightowl]');
+    const want = await cmd(page);
+    await page.locator('#link').scrollIntoViewIfNeeded();
+    const b = await page.locator('#link').boundingBox(), x = where === 'end' ? b.x + b.width - 6 : b.x + b.width / 2, y = b.y + b.height / 2;
+    await page.mouse.click(x, y);
+    await page.waitForTimeout(150);
+    await page.mouse.click(x, y);
+    assert.equal(await cmd(page), want, `${width} px, ${where}`);
+    await page.context().close();
+  }
+});
+
+// Site review (1.4.1): in forced colours the chosen Plan, Window, Terminal and Situation buttons lost their outline.
+test('in forced colours every chosen button still shows it is chosen', async () => {
+  const { page } = await open();
+  await page.emulateMedia({ forcedColors: 'active' });
+  const plain = await page.evaluate(() => [...document.querySelectorAll('[aria-pressed=true]')]
+    .filter((e) => e.getClientRects().length && getComputedStyle(e).outlineStyle === 'none')
+    .map((e) => e.textContent.trim().slice(0, 24)));
+  assert.deepEqual(plain, []);
+});
+
+// Site review (1.4.1): the preview scrolls, so the keyboard stops on it, and the fade at its end hid the focus ring.
+test('the keyboard reaches the preview and sees its focus ring', async () => {
+  const { page } = await open(390);
+  let id = '';
+  for (let i = 0; i < 40 && id !== 'out'; i++) { await page.keyboard.press('Tab'); id = await page.evaluate(() => document.activeElement.id); }
+  assert.equal(id, 'out');
+  const s = await page.evaluate(() => {
+    const o = document.getElementById('out'), c = getComputedStyle(o);
+    return { more: o.classList.contains('more'), mask: c.maskImage, ring: c.outlineStyle };
+  });
+  assert.deepEqual(s, { more: true, mask: 'none', ring: 'solid' });
 });
 
 // Safari throws after 100 address changes in 10 s, and dragging a colour picker sends dozens a second.
