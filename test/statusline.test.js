@@ -33,6 +33,11 @@ test('empty and bad stdin never throw', async () => {
   assert.equal(await run('{bad'), '');
 });
 
+test('stdin that starts with a BOM still draws', async () => {
+  const { run } = setup();
+  assert.match(strip(await run('﻿' + busy)), /Session/);
+});
+
 test('model name alone renders', async () => {
   const { run } = setup();
   assert.match(strip(await run('{"model":{"display_name":"Opus 5.5"}}')), /Opus 5\.5/);

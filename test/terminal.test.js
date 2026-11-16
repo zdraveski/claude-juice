@@ -162,6 +162,14 @@ test('a stamp from the future is rewritten, not kept', () => {
   assert.equal(recall(p).subscriberSeenAt, at(60).getTime());
 });
 
+test('reset times sent in milliseconds count like seconds, so a window that ended still ends', () => {
+  const p = tmpPaths();
+  const reading = (session_id, used, resets_at) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at } } });
+  remember(reading('a', 80, NOW.getTime() + 60000), p, NOW); // this window ends a minute from now
+  remember(reading('b', 5, NOW.getTime() + 18000000), p, at(120)); // a new chat, once it has ended
+  assert.equal(recall(p).fiveHour.used, 5);
+});
+
 test('remember never throws; recall of corrupt file is null', () => {
   const p = tmpPaths();
   writeFileSync(join(p.config, 'juice-cache'), 'a file where the dir should be');

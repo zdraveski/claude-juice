@@ -30,8 +30,9 @@ export function remember(stdin, p, now) {
     const sig = JSON.stringify([seenFive ?? null, seenSeven ?? null]);
     const sessions = isObj(old?.sessions) ? { ...old.sessions } : {};
     const known = Object.hasOwn(sessions, sid), news = known && sessions[sid] !== sig;
-    // The file keeps reset times in seconds; readings.js takes milliseconds. `saved` is the file's own entry.
-    const ms = (w) => w && { used: w.used, resetsAt: w.resetsAt * 1000, saved: w };
+    // The file keeps reset times as sent, in seconds; readings.js takes milliseconds. Above 1e11 it already is
+    // milliseconds, as data.js reads it. `saved` is the file's own entry.
+    const ms = (w) => w && { used: w.used, resetsAt: w.resetsAt > 1e11 ? w.resetsAt : w.resetsAt * 1000, saved: w };
     const keep = (kept, seen) => toSave(ms(kept), ms(seen), { known, news }, now)?.saved;
     const fiveHour = keep(valid(old?.fiveHour), seenFive);
     const sevenDay = keep(valid(old?.sevenDay), seenSeven);

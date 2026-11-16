@@ -349,6 +349,21 @@ test('a settings.json juice cannot read is never replaced', { skip: process.plat
   assert.equal(readFileSync(f, 'utf8'), mine);
 });
 
+// Temp files are otherwise swept only by the Fable and badge refreshers, which many people never run.
+test('the once-per-update refresh sweeps temp files a killed refresh left behind', async () => {
+  const d = env();
+  await run(d, ['setup']);
+  const { runStatusLine } = await import('../src/statusline.js');
+  const old = new Date('2020-01-01'), cache = join(d, 'juice-cache');
+  mkdirSync(cache, { recursive: true });
+  const stale = join(cache, 'lastseen.json.1.a.tmp'), fresh = join(cache, 'lastseen.json.2.b.tmp');
+  writeFileSync(stale, ''); utimesSync(stale, old, old); writeFileSync(fresh, '');
+  utimesSync(join(d, 'juice-statusline.mjs'), old, old);
+  await runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
+  assert.equal(existsSync(stale), false);
+  assert.equal(existsSync(fresh), true, 'one another window may be writing right now stays');
+});
+
 test('a refresh brings an old or outdated launcher up to date, and leaves a removed one removed', async () => {
   const d = env();
   await run(d, ['setup']);

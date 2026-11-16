@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, chmodSync } from 'node:fs';
 import { paths, hideHome } from './paths.js';
-import { readJson, takeLock, writeAtomic, writeJsonAtomic, HOT_WRITE } from './cache.js';
+import { readJson, takeLock, writeAtomic, writeJsonAtomic, removeOld, HOT_WRITE } from './cache.js';
 import { loadSettings } from './settings.js';
 import { fableEnabled } from './schema.js';
 import { detectTerminal, readClaudeTheme } from './terminal.js';
@@ -16,7 +16,7 @@ import { upgradeLauncher } from './launcher-file.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-const parse = (text) => { try { return JSON.parse(text); } catch { return null; } };
+const parse = (text) => { try { return JSON.parse(text.replace(/^﻿/, '')); } catch { return null; } }; // a BOM: PowerShell 5.1 pipes one in
 const quiet = (fn) => { try { fn(); } catch {} };
 
 export async function runStatusLine({ stdinText, env, now, platform, spawnDetached }) {
@@ -59,6 +59,8 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     // Folders made before 1.4.0 kept the default permissions, so they are made private here too.
     if (upgradeLauncher(p, ROOT)) {
       if (platform !== 'win32') for (const d of [p.cacheDir, join(p.cacheDir, 'badges')]) quiet(() => chmodSync(d, 0o700));
+      // Temp files a killed refresh left: the Fable and badge refreshers sweep them too, but not everyone runs those.
+      quiet(() => removeOld(p.cacheDir, (f) => f.endsWith('.tmp'), 3600000));
       try { (await import('./setup.js')).matchRefresh(p, { platform, write: HOT_WRITE }); } catch {}
     }
     return text;
