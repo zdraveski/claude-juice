@@ -2,77 +2,109 @@
 // home whose name has a space, an apostrophe, an accent and an ampersand, with CLAUDE_CONFIG_DIR unset, then runs
 // the exact settings.json command through bash (the shell Claude Code uses, Git Bash on Windows) and, on macOS and
 // Linux, through sh with a bare PATH (Claude Code started from a desktop app). Also runs /juice doctor, and on macOS
-// and Linux checks the line survives uninstalling the Node it was set up with. Never touches the real ~/.claude.
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, realpathSync, readdirSync, copyFileSync, statSync, symlinkSync, rmSync } from 'node:fs';
+// and Linux checks the line survives uninstalling the Node it was set up with. Then walks what a new user meets, each
+// in a home of its own: a first setup with no status line, every command, a project that sets its own line, a broken
+// install, and an update from an older juice. Never touches the real ~/.claude, and never draws the line while the
+// Fable battery is on (that would read the login).
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, realpathSync, readdirSync, copyFileSync, statSync, symlinkSync, rmSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, parse } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const { version } = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8'));
-// The temp folder by its full name, as a real home folder always is (C:\Users\Zoë, not RUNNER~1).
-const home = join(mkdtempSync(join(realpathSync.native(tmpdir()), 'juice-e2e-')), "Zoë O'Brien & Co (1)");
-const config = join(home, '.claude');
-const market = join(config, 'plugins', 'cache', 'juice', 'juice');
-const plugin = join(market, version);
+const V = version.replaceAll('.', '\\.');
 // Copied file by file: Node 22's fs.cpSync on Windows mangled this folder name, so the copy landed elsewhere
 // (juice itself never copies files, so users can't hit that).
 const copy = (from, to) => {
   if (statSync(from).isDirectory()) { mkdirSync(to, { recursive: true }); for (const f of readdirSync(from)) copy(join(from, f), join(to, f)); }
   else copyFileSync(from, to);
 };
-mkdirSync(plugin, { recursive: true });
-for (const f of ['bin', 'src', 'package.json', '.claude-plugin']) copy(join(repo, f), join(plugin, f));
-assert.ok(existsSync(join(plugin, 'bin', 'juice.js')), `the copied plugin is missing at ${plugin}`);
+const plugin = (to) => { for (const f of ['bin', 'src', 'package.json', '.claude-plugin']) copy(join(repo, f), join(to, f)); };
+// A fresh home with juice in Claude Code's plugin store, as <version>. The temp folder by its full name, as a real
+// home folder always is (C:\Users\Zoë, not RUNNER~1).
+const install = (name, v = version) => {
+  const home = join(mkdtempSync(join(realpathSync.native(tmpdir()), 'juice-e2e-')), name);
+  const config = join(home, '.claude'), market = join(config, 'plugins', 'cache', 'juice', 'juice');
+  const x = { home, config, market, plugin: join(market, v), settings: join(config, 'settings.json'), launcher: join(config, 'juice-statusline.mjs'), env: { ...process.env, HOME: home, USERPROFILE: home } };
+  delete x.env.CLAUDE_CONFIG_DIR;
+  plugin(x.plugin);
+  assert.ok(existsSync(join(x.plugin, 'bin', 'juice.js')), `the copied plugin is missing at ${x.plugin}`);
+  return x;
+};
+// A juice command, run from the top of the drive by default: the project-settings scan walks up from the working folder,
+// and on Windows the temp folder sits inside the real home. One that exits other than `code` fails with what juice said.
+const juiceIn = (x, args, { code = 0, cwd = parse(x.home).root } = {}) => {
+  const r = spawnSync(process.execPath, [join(x.plugin, 'bin', 'juice.js'), ...args], { env: x.env, cwd, encoding: 'utf8' });
+  assert.equal(r.status, code, `juice ${args.join(' ')} exited ${r.status}, not ${code}\nstdout: ${r.stdout}\nstderr: ${r.stderr}${r.error ? `\nerror: ${r.error.message}` : ''}`);
+  return r;
+};
+const lines = (r) => r.stdout.trimEnd().split(/\r?\n/);
+const S = (x) => JSON.parse(readFileSync(x.settings, 'utf8'));
+
+const now = Math.floor(Date.now() / 1000);
+const stdin = readFileSync(join(repo, 'test', 'fixtures', 'busy.json'), 'utf8').replace(/"now\+(-?\d+)"/g, (_, n) => String(now + Number(n)));
+// The line as Claude Code runs it: settings.json's command through bash.
+const draw = (x, input = stdin) => {
+  const r = spawnSync('bash', ['-c', S(x).statusLine.command], { env: x.env, input, encoding: 'utf8', timeout: 20000 });
+  assert.equal(r.status, 0, `the line exited ${r.status}: ${r.stderr}`);
+  assert.equal(r.stderr, '', `the line wrote to stderr: ${r.stderr}`);
+  return r.stdout.replace(/\x1b\[[0-9;]*m/g, ''); // colour codes sit between the digits of a percentage
+};
+const lineOk = (x, label, want = [/Session/, /Weekly/]) => {
+  const out = draw(x);
+  for (const w of want) assert.match(out, w, `${label}: ${out}`);
+  assert.doesNotMatch(out, /juice:/, `${label}: ${out}`);
+  return out;
+};
+
+const main = install("Zoë O'Brien & Co (1)");
+const { home, config, market, env } = main;
+const juice = (...args) => juiceIn(main, args);
 // A newer copy Claude Code marked as replaced must never run.
 mkdirSync(join(market, '99.0.0', 'bin'), { recursive: true });
 writeFileSync(join(market, '99.0.0', 'bin', 'juice-statusline.js'), 'console.log("ORPHAN")');
 writeFileSync(join(market, '99.0.0', '.orphaned_at'), '1');
-writeFileSync(join(config, 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'echo old' } }));
+writeFileSync(main.settings, JSON.stringify({ statusLine: { type: 'command', command: 'echo old' } }));
 
-const env = { ...process.env, HOME: home, USERPROFILE: home };
-delete env.CLAUDE_CONFIG_DIR;
-// A step that fails prints what juice said, so a CI failure explains itself.
-const juice = (...args) => {
-  const r = spawnSync(process.execPath, [join(plugin, 'bin', 'juice.js'), ...args], { env, encoding: 'utf8' });
-  if (r.status !== 0) console.error(`juice ${args[0]} exited ${r.status}\nstdout: ${r.stdout}\nstderr: ${r.stderr}${r.error ? `\nerror: ${r.error.message}` : ''}`);
-  return r;
-};
-
-assert.equal(juice('setup').status, 0, 'setup');
-const command = JSON.parse(readFileSync(join(config, 'settings.json'), 'utf8')).statusLine.command;
-const now = Math.floor(Date.now() / 1000);
-const stdin = readFileSync(join(repo, 'test', 'fixtures', 'busy.json'), 'utf8').replace(/"now\+(-?\d+)"/g, (_, n) => String(now + Number(n)));
+const setup = juice('setup').stdout;
+assert.match(setup, /^Saved your current status line so you can get it back\.$/m, setup);
+assert.match(setup, /^juice is now your status line\./m, setup);
+assert.equal(JSON.parse(readFileSync(join(config, 'juice-backup.json'), 'utf8')).statusLine.command, 'echo old');
+const command = S(main).statusLine.command;
 const check = (label, file, args, e) => {
   const r = spawnSync(file, args, { env: e, input: stdin, encoding: 'utf8', timeout: 20000 });
   assert.equal(r.status, 0, `${label}: exit ${r.status} ${r.stderr}`);
-  assert.match(r.stdout, /Session/, `${label}: ${r.stdout}`);
+  for (const w of [/Opus 5\.5/, /Memory/, /Session/, /Weekly/]) assert.match(r.stdout, w, `${label}: ${r.stdout}`);
+  assert.doesNotMatch(r.stdout, /juice:/, `${label}: ${r.stdout}`);
   assert.equal(r.stderr, '', label);
   console.log(`ok ${label}`);
 };
 check('bash -c, as Claude Code runs it', 'bash', ['-c', command], env);
 if (process.platform !== 'win32') check('sh -c with a bare PATH', '/bin/sh', ['-c', command], { HOME: home, PATH: '/usr/bin:/bin' });
 
-// /juice doctor sees the install as it is: juice is the line, from the plugin store, and drawing works.
-const doctor = juice('doctor');
-assert.equal(doctor.status, 0, 'doctor');
-assert.match(doctor.stdout, /^✓ juice is your status line, refreshing once a minute$/m, doctor.stdout);
-assert.match(doctor.stdout, new RegExp(`^✓ The status line runs juice ${version.replaceAll('.', '\\.')}$`, 'm'), doctor.stdout);
-assert.match(doctor.stdout, /^✓ Drawing works/m, doctor.stdout);
-if (process.platform === 'darwin') assert.match(doctor.stdout, /Fable battery: off on a Mac until you type/, doctor.stdout);
+// /juice doctor sees the install as it is: juice is the line, from the plugin store, and drawing works. People paste
+// it into bug reports, so it names no folder or command of theirs.
+const doctor = juice('doctor').stdout;
+assert.match(doctor, /^✓ juice is your status line, refreshing once a minute$/m, doctor);
+assert.match(doctor, new RegExp(`^✓ The status line runs juice ${V}$`, 'm'), doctor);
+assert.match(doctor, /^✓ Drawing works/m, doctor);
+assert.match(doctor, process.platform === 'darwin' ? /^· Fable battery: off on a Mac until you type/m : /^· Fable battery: off until you turn it on with \/juice set fable=on/m, doctor);
+assert.match(doctor, /^Everything looks fine\.$/m, doctor);
+assert.doesNotMatch(doctor, /Zoë|O'Brien|echo old|juice-e2e-/, doctor);
 console.log('ok doctor');
 
 // A hung badge is killed with its child after 2 s, and the refresher itself exits.
 const pidFile = join(home, 'grandchild.pid');
 writeFileSync(join(home, 'grand.cjs'), `require('fs').writeFileSync(process.argv[2], String(process.pid)); setTimeout(() => {}, 30000);`);
 writeFileSync(join(home, 'mid.cjs'), `require('child_process').spawnSync(process.execPath, [__dirname + '/grand.cjs', process.argv[2]], { stdio: 'inherit' });`);
-assert.equal(juice('badges', 'add', `node "${join(home, 'mid.cjs')}" "${pidFile}"`, '--yes').status, 0, 'badges add');
+assert.match(juice('badges', 'add', `node "${join(home, 'mid.cjs')}" "${pidFile}"`, '--yes').stdout, /^Added badge: node /m);
 mkdirSync(join(config, 'juice-cache', 'badges'), { recursive: true });
 writeFileSync(join(config, 'juice-cache', 'badges', '0123456789abcdef.stdin.json'), stdin);
 const t0 = Date.now();
-assert.equal(juice('refresh-badges', '0123456789abcdef').status, 0, 'refresh-badges');
+juice('refresh-badges', '0123456789abcdef');
 assert.ok(Date.now() - t0 < 8000, `refresher took ${Date.now() - t0} ms`);
 await new Promise((r) => setTimeout(r, 1000));
 assert.ok(existsSync(pidFile), 'the badge command ran');
@@ -84,8 +116,8 @@ console.log('ok hung badge killed with its child');
 
 // The installed line itself starts the real detached refresher: with one badge, the badge cache file appears within
 // a few seconds, and the line comes back at once instead of waiting for the refresher.
-assert.equal(juice('badges', 'remove', '1', '--yes').status, 0, 'badges remove');
-assert.equal(juice('badges', 'add', `node -e "process.stdout.write('E2EBADGE')"`, '--yes').status, 0, 'badges add');
+assert.match(juice('badges', 'remove', '1', '--yes').stdout, /^Removed badge: node /m);
+juice('badges', 'add', `node -e "process.stdout.write('E2EBADGE')"`, '--yes');
 const badgeDir = join(config, 'juice-cache', 'badges');
 const tLine = Date.now();
 check('the line with a badge, as Claude Code runs it', 'bash', ['-c', command], env);
@@ -94,10 +126,12 @@ const written = () => (existsSync(badgeDir) ? readdirSync(badgeDir) : []).filter
 for (let i = 0; i < 100 && !written().length; i++) await new Promise((r) => setTimeout(r, 100));
 assert.ok(written().length, 'the status line never started the badge refresher: no badge cache file appeared');
 assert.match(readFileSync(join(badgeDir, written()[0]), 'utf8'), /E2EBADGE/);
+assert.doesNotMatch(juice('doctor').stdout, /E2EBADGE|mid\.cjs/, 'doctor shows a badge command');
 console.log('ok the line starts the detached badge refresher');
 
-assert.equal(juice('restore').status, 0, 'restore');
-assert.equal(JSON.parse(readFileSync(join(config, 'settings.json'), 'utf8')).statusLine.command, 'echo old');
+assert.match(juice('restore').stdout, /^Your old status line is back\.$/m);
+assert.equal(S(main).statusLine.command, 'echo old');
+for (const f of ['juice-backup.json', 'juice-statusline.mjs']) assert.ok(!existsSync(join(config, f)), `restore left ${f}`);
 console.log('ok restore');
 
 // A Node upgrade (nvm install 24, nvm uninstall the old one): setup pinned the old Node's folder in front of PATH,
@@ -106,9 +140,9 @@ if (process.platform !== 'win32') {
   const old = join(home, 'old-node', 'bin');
   mkdirSync(old, { recursive: true });
   symlinkSync(process.execPath, join(old, 'node'));
-  const r = spawnSync(process.execPath, [join(plugin, 'bin', 'juice.js'), 'setup'], { env: { ...env, PATH: `${old}:${process.env.PATH}` }, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [join(main.plugin, 'bin', 'juice.js'), 'setup'], { env: { ...env, PATH: `${old}:${process.env.PATH}` }, encoding: 'utf8' });
   assert.equal(r.status, 0, `setup with the old Node: ${r.stderr}`);
-  const pinned = JSON.parse(readFileSync(join(config, 'settings.json'), 'utf8')).statusLine.command;
+  const pinned = S(main).statusLine.command;
   assert.ok(pinned.startsWith(`PATH="${old}:$PATH" node `), pinned);
   rmSync(join(home, 'old-node'), { recursive: true });
   check('after the Node it was set up with is uninstalled', '/bin/sh', ['-c', pinned], { HOME: home, PATH: `${dirname(process.execPath)}:/usr/bin:/bin` });
@@ -119,13 +153,178 @@ if (process.platform !== 'win32') {
 {
   const odd = join(mkdtempSync(join(realpathSync.native(tmpdir()), 'juice-e2e-')), "Ünïcode d'ir (2)");
   const plugin2 = join(odd, 'plugins', 'cache', 'juice', 'juice', version);
-  for (const f of ['bin', 'src', 'package.json', '.claude-plugin']) copy(join(repo, f), join(plugin2, f));
+  plugin(plugin2);
   const env2 = { ...env, CLAUDE_CONFIG_DIR: odd };
   const setup2 = spawnSync(process.execPath, [join(plugin2, 'bin', 'juice.js'), 'setup'], { env: env2, encoding: 'utf8' });
   assert.equal(setup2.status, 0, `setup with CLAUDE_CONFIG_DIR: ${setup2.stdout}${setup2.stderr}`);
   const command2 = JSON.parse(readFileSync(join(odd, 'settings.json'), 'utf8')).statusLine.command;
   assert.ok(command2.includes(odd.replaceAll('\\', '/')), command2);
   check('CLAUDE_CONFIG_DIR with a space, an accent and an apostrophe, through bash', 'bash', ['-c', command2], env2);
-  const doctor2 = spawnSync(process.execPath, [join(plugin2, 'bin', 'juice.js'), 'doctor'], { env: env2, encoding: 'utf8' });
-  assert.match(doctor2.stdout, /^✓ Drawing works/m, doctor2.stdout);
+  const doctor2 = spawnSync(process.execPath, [join(plugin2, 'bin', 'juice.js'), 'doctor'], { env: env2, encoding: 'utf8' }).stdout;
+  assert.match(doctor2, /^✓ juice is your status line, refreshing once a minute$/m, doctor2);
+  assert.match(doctor2, new RegExp(`^✓ The status line runs juice ${V}$`, 'm'), doctor2);
+  assert.match(doctor2, /^✓ Drawing works/m, doctor2);
+}
+
+// A first setup with no status line before, the first draw (before Claude's first reply), restore, and setup again.
+const first = install('first');
+{
+  const x = first;
+  assert.deepEqual(lines(juiceIn(x, ['setup'])), ['You had no status line, so there is nothing to save.',
+    "juice is now your status line. It shows up the next time Claude Code redraws it, and the batteries fill in after Claude's first reply.",
+    'To undo this, run /juice restore.']);
+  const { command: _, ...rest } = S(x).statusLine;
+  assert.deepEqual(rest, { type: 'command', padding: 0, refreshInterval: 60 });
+  assert.equal(JSON.parse(readFileSync(join(x.config, 'juice-backup.json'), 'utf8')).statusLine, null);
+  const before = draw(x, JSON.stringify({ model: { display_name: 'Opus' } }));
+  assert.match(before, /Opus.*batteries appear after Claude's first reply/, before);
+  assert.doesNotMatch(before, /Session/, before);
+  assert.equal(draw(x, '').trim(), '', 'a draw with no input');
+  assert.deepEqual(lines(juiceIn(x, ['restore'])), ['Removed juice. You had no status line before, so none is set now.', 'To use juice again, run /juice setup.']);
+  assert.deepEqual(S(x), {});
+  for (const f of ['juice-backup.json', 'juice-statusline.mjs']) assert.ok(!existsSync(join(x.config, f)), `restore left ${f}`);
+  juiceIn(x, ['setup']);
+  assert.deepEqual(lines(juiceIn(x, ['setup'])), ['juice is already your status line. Nothing changed.', 'To undo this, run /juice restore.']);
+  // Changed by hand since juice saved the old line: setup asks first, and --yes keeps both saved copies.
+  writeFileSync(x.settings, JSON.stringify({ ...S(x), statusLine: { ...S(x).statusLine, command: 'echo mine' } }));
+  const mine = readFileSync(x.settings, 'utf8');
+  assert.match(juiceIn(x, ['setup'], { code: 2 }).stdout, /^Your status line has changed since juice saved a copy of the old one, so juice changed nothing\. Run setup again with --yes/m);
+  assert.equal(readFileSync(x.settings, 'utf8'), mine, 'setup changed settings.json without --yes');
+  const yes = juiceIn(x, ['setup', '--yes']).stdout;
+  const kept = /^Kept the earlier saved copy as (juice-backup-\d+\.json) in your Claude folder\.$/m.exec(yes);
+  assert.ok(kept && existsSync(join(x.config, kept[1])), yes);
+  assert.match(yes, /^Saved your current status line so you can get it back\.$/m, yes);
+  assert.equal(JSON.parse(readFileSync(join(x.config, 'juice-backup.json'), 'utf8')).statusLine.command, 'echo mine');
+  lineOk(x, 'after setup --yes');
+  console.log('ok a first setup, the first draw, restore, and setup again');
+}
+
+// Every command a person types, each followed by the line as Claude Code draws it.
+{
+  const x = first;
+  const looks = juiceIn(x, ['looks']).stdout;
+  const ids = [...looks.matchAll(/^(\d+)\. .+ \((\w+)\): /gm)];
+  assert.ok(ids.length >= 14 && ids.every((m, i) => m[1] === String(i + 1)), looks);
+  assert.doesNotMatch(looks, /\x1b/, 'looks printed colour codes');
+  const before = readFileSync(x.settings, 'utf8');
+  for (const [, , id] of ids) {
+    assert.doesNotMatch(juiceIn(x, ['set', `look=${id}`]).stdout, /Warning/, id);
+    lineOk(x, `look ${id}`, [/Session/, /\d+%/]); // Just the basics shows two batteries
+  }
+  juiceIn(x, ['set', 'look=juice']);
+  for (const kv of ['layout=panel', 'colors=ocean', 'ends=plain', 'battery=outline', 'terminal=light', 'refills=warnings', 'cost=off', 'show=model,session,week', 'order=urgent']) {
+    const said = lines(juiceIn(x, ['set', kv]));
+    assert.equal(said[0], `Changed: ${kv.split('=')[0]}`, kv);
+    // A battery style is saved under Panel, which says it keeps its own shapes.
+    assert.deepEqual(said.slice(1), kv.startsWith('battery=') ? ['Warning: battery: saved, but the Panel layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)'] : [], kv);
+    lineOk(x, kv);
+  }
+  const nope = juiceIn(x, ['set', 'look=nope']).stdout;
+  assert.match(nope, /^Nothing changed\.$/m, nope);
+  assert.match(nope, /^Warning: look: 'nope' isn't a look\./m, nope);
+  const got = JSON.parse(juiceIn(x, ['get']).stdout);
+  assert.equal(got.layout, 'panel'); assert.equal(got.order, 'urgent'); assert.equal(got.badges, 0);
+  assert.equal(readFileSync(x.settings, 'utf8'), before, 'a look or a setting changed settings.json');
+  console.log('ok every look and every setting draws');
+
+  assert.equal(juiceIn(x, ['badges', 'list']).stdout.trim(), 'No badges.');
+  assert.deepEqual(lines(juiceIn(x, ['badges', 'add', 'echo x'], { code: 2 })), ['This badge would run: echo x', 'Run again with --yes to add it.']);
+  assert.equal(juiceIn(x, ['badges', 'list']).stdout.trim(), 'No badges.', 'a badge was added without --yes');
+  assert.match(juiceIn(x, ['badges', 'add', 'echo x', '--yes']).stdout, /^Added badge: echo x$/m);
+  assert.equal(juiceIn(x, ['badges', 'list']).stdout.trim(), '1. echo …');
+  assert.equal(juiceIn(x, ['badges', 'list', '--show']).stdout.trim(), '1. echo x');
+  assert.deepEqual(lines(juiceIn(x, ['badges', 'remove', '1'], { code: 2 })), ['This would remove badge 1: echo …', 'Run again with --yes to remove it.']);
+  assert.match(juiceIn(x, ['badges', 'remove', '1', '--yes']).stdout, /^Removed badge: echo …$/m);
+  juiceIn(x, ['badges', 'add', 'GITHUB_TOKEN=abc123 echo x', '--yes']);
+  assert.equal(juiceIn(x, ['badges', 'list']).stdout.trim(), '1. GITHUB_TOKEN=… echo …');
+  assert.match(juiceIn(x, ['badges', 'remove', '1', '--yes']).stdout, /^Removed badge: GITHUB_TOKEN=… echo …$/m);
+  console.log('ok badges');
+
+  // The Fable battery through get and doctor only: drawn with it on, the line would read the login.
+  let g = JSON.parse(juiceIn(x, ['get']).stdout);
+  assert.equal(g.fable, 'auto'); assert.equal(g.fableOn, false);
+  juiceIn(x, ['set', 'fable=off']);
+  const off = juiceIn(x, ['doctor']).stdout;
+  assert.match(off, /^· Fable battery: turned off\.$/m, off);
+  assert.match(off, /^Everything looks fine\.$/m, off);
+  juiceIn(x, ['set', 'fable=on']);
+  g = JSON.parse(juiceIn(x, ['get']).stdout);
+  assert.equal(g.fable, 'on'); assert.equal(g.fableOn, true);
+  assert.match(juiceIn(x, ['doctor']).stdout, /^· Fable battery: not checked yet\. juice asks in the background for plan subscribers\.$/m);
+  juiceIn(x, ['set', 'fable=off']);
+  console.log('ok the Fable setting');
+
+  assert.deepEqual(lines(juiceIn(x, ['set', 'motion=on'])), ['Changed: motion', 'juice now refreshes every second.']);
+  assert.equal(S(x).statusLine.refreshInterval, 1);
+  assert.match(juiceIn(x, ['doctor']).stdout, /^✓ juice is your status line, refreshing every second$/m);
+  lineOk(x, 'motion on');
+  assert.deepEqual(lines(juiceIn(x, ['set', 'motion=off'])), ['Changed: motion', 'juice now refreshes once a minute.']);
+  assert.equal(S(x).statusLine.refreshInterval, 60);
+  // A refresh time the person set by hand is theirs.
+  writeFileSync(x.settings, JSON.stringify({ ...S(x), statusLine: { ...S(x).statusLine, refreshInterval: 10 } }));
+  for (const m of ['on', 'off']) {
+    assert.deepEqual(lines(juiceIn(x, ['set', `motion=${m}`])), ['Changed: motion', 'Your status line keeps its own refresh time (every 10 seconds), so juice left it as it is.'], m);
+    assert.equal(S(x).statusLine.refreshInterval, 10, m);
+  }
+  console.log('ok motion');
+}
+
+// A project whose own settings set a status line, and hooks turned off: setup and doctor both say so, by a short path.
+{
+  const x = install('project');
+  const proj = join(x.home, 'proj'), sub = join(proj, 'sub');
+  mkdirSync(join(proj, '.claude'), { recursive: true });
+  mkdirSync(sub);
+  writeFileSync(join(proj, '.claude', 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'echo proj' } }));
+  const said = juiceIn(x, ['setup'], { cwd: sub }).stdout;
+  assert.match(said, /^\.\.\/\.claude\/settings\.json sets its own status line, so juice won't show in that project\.$/m, said);
+  const doc = juiceIn(x, ['doctor'], { cwd: sub }).stdout;
+  assert.match(doc, /^! \.\.\/\.claude\/settings\.json sets its own status line, so juice won't show in that project\. To use juice there, take that setting out of that file/m, doc);
+  assert.match(doc, /^Lines starting with ! need attention/m, doc);
+  assert.doesNotMatch(said + doc, /juice-e2e-|echo proj/, said + doc);
+  writeFileSync(x.settings, JSON.stringify({ ...S(x), disableAllHooks: true }));
+  assert.match(juiceIn(x, ['doctor']).stdout, /^! Your Claude Code settings turn hooks off \(disableAllHooks\)/m);
+  console.log('ok a project with its own status line, and hooks turned off');
+}
+
+// A broken install: the launcher deleted, juice turned off in /plugin, juice uninstalled, a settings.json with a mistake.
+{
+  const x = install('broken');
+  juiceIn(x, ['setup']);
+  rmSync(x.launcher);
+  assert.match(juiceIn(x, ['doctor']).stdout, /^! juice's launcher file is missing, so the status line draws nothing\. Run \/juice setup\.$/m);
+  assert.match(juiceIn(x, ['setup']).stdout, /^Its launcher file was missing or from an older juice, so juice put it back\.$/m);
+  lineOk(x, 'after setup put the launcher back');
+  const good = readFileSync(x.settings, 'utf8');
+  writeFileSync(x.settings, JSON.stringify({ ...S(x), enabledPlugins: { 'juice@juice': false } }));
+  assert.equal(draw(x).trim(), 'juice is turned off. Turn it on in /plugin. Then /juice restore can bring back your old line.');
+  assert.match(juiceIn(x, ['doctor']).stdout, /^! juice is turned off in \/plugin, so the status line only says so\. Turn it back on in \/plugin\.$/m);
+  writeFileSync(x.settings, good);
+  // Uninstalling marks the copy as replaced before Claude Code deletes it.
+  writeFileSync(join(x.plugin, '.orphaned_at'), '1');
+  assert.equal(draw(x).trim(), 'juice is not installed. Reinstall it and type /juice restore, or delete statusLine in settings.json.');
+  rmSync(join(x.plugin, '.orphaned_at'));
+  lineOk(x, 'after reinstalling');
+  writeFileSync(x.settings, '{ "statusLine": ');
+  assert.match(juiceIn(x, ['setup'], { code: 1 }).stderr, /^Your Claude Code settings file \(settings\.json in your Claude folder\) has a mistake in it, so juice changed nothing\./m);
+  assert.equal(readFileSync(x.settings, 'utf8'), '{ "statusLine": ', 'setup overwrote a settings.json with a mistake in it');
+  console.log('ok a broken install');
+}
+
+// An update from 1.3.x, which set the refresh to every second even with motion off. Claude Code puts the new version
+// beside the old one and marks the old one replaced; people never run setup again. The first refresh after the update
+// keeps the launcher current and moves the refresh time to what motion wants.
+{
+  const x = install('update', '1.3.1');
+  juiceIn(x, ['setup']);
+  writeFileSync(x.settings, JSON.stringify({ ...S(x), statusLine: { ...S(x).statusLine, refreshInterval: 1 } }));
+  const next = join(x.market, version);
+  plugin(next);
+  writeFileSync(join(x.plugin, '.orphaned_at'), '1');
+  const long = new Date(Date.now() - 30 * 86400000);
+  utimesSync(x.launcher, long, long);
+  lineOk(x, 'the first refresh after an update');
+  assert.equal(S(x).statusLine.refreshInterval, 60, 'the update left the refresh at every second');
+  assert.match(juiceIn({ ...x, plugin: next }, ['doctor']).stdout, new RegExp(`^✓ The status line runs juice ${V}$`, 'm'));
+  console.log('ok an update from an older juice');
 }
