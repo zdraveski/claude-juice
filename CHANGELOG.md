@@ -11,20 +11,31 @@ Changed:
 - In a narrow window, a red battery first drops the reset time beside its run-out time, so it reads `Session 93% !! runs out ~2:33 PM` rather than `Session 93%!! out ~2:33 PM`.
 - When your Claude login has expired, juice no longer sends it. Claude Code renews it on your next message, and juice looks again 5 minutes later.
 - `/juice doctor` says why the last Fable check failed: the login was refused, it had expired, Anthropic was busy, the login changed, or you were offline. Only a refused login gets "type /login".
+- Colour-blind safe is now blue, amber, red and pink-purple, picked so every kind of colour blindness tells them apart. On a light terminal, two of its colours looked the same to some people.
+- High contrast is now the easiest set to read on both backgrounds. Claude's light accent is a little darker and Solar's dark red a little lighter, so every colour of every set reads at 4.5:1 or more.
+- `/juice set` says when one of your own colours is hard to read on its terminal (under 4.5:1), and still saves it. The customizer says "A little faint" for those. `Dark:` and `LIGHT:` work as well as `dark:`.
 
 Fixed:
 - If you said no to the Fable battery, a mistyped or broken `juice.json` (a trailing comma, `"Off"`, a locked file) no longer turns the login read back on. The Fable battery stays off until the file is fixed.
 - On a Mac, the Keychain question now waits 25 seconds for your answer instead of closing after 3. juice also reads a Keychain login macOS prints as hex, and finds the login in `.credentials.json` when the Keychain has none.
 - Windows PowerShell 5.1 could pipe in a hidden mark (a BOM) that left the line blank.
 - A saved reset time could be read 1000 times too far away, so it never ended.
-- `/juice badges list` and `remove` hide the whole value of a key typed before a command, however it is quoted, including `$(...)`.
+- `/juice badges list` and `remove` hide the whole value of a key typed before a command, however it is quoted or escaped, including `$(...)` and `${...}`.
 - Adding a badge that is already there adds no second copy. A badge copied over in `juice.json` from another computer is approved where it stands when you add it again. `/juice badges list` now says to do that, instead of removing it first, and marks a copy 1.4.0 left beside an approved badge so you can remove it.
 - A program a badge leaves running in the background is stopped (Linux and macOS). The project folder and chat path handed to badges are deleted once read.
 - A `juice.json` that holds something other than settings, like `[]`, is left alone instead of replaced by `/juice set`.
 - `/juice setup` takes your status line as unchanged when only the order of its settings differs, and names the copy it sets aside. `/juice set` takes names in any case.
 - In a pane under 26 columns, a panel shows `Session 88%!!` instead of `Session …`. When only one battery fits, it is the one that blocks you first, not the first in your order.
 - The "batteries appear after Claude's first reply" hint no longer shows when no battery is chosen.
-- Four light colour sets (Claude, Calm, Vampire, Forest) now reach 4.5:1 contrast for white text on a fill.
+- Words now read at 4.5:1 or more wherever juice draws them: numbers in a battery and words in a capsule (some were down to 2.5:1), and white text on a fill in four light sets (Claude, Calm, Vampire, Forest). The pace tick on a glossy battery no longer fades into its casing.
+- On a 256-colour terminal, words never read worse than in full colour. Claude's red fell to 3.7:1 there on a light terminal.
+- A badge like `git branch` shows the repo Claude Code is in, not the folder juice runs from.
+- On Linux and macOS, a Claude folder with a backslash in its name no longer leaves the line blank.
+- `/juice doctor`'s report shortens a folder to `~` only when it is really your home folder (`/rootfs/x` showed as `~fs/x`), and hides your home folder even when it is quoted or ends in a slash.
+- If `/juice setup` can't save your settings, it puts the old launcher back instead of leaving it changed.
+- On a Mac, a slow answer to the Keychain question no longer lets a second Fable check start and ask again.
+- Cutting a line or a badge at the window's edge never splits a flag, a joined emoji or a letter from its accent.
+- After an error, the line juice shows stays on one row inside the window.
 - More wide characters (Tangut, Kana supplement, small form variants) count as two columns, so the line doesn't spill.
 - Temp files left by a refresh that was stopped are now cleared after every update, and `/juice customize` opens without a window flashing up on Windows.
 - Badge cache files are named with SHA-256, which clears a GitHub security alert. Old ones are ignored and cleared after 7 days.

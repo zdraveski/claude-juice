@@ -161,7 +161,7 @@ The batteries keep the order you chose. To let them move instead, type `/juice p
 
 ### Colour sets
 
-There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose. Or make your own in the customizer.
+There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose. Every colour in them reads at 4.5:1 or more on its terminal. Or make your own in the customizer, which tells you when one is hard to read.
 
 <img src="docs/images/colour-sets.png" alt="Four of the 13 colour sets on a dark terminal, Claude, Colour-blind safe, Midnight and Candy, each showing a fine battery, an amber one with ! and a red one with !!, then the names of the other 9." width="480">
 
