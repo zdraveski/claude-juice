@@ -271,6 +271,14 @@ test('hideHome leaves a folder that only starts like the home folder alone', () 
   assert.equal(hideHome('/root.bak/x', { HOME: '/root' }, 'linux'), '/root.bak/x');
 });
 
+// Final review (1.4.1): a home at a drive's root hid every path on that drive, and a name that goes on with an
+// accent written as a separate mark was cut before the mark.
+test('hideHome leaves a drive-root home alone, and a name that goes on with an accent mark', () => {
+  assert.equal(hideHome('C:\\Windows\\x and D:\\y', { HOME: 'C:\\', USERPROFILE: 'C:\\' }, 'win32'), 'C:\\Windows\\x and D:\\y');
+  const accented = `/home/kire${String.fromCodePoint(0x301)}/x`;
+  assert.equal(hideHome(accented, { HOME: '/home/kire' }, 'linux'), accented);
+});
+
 // The boundary first hid the home only before a slash or the end, so a quoted one kept the name (review, 1.4.1).
 test('hideHome hides the home folder wherever it ends: quoted, before a full stop, or written with a final slash', () => {
   const linux = (t, HOME = '/home/kire') => hideHome(t, { HOME }, 'linux');
