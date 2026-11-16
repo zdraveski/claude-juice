@@ -198,6 +198,7 @@ pre{background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:1
   .sw[aria-checked=true]{background:Highlight}
   .sw[aria-checked=true]::after{background:HighlightText}
   [aria-pressed=true],.seg button[aria-pressed=true]{outline:2px solid Highlight;outline-offset:1px} /* .seg button unsets all */
+  [aria-pressed=false]:focus-visible,.seg button[aria-pressed=false]:focus-visible{outline:2px dashed CanvasText;outline-offset:2px} /* solid means chosen */
   [aria-pressed=true]:focus-visible,.seg button[aria-pressed=true]:focus-visible{outline:4px double Highlight;outline-offset:3px} /* its outline means chosen */
 }
 button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--clay);outline-offset:2px}

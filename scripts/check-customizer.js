@@ -294,6 +294,19 @@ test('in forced colours focus on a chosen button still shows', async () => {
   assert.notEqual(await ring(), still);
 });
 
+// Re-review (1.4.1): in forced colours focus and "chosen" were both a solid Highlight ring, so moving to Max while Pro
+// was chosen showed two rings alike.
+test('in forced colours a focused button that is not chosen does not look chosen', async () => {
+  const { page } = await open();
+  await page.emulateMedia({ forcedColors: 'active' });
+  const style = (s) => page.evaluate((q) => getComputedStyle(document.querySelector(q)).outlineStyle, s);
+  const chosen = await style('.seg button[aria-pressed=true]');
+  const other = '.seg button:not([aria-pressed=true])';
+  await page.focus(other); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate((q) => document.activeElement === document.querySelector(q), other), true);
+  assert.notEqual(await style(other), chosen);
+});
+
 // Site review (1.4.1): the preview scrolls, so the keyboard stops on it, and the fade at its end hid the focus ring.
 test('the keyboard reaches the preview and sees its focus ring', async () => {
   const { page } = await open(390);

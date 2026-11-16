@@ -7,7 +7,7 @@ To update, type `/plugin`, update juice, then restart Claude Code.
 [Changes since 1.4.0](https://github.com/zdraveski/claude-juice/compare/v1.4.0...v1.4.1)
 
 Changed:
-- juice starts about 20 ms faster on each refresh, and the cost now draws in a few milliseconds instead of about 40.
+- When juice shows the cost, it now works it out in a few milliseconds instead of about 40.
 - In a narrow window, a red battery first drops the reset time beside its run-out time, so it reads `Session 93% !! runs out ~2:33 PM` rather than `Session 93%!! out ~2:33 PM`.
 - When your Claude login has expired, juice no longer sends it. Claude Code renews it on your next message, and juice looks again 5 minutes later.
 - `/juice doctor` says why the last Fable check failed: the login was refused, it had expired, Anthropic was busy, the login changed, or you were offline. Only a refused login gets "type /login".

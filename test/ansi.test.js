@@ -2,6 +2,10 @@ import './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fg, strip, vis, cut, contrast, inkOn, to256 } from '../src/render/ansi.js';
+import { makeCtx } from '../src/render/palette.js';
+import { batteryPct } from '../src/render/pieces.js';
+import { SAMPLES } from '../src/samples.js';
+import { DEFAULTS } from '../src/schema.js';
 
 test('strip removes escapes', () => assert.equal(strip(fg('#ff0000', 'hi')), 'hi'));
 test('vis ignores escapes', () => assert.equal(vis(fg('#ff0000', 'abc')), 3));
@@ -74,6 +78,23 @@ test('in 256 colours a word maps by what it sits on, even when the line also fil
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
     const alone = to256(fg(c, 'abc'), back), withFill = to256(`${fg(c, 'abc')} \x1b[48;2;${r};${g};${b}m 42% \x1b[49m`, back);
     assert.ok(withFill.startsWith(alone), `${c} on ${back}: ${JSON.stringify(withFill)} vs ${JSON.stringify(alone)}`);
+  }
+});
+// Re-review (1.4.1): the cells of a battery are drawn as a colour on its casing, the band behind its number as a fill of
+// that colour. Mapping only round ends the fill's way split them: Claude dark, pace, 82% gave cells 65 and band 242.
+test('in 256 colours a battery\'s cells and the band behind its number get one colour', () => {
+  for (const theme of ['dark', 'light']) for (const ends of ['round', 'plain']) {
+    const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'pace', colors: 'claude' }, { theme, ends });
+    const s = batteryPct(ctx, 82, 'ok', 7, 0.6), out = to256(s, ctx.P.bg);
+    const full = [...s.matchAll(/\x1b\[[0-9;]*m/g)], mapped = [...out.matchAll(/\x1b\[[0-9;]*m/g)];
+    const seen = {}; // rgb -> { fill: Set, ink: Set } of the 256 colours it became
+    full.forEach((m, i) => {
+      const c = m[0].match(/([34]8);2;(\d+;\d+;\d+)/), n = mapped[i][0].match(/[34]8;5;(\d+)/);
+      if (c) ((seen[c[2]] ??= { fill: new Set(), ink: new Set() })[c[1] === '48' ? 'fill' : 'ink']).add(n[1]);
+    });
+    const fills = Object.entries(seen).filter(([, v]) => v.fill.size);
+    assert.ok(fills.length, `${theme}/${ends}: no fill in ${JSON.stringify(s)}`);
+    for (const [rgb, v] of fills) assert.deepEqual([...new Set([...v.fill, ...v.ink])], [...v.fill], `${theme}/${ends} ${rgb}: ${JSON.stringify(out)}`);
   }
 });
 test('strip removes every escape sequence and control char but keeps newlines', () => {
