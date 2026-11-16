@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { vis, cut, strip, fg } from '../src/render/ansi.js';
 
 // Every glyph juice draws, with the columns terminals give it, written by hand so a Node Unicode update can't move one.
@@ -42,4 +44,12 @@ test('cut never splits what draws as one character: flags, joined emoji, skin to
       assert.ok(['', 'a', `a${s}`, `a${s}b`].includes(kept), `${JSON.stringify(s)} at ${n}: ${JSON.stringify(kept)}`);
     }
   }
+});
+
+test('cutting plain text never builds a text segmenter (making one costs a whole refresh ~20 ms)', () => {
+  const url = pathToFileURL(join(import.meta.dirname, '../src/render/ansi.js')).href;
+  const code = `Intl.Segmenter = class { constructor() { throw new Error('built a segmenter'); } };
+    const { cut, strip, fg } = await import(${JSON.stringify(url)});
+    process.stdout.write(strip(cut(fg('#ffffff', 'Session ▰▰▱ 88% 日本 😀 left'), 18)));`;
+  assert.equal(execFileSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' }), 'Session ▰▰▱ 88% 日');
 });

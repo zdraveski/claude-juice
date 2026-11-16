@@ -24,12 +24,16 @@ export const vis = (s) => { let n = 0; for (const m of strip(s).matchAll(/[\s\S]
 
 // Cut a coloured line to n visible columns without breaking its escape codes, or what draws as one character
 // (a flag, a joined emoji, a skin tone, a letter and its accent): the cut goes between whole characters.
-const CHARS = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+// Making a segmenter costs ~20 ms, a whole refresh's budget, so plain text (no mark, joiner, flag half, skin tone or
+// Hangul part) steps by code point and the segmenter is made only for text that needs it.
+let SEG;
+const JOINS = /[\p{M}\p{Cf}\p{RI}\p{Emoji_Modifier}\u1160-\u11ff\ud7b0-\ud7ff]/u;
+const chars = (t) => (JOINS.test(t) ? Array.from((SEG ??= new Intl.Segmenter(undefined, { granularity: 'grapheme' })).segment(t), (g) => g.segment) : Array.from(t));
 export function cut(s, n) {
   let out = '', seen = 0;
   for (const m of s.matchAll(/\x1b\[[0-9;]*m|[^\x1b]+|\x1b/g)) {
     if (/^\x1b\[[0-9;]*m$/.test(m[0])) { out += m[0]; continue; }
-    for (const { segment } of CHARS.segment(m[0])) {
+    for (const segment of chars(m[0])) {
       const w = vis(segment);
       if (seen + w > n) return out + `${E}0m`;
       seen += w;
