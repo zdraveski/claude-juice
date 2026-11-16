@@ -1,6 +1,6 @@
 // Draws docs/images/anatomy-*.png, colours-*.png, looks-*.png and colour-sets-*.png with juice's own renderer, each for
 // GitHub's dark and light themes, in the same GitHub box as the hero.
-// Run: node scripts/pictures/readme.mjs (needs Playwright installed globally, npm i -g playwright, and ffmpeg).
+// Run: node scripts/pictures/readme.mjs (needs Playwright installed globally, npm i -g playwright, ffmpeg and the network, for Google Fonts).
 import { browser, shoot } from './shot.mjs';
 import { busy, LOOKS, PRESETS, NEUTRAL, THEMES, line, head, page } from './common.mjs';
 

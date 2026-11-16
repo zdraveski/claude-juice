@@ -1,7 +1,7 @@
 // Draws docs/images/hero-*.png, features-*.png and open-customizer-*.png (the README's button), each for GitHub's dark and
 // light themes, plus hero.png: the dark hero at 1280x640, the size GitHub and link previews want. Every status line in them
 // comes from juice's own renderer.
-// Run: node scripts/pictures/hero-features.mjs (needs Playwright installed globally, npm i -g playwright, and ffmpeg).
+// Run: node scripts/pictures/hero-features.mjs (needs Playwright installed globally, npm i -g playwright, ffmpeg and the network, for Google Fonts).
 import { browser, shoot } from './shot.mjs';
 import { busy, LOOKS, PRESETS, THEMES, line, brand, head, page } from './common.mjs';
 
