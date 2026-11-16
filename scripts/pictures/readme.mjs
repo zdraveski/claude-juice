@@ -43,7 +43,7 @@ const anatomy = doc(`.whole{display:flex;flex-wrap:wrap;gap:22px 30px;align-item
 
 // ---------- 2. Colours: fine, going fast, nearly out, Fable ----------
 // Where the pace marker sits, in characters from the start of the line (each drawn cell is one character).
-const markAt = (html) => { const b = html.slice(0, html.indexOf('<span class="cell" style="background:linear-gradient(90deg,rgb(')); return (b.match(/class="cell"/g) || []).length + b.replace(/<[^>]+>/g, '').length; };
+const markAt = (html) => { const b = html.slice(0, html.indexOf('<span class="cell" style="background:linear-gradient(90deg,rgb(')); return (b.match(/class="cell"/g) || []).length + b.split(/<[^>]+>/).join('').length; }; // counts text, cleans nothing
 const tell = (accent, lead, text, l, what, call = false) => `<div class="card"><div class="box term${call ? ' pace' : ''}">${call ? `<div class="call" style="left:calc(16px + ${markAt(l.html) + 0.5}ch)">even pace<i></i></div>` : ''}${fits(l, what).html}</div>
 <p style="margin-top:18px"><i class="dot" style="background:${accent}"></i><b>${lead}</b> ${text}</p></div>`;
 const colours = doc(`.dot{display:inline-block;width:18px;height:18px;border-radius:5px;margin-right:14px;vertical-align:.04em}
