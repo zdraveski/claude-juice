@@ -14,6 +14,7 @@ Changed:
 - Colour-blind safe is now blue, amber, red and pink-purple, picked so every kind of colour blindness tells them apart. On a light terminal, two of its colours looked the same to some people.
 - High contrast is now the easiest set to read on both backgrounds. Claude's light accent is a little darker and Solar's dark red a little lighter, so every colour of every set reads at 4.5:1 or more.
 - `/juice set` says when one of your own colours is hard to read on its terminal (under 4.5:1), and still saves it. The customizer says "A little faint" for those. `Dark:` and `LIGHT:` work as well as `dark:`.
+- The customizer works on a phone: the preview stays in view and keeps its batteries, the preview options fold away, and every control is big enough to tap. Switches, buttons and look cards stand out from the page, it follows Windows' high-contrast colours, and the keyboard can skip straight to the options.
 
 Fixed:
 - If you said no to the Fable battery, a mistyped or broken `juice.json` (a trailing comma, `"Off"`, a locked file) no longer turns the login read back on. The Fable battery stays off until the file is fixed.
