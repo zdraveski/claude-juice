@@ -1,7 +1,7 @@
-// Draws docs/images/customizer.gif (a short tour of the phone page),
+// Draws docs/images/customizer.gif (a short tour of the page at the README's desktop width),
 // from this checkout's web/ page. Run: node scripts/pictures/customizer.mjs (needs Playwright and ffmpeg).
 import { createServer } from 'node:http';
-import { OUT, IMG, browser as launch } from './shot.mjs';
+import { OUT, IMG, DESK, browser as launch } from './shot.mjs';
 import { execSync } from 'node:child_process';
 import { readFile, mkdir, rm } from 'node:fs/promises';
 import { join, extname, normalize } from 'node:path';
@@ -17,7 +17,8 @@ const server = createServer(async (req, res) => {
 await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
 const base = `http://127.0.0.1:${server.address().port}/web/`;
 const browser = await launch();
-const PW = 390; // a phone: the page's smallest text is 10.5px, ~9.4px on a phone; passing 12px would need bigger text in web/
+// As wide as a desktop shows a README picture (DESK), so GitHub shows the page 1:1 instead of shrinking its text.
+const PW = DESK;
 const open = async (w, h, scale) => {
   const pg = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: scale });
   pg.on('dialog', (d) => d.dismiss());
@@ -28,7 +29,7 @@ const open = async (w, h, scale) => {
 };
 
 // ---------- GIF frames: Juice -> Spotlight -> Colour-blind friendly -> Light -> Dark -> Juice ----------
-const W = PW, H = 760, FPS = 10;
+const W = PW, H = 600, FPS = 10;
 const pg = await open(W, H, 1);
 await pg.addStyleTag({ content: '#fc{position:fixed;left:0;top:0;z-index:99999;pointer-events:none;width:26px;height:26px}#fr{position:fixed;z-index:99998;pointer-events:none;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid #e2885f;opacity:0}' });
 await pg.evaluate(() => {
