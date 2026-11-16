@@ -135,7 +135,7 @@ A look sets the layout, the colours, what shows, the cost, the reset times and t
 | Quiet | Grey until something needs you. Reset times only show then. |
 | Night owl | Neon bars for dark terminals. |
 | Easy to see | Like Spotlight, in bright high-contrast colours. |
-| Colour-blind friendly | Blue, yellow and orange instead of green and red. |
+| Colour-blind friendly | Blue, amber and red that every kind of colour blindness tells apart. |
 | Works everywhere | For older terminals that show boxes instead of rounded ends. |
 | Cost watcher | Shows what this chat would have cost. |
 | Fable first | The Fable battery leads, and lights up while you use Fable. |

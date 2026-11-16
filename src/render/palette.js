@@ -8,8 +8,9 @@ export const PRESETS = {
   claude: { name: 'Claude', note: 'Warm, the default', dark: ['#7fd8a0', '#f3c467', '#ff7f86', '#e2885f'], light: ['#1c874c', '#a6680a', '#d0394a', '#c45f35'] },
   frost: { name: 'Frost', note: 'Cool and soft', dark: ['#a3be8c', '#ebcb8b', '#e07a85', '#88c0d0'], light: ['#4f7a3a', '#946708', '#b03a48', '#2e6f86'] },
   calm: { name: 'Calm', note: 'Grey until it matters', dark: ['#b5b0a8', '#f3c467', '#ff7f86', '#b5b0a8'], light: ['#6b665f', '#a6680a', '#d0394a', '#6b665f'], fable: 'good' },
-  // Violet and this blue can look alike to colour-blind eyes, so Fable takes the set's own pink-purple.
-  safe: { name: 'Colour-blind safe', note: 'Blue, yellow, orange', dark: ['#56b4e9', '#f0e442', '#ff8b4d', '#cc79a7'], light: ['#0072b2', '#8a7200', '#d55e00', '#a8457e'], fable: 'accent' },
+  // Violet and this blue can look alike to colour-blind eyes, so Fable takes the set's own pink-purple. The four were
+  // picked by search to stay apart under protanopia, deuteranopia and tritanopia, each at 4.5:1 (a test holds both).
+  safe: { name: 'Colour-blind safe', note: 'Blue, amber, red', dark: ['#56b4e9', '#e9a91a', '#de5253', '#ae749c'], light: ['#0072b2', '#947000', '#a33025', '#88367a'], fable: 'accent' },
   // The highest contrast of any set on both backgrounds (a test holds it there); the mint green and light red stay
   // further apart for red-green colour-blind eyes than the brighter pure green did.
   bold: { name: 'High contrast', note: 'Brightest, easiest to see', dark: ['#6ee7b7', '#fde047', '#ff8f8f', '#fdba74'], light: ['#166534', '#805400', '#8b1a1a', '#9a3412'] },

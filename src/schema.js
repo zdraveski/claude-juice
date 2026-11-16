@@ -40,7 +40,7 @@ export const LOOKS = Object.freeze([
   look('quiet', 'Quiet', 'Grey and silent until something needs you', { show: ['model', 'memory', 'session', 'week', 'budget'], colors: 'calm', refills: 'warnings' }),
   look('nightowl', 'Night owl', 'Neon bars for dark terminals', { layout: 'segments', colors: 'vampire' }),
   look('easy', 'Easy to see', 'Big, bright and high contrast', { layout: 'focus', colors: 'bold', ends: 'plain' }),
-  look('colorblind', 'Colour-blind friendly', 'Blue, yellow and orange instead of green and red', { colors: 'safe' }),
+  look('colorblind', 'Colour-blind friendly', 'Blue, amber and red that every kind of colour blindness tells apart', { colors: 'safe' }),
   look('anywhere', 'Works everywhere', 'For older terminals that show boxes instead of rounded ends', { layout: 'segments', ends: 'plain' }),
   look('costwatch', 'Cost watcher', 'Shows what this chat would have cost', { show: ['model', 'memory', 'session', 'week', 'budget'], colors: 'ocean', cost: 'on' }),
   look('fablefirst', 'Fable first', 'The Fable battery leads and lights up while you use Fable', { show: ['model', 'effort', 'fable', 'memory', 'session', 'week', 'budget'], colors: 'candy' }),

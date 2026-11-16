@@ -160,7 +160,7 @@ test('climbing never changes a picture\'s width or where its number sits', () =>
 
 test('palette', () => {
   assert.equal(palette(DEFAULTS, 'light').good, '#1c874c');
-  assert.equal(palette({ ...DEFAULTS, colors: 'safe' }, 'dark').bad, '#ff8b4d');
+  assert.equal(palette({ ...DEFAULTS, colors: 'safe' }, 'dark').bad, '#de5253');
   assert.equal(palette({ ...DEFAULTS, colors: 'nope' }, 'dark').good, PRESETS.claude.dark[0]);
   const c = { plentyLeft: '#111111', goingFast: '#222222', almostEmpty: '#333333', accent: '#444444' };
   const p = palette({ ...DEFAULTS, colors: { dark: c, light: c } }, 'dark');
@@ -188,6 +188,33 @@ test('every colour set is readable on its terminal background', () => {
     }
   }
   for (const t of ['dark', 'light']) assert.ok(contrast(NEUTRAL[t].fable, NEUTRAL[t].bg) >= 3, `fable ${t}`);
+});
+
+// On a light terminal its "going fast" and "almost empty" were the same colour to protanopes, and "almost empty"
+// read at 3.9:1 (audit, 1.4.1). Seen through full protanopia, deuteranopia and tritanopia (Machado 2009, linear RGB),
+// its four battery colours stay apart (CIE76 distance in Lab) and each reads at 4.5:1.
+test('the colour-blind set keeps its four battery colours apart for every kind of colour blindness', () => {
+  const SIGHT = {
+    normal: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    protan: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+    deutan: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.01182, 0.04294, 0.968881]],
+    tritan: [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.3039]],
+  };
+  const lab = (hex, m) => {
+    const c = [1, 3, 5].map((i) => { const v = parseInt(hex.slice(i, i + 2), 16) / 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+    const [r, g, b] = m.map((row) => Math.min(1, Math.max(0, row[0] * c[0] + row[1] * c[1] + row[2] * c[2])));
+    const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+    const [X, Y, Z] = [(0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047, 0.2126 * r + 0.7152 * g + 0.0722 * b, (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883];
+    return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+  };
+  for (const theme of ['dark', 'light']) {
+    const P = palette({ colors: 'safe' }, theme), names = ['good', 'watch', 'bad', 'fable'];
+    for (const n of names) assert.ok(contrast(P[n], P.bg) >= 4.5, `${theme} ${n} ${P[n]} reads at ${contrast(P[n], P.bg).toFixed(2)}`);
+    for (const [sight, m] of Object.entries(SIGHT)) for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
+      const a = lab(P[names[i]], m), b = lab(P[names[j]], m), d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      assert.ok(d >= 15, `${theme} ${sight}: ${names[i]} ${P[names[i]]} and ${names[j]} ${P[names[j]]} are only ${d.toFixed(1)} apart`);
+    }
+  }
 });
 
 // It was named "High contrast" while five sets read better on a light terminal (audit, 1.4.1).
