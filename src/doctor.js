@@ -84,7 +84,7 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
       if (runs && runs !== version) out.push(bad(`These /juice commands are juice ${version} but the status line runs ${runs}. Restarting Claude Code usually lines them up.`));
     }
   }
-  if (settings) out.push(...overrides(p, settings, cwd, platform).map((o) => bad(`${o} To use juice there, take that setting out of that file (Claude can do it for you).`)));
+  if (settings) out.push(...overrides(p, settings, cwd, platform).map((o) => bad(/in that project\.$/.test(o) ? `${o} To use juice there, take that setting out of that file (Claude can do it for you).` : o)));
 
   // 2. juice's own settings, and whether drawing works with them.
   const { settings: mine, warnings } = loadSettings(p);

@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, renameSync, unlinkSync, realpathSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { readJson, writeJsonAtomic, writeAtomic } from './cache.js';
 import { NOTHING_SHOWN } from './schema.js';
@@ -7,7 +7,9 @@ import { loadSettings } from './settings.js';
 import { fwd, constant, launcherTarget, launcherFor } from './launcher-file.js';
 
 export { fwd, constant };
-const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+// Keys in another order (a hand edit, another tool) are the same status line.
+const sorted = (_, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort()) : v);
+const same = (a, b) => JSON.stringify(a ?? null, sorted) === JSON.stringify(b ?? null, sorted);
 // A saved copy of the old status line is usable when it is an object with a statusLine (valid JSON may still be "x" or 5).
 const usableBackup = (b) => !!b && typeof b === 'object' && 'statusLine' in b;
 export const readText = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
@@ -108,9 +110,10 @@ export function matchRefresh(p, { platform = process.platform, write } = {}) {
   const settings = readClaudeSettings(p), line = settings.statusLine;
   if (!isJuice(line) || !runsLauncher(p, line.command, platform)) return null;
   const want = refreshFor(line, loadSettings(p).settings.motion);
-  if (line.refreshInterval === want) return null;
+  // A time the person chose stays, and set motion says so: else motion=on looks broken with no word.
+  if (line.refreshInterval === want) return keepsRefresh(line) ? { seconds: want, kept: true } : null;
   writeSettings(p, { ...settings, statusLine: { ...line, refreshInterval: want } }, write);
-  return want;
+  return { seconds: want, kept: false };
 }
 
 export function install(p, { pluginRoot, yes = false, platform = process.platform, env = process.env, cwd = process.cwd() }) {
@@ -138,8 +141,10 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   writeAtomic(p.launcherFile, launcher);
 
   if (stale || damaged) {
-    renameSync(p.backupFile, p.backupFile.replace(/\.json$/, `-${Date.now()}.json`));
-    lines.push(damaged ? "juice's saved copy of your old status line was damaged, so juice set it aside under a new name." : 'Kept the earlier saved copy next to it under a new name.');
+    const aside = p.backupFile.replace(/\.json$/, `-${Date.now()}.json`);
+    renameSync(p.backupFile, aside);
+    lines.push(damaged ? `juice's saved copy of your old status line was damaged, so juice set it aside as ${basename(aside)} in your Claude folder.`
+      : `Kept the earlier saved copy as ${basename(aside)} in your Claude folder.`);
   }
   if (!ours && (stale || damaged || !backupThere)) {
     // As private as settings.json itself: the old status line command can hold a key.

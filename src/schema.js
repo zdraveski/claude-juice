@@ -80,7 +80,7 @@ const CHECK = {
   },
 };
 
-const show = (v) => (typeof v === 'string' ? `'${v}'` : JSON.stringify(v));
+const show = (v) => (typeof v === 'string' ? `'${v}'` : isObj(v) ? 'your own colours' : JSON.stringify(v)); // only colours is an object
 // The right values, from the same table that checks them (show has its own, longer warning).
 const valid = (key) => key === 'colors' ? `Use one of: ${PRESET_IDS.join(', ')}. Or your own: dark:a,b,c,d/light:a,b,c,d, each a hex colour like #22c55e (${COLOR_KEYS.join(', ')} in that order).`
   : CHECK[key].ids ? `Use one of: ${CHECK[key].ids.join(', ')}.` : '';
@@ -136,13 +136,15 @@ export function applySet(settings, pairs) {
   for (const pair of pairs) {
     const i = pair.indexOf('=');
     if (i < 1) { warnings.push(`${pair}: not a setting`); continue; }
-    const key = pair.slice(0, i);
-    const text = pair.slice(i + 1);
+    // Every name juice knows is lower case, so Layout=Tank is layout=tank; your own colours keep their hex as typed.
+    // Warnings quote it as typed.
+    const key = pair.slice(0, i).toLowerCase();
+    const typed = pair.slice(i + 1), text = key === 'colors' && typed.includes(':') ? typed : typed.toLowerCase();
     if (key === 'badges') throw new Error('Badges can only be added with /juice badges add');
     if (key === 'look') {
       const l = LOOKS.find((x) => x.id === text);
       if (l) Object.entries(l.set).forEach(([k, v]) => put(k, v));
-      else warnings.push(`look: '${text}' isn't a look. Use one of: ${LOOKS.map((x) => x.id).join(', ')}.`);
+      else warnings.push(`look: '${typed}' isn't a look. Use one of: ${LOOKS.map((x) => x.id).join(', ')}.`);
       continue;
     }
     if (!Object.hasOwn(CHECK, key)) { warnings.push(`${pair}: not a setting`); continue; }
@@ -150,7 +152,7 @@ export function applySet(settings, pairs) {
     const v = CHECK[key](parsed);
     if (v === undefined) {
       // Plain words, not JSON: "sesion,weekly" gets the list of right names (Weekly is "week").
-      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${text}' isn't valid, keeping ${show(next[key])}. ${valid(key)}${key === 'colors' && text.includes(':') ? '' : NEWER}`);
+      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${typed}' isn't valid, keeping ${show(next[key])}. ${valid(key)}${key === 'colors' && text.includes(':') ? '' : NEWER}`);
       continue;
     }
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));

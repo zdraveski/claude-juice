@@ -707,7 +707,7 @@ test('badges add needs --yes, then add/list/remove', async () => {
   assert.match((await run(d, ['badges', 'list', '--show'])).out, /1. rtk gain/);
   const ask = await run(d, ['badges', 'remove', '1']);
   assert.equal(ask.code, 2);
-  assert.match(ask.out, /This would remove badge 1: rtk gain/);
+  assert.match(ask.out, /This would remove badge 1: rtk …/, 'its first word only, as badges list shows it');
   assert.match((await run(d, ['badges', 'list', '--show'])).out, /1\. rtk gain/, 'asking removed nothing');
   assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 0);
   assert.equal((await run(d, ['badges', 'remove', '1', '--yes'])).code, 1);
@@ -800,6 +800,35 @@ test('the /juice flow for removing one of two badges removes only that one', asy
   assert.equal((await run(d, ['badges', 'list', '--show'])).out, '1. echo B');
 });
 
+test('a juice.json that is JSON but not settings is called unreadable and never overwritten', async () => {
+  for (const text of ['[]', '"x"', '42']) {
+    const d = env(), f = join(d, 'juice.json');
+    writeFileSync(f, text);
+    assert.match((await run(d, ['get'])).out, /Warning: juice\.json is unreadable/, text);
+    assert.equal((await run(d, ['set', 'layout=tank'])).code, 1, text);
+    assert.equal(readFileSync(f, 'utf8'), text);
+  }
+});
+
+test('badges list hides a key set in front of the command, and remove never shows it either', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'GITHUB_TOKEN=ghp_SECRET123 gh pr list', '--yes']);
+  await run(d, ['badges', 'add', 'A="sec ret" B=z uptime', '--yes']);
+  await run(d, ['badges', 'add', 'TOKEN=only', '--yes']);
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. GITHUB_TOKEN=… gh …\n2. A=… B=… uptime\n3. TOKEN=…');
+  assert.doesNotMatch((await run(d, ['badges', 'remove', '1'])).out, /SECRET/);
+  assert.doesNotMatch((await run(d, ['badges', 'remove', '1', '--yes'])).out, /SECRET/);
+});
+
+test('adding a badge that is already there adds no second copy', async () => {
+  const d = env();
+  await run(d, ['badges', 'add', 'uptime', '--yes']);
+  const r = await run(d, ['badges', 'add', 'uptime']);
+  assert.equal(r.code, 0);
+  assert.match(r.out, /already/);
+  assert.equal((await run(d, ['badges', 'list'])).out, '1. uptime');
+});
+
 test('an unreadable juice.json is never overwritten with defaults', async () => {
   const d = env();
   const f = join(d, 'juice.json');
@@ -859,8 +888,11 @@ test('setup after a manual change asks for --yes and keeps the old backup under 
   assert.equal(r.code, 2);
   assert.match(r.out, /--yes/);
   assert.equal(readFileSync(join(d, 'settings.json'), 'utf8'), before);
-  assert.equal((await run(d, ['setup', '--yes'])).code, 0);
-  assert.ok(readdirSync(d).some((f) => /^juice-backup-\d+\.json$/.test(f)));
+  const yes = await run(d, ['setup', '--yes']);
+  assert.equal(yes.code, 0);
+  const kept = readdirSync(d).find((f) => /^juice-backup-\d+\.json$/.test(f));
+  assert.ok(kept);
+  assert.ok(yes.out.includes(kept), 'the person is told where the earlier copy went');
   await run(d, ['restore']);
   assert.equal(statusOf(d).command, 'node Y.js');
 });
@@ -905,4 +937,53 @@ test('a BOM in settings.json is accepted and not written back', async () => {
   const raw = readFileSync(join(d, 'settings.json'), 'utf8');
   assert.notEqual(raw.charCodeAt(0), 0xFEFF);
   assert.equal(JSON.parse(raw).theme, 'dark');
+});
+
+test('setup takes the same status line with its keys in another order as unchanged', async () => {
+  const d = env();
+  put(d, { type: 'command', command: 'node X.js', padding: 0 });
+  await run(d, ['setup']);
+  put(d, { padding: 0, command: 'node X.js', type: 'command' });
+  assert.equal((await run(d, ['setup'])).code, 0);
+});
+
+test('doctor gives the user-level disableAllHooks line its own fix, not "that file" from a project line', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ disableAllHooks: true }));
+  const line = (await run(d, ['doctor'])).out.split('\n').find((l) => /disableAllHooks/.test(l));
+  assert.ok(line);
+  assert.doesNotMatch(line, /that file|juice there/);
+});
+
+test('set takes names and values in any case', async () => {
+  const d = env();
+  assert.match((await run(d, ['set', 'Layout=TANK', 'colors=Ocean'])).out, /Changed: layout, colors/);
+  assert.equal(json(join(d, 'juice.json')).layout, 'tank');
+});
+
+test('a bad colours value next to your own colours says it keeps them, not their JSON', async () => {
+  const d = env();
+  await run(d, ['set', 'colors=dark:#111111,#222222,#333333,#444444/light:#555555,#666666,#777777,#888888']);
+  const out = (await run(d, ['set', 'colors=dark:#112233'])).out;
+  assert.match(out, /keeping your own colours/);
+  assert.doesNotMatch(out, /\{/);
+});
+
+test('motion on says so when the status line keeps a refresh time of its own', async () => {
+  const d = env();
+  await run(d, ['setup']);
+  const s = json(join(d, 'settings.json'));
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ ...s, statusLine: { ...s.statusLine, refreshInterval: 5 } }));
+  assert.match((await run(d, ['set', 'motion=on'])).out, /every 5 seconds/);
+});
+
+test('a file where the Claude folder should be gets plain words, not a raw EEXIST or ENOTDIR', async () => {
+  const f = join(env(), 'not-a-folder');
+  writeFileSync(f, 'x');
+  for (const args of [['setup'], ['set', 'layout=tank']]) {
+    const r = await run(f, args);
+    assert.equal(r.code, 1, args.join(' '));
+    assert.match(r.err, /a folder it needs is really a file/, args.join(' '));
+    assert.doesNotMatch(r.err, /EEXIST|ENOTDIR/);
+  }
 });
