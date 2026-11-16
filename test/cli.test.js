@@ -1070,7 +1070,8 @@ test('refresh-badges deletes the stashed stdin once it has read it', async () =>
 
 test('refresh-badges still hands the badges their stdin when the stash cannot be deleted', async (t) => {
   const d = env(), key = 'fedcba9876543210', f = join(d, 'juice-cache', 'badges', `${key}.stdin.json`);
-  await run(d, ['badges', 'add', `"${process.execPath}" -e "process.stdin.pipe(process.stdout)"`, '--yes']);
+  // An echo that starts in milliseconds: node itself can take over the 2 s badge limit to start on a busy machine.
+  await run(d, ['badges', 'add', process.platform === 'win32' ? 'findstr "^"' : 'cat', '--yes']);
   mkdirSync(join(f, '..'), { recursive: true });
   writeFileSync(f, 'from-stdin');
   const real = fs.rmSync;
