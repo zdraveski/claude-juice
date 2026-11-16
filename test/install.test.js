@@ -115,3 +115,19 @@ test('a backslash in a Linux or macOS folder name stays a backslash; only Window
   assert.equal(fwd('C:\\Users\\a\\.claude', 'win32'), 'C:/Users/a/.claude');
   assert.equal(constant(launcherFor('/home/a/we\\ird/juice', 'darwin'), 'PINNED'), '/home/a/we\\ird/juice');
 });
+
+// Final review (1.4.1): setup wrote the launcher before saving the old status line, so a save that failed left the
+// launcher pointing at this copy of juice while settings.json still pointed elsewhere.
+test('a backup juice cannot save leaves the launcher as it was, or absent on a first setup', () => {
+  for (const launcher of ['an older launcher', null]) {
+    const d = tmp(), p = paths({ CLAUDE_CONFIG_DIR: d });
+    writeFileSync(join(d, 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'other' } }));
+    if (launcher) writeFileSync(p.launcherFile, launcher);
+    writeFileSync(join(d, 'a-file'), '');
+    const blocked = { ...p, backupFile: join(d, 'a-file', 'juice-backup.json') }; // a folder inside a file: never made
+    assert.throws(() => install(blocked, { pluginRoot: ROOT.replaceAll('\\', '/') }));
+    let now = null;
+    try { now = readFileSync(p.launcherFile, 'utf8'); } catch {}
+    assert.equal(now, launcher);
+  }
+});

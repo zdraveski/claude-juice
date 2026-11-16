@@ -140,15 +140,6 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   const before = readText(p.launcherFile);
   const fix = before === null || !launcherTarget(before) ? 'Its launcher file was missing or from an older juice, so juice put it back.'
     : launcherTarget(before) !== launcherTarget(launcher) ? 'It now uses the juice you just ran setup from.' : '';
-  writeAtomic(p.launcherFile, launcher);
-  // A settings.json juice can't save must not leave the launcher pointing at this copy of juice.
-  const save = (s) => {
-    try { writeSettings(p, s); } catch (e) {
-      try { if (before === null) unlinkSync(p.launcherFile); else writeAtomic(p.launcherFile, before); } catch {}
-      throw e;
-    }
-  };
-
   if (stale || damaged) {
     const aside = p.backupFile.replace(/\.json$/, `-${Date.now()}.json`);
     renameSync(p.backupFile, aside);
@@ -160,6 +151,15 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
     writeJsonAtomic(p.backupFile, { statusLine: settings.statusLine ?? null, savedAt: new Date().toISOString() }, { modeFrom: p.claudeSettings });
     lines.push(settings.statusLine ? 'Saved your current status line so you can get it back.' : 'You had no status line, so there is nothing to save.');
   }
+  // Written only once the old line is saved. A settings.json juice can't save must not leave the launcher pointing
+  // at this copy of juice either.
+  writeAtomic(p.launcherFile, launcher);
+  const save = (s) => {
+    try { writeSettings(p, s); } catch (e) {
+      try { if (before === null) unlinkSync(p.launcherFile); else writeAtomic(p.launcherFile, before); } catch {}
+      throw e;
+    }
+  };
   const current = ours && samePath(settings.statusLine.command, command, platform);
   // Another tool's refresh time was chosen for that tool, so a first setup starts from juice's own.
   const want = refreshFor(ours ? settings.statusLine : null, loadSettings(p).settings.motion);
