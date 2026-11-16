@@ -177,7 +177,8 @@ function update() {
     const r = contrast(set[el.dataset.ratio], NEUTRAL[view.term].bg);
     // The same bar juice holds its own colours to, and /juice set warns below.
     el.textContent = r < 3 ? `Hard to read here (${r.toFixed(1)}:1)` : r < 4.5 ? `A little faint (${r.toFixed(1)}:1)` : `Easy to read (${r.toFixed(1)}:1)`;
-    el.classList.toggle('bad', r < 4.5);
+    el.classList.toggle('bad', r < 3);
+    el.classList.toggle('faint', r >= 3 && r < 4.5);
   });
   $('cmd').textContent = toCommand(s, { terminalChosen: !!view.terminalChosen, motionChosen: !!view.motionChosen });
   $('json').textContent = JSON.stringify(s, null, 2);

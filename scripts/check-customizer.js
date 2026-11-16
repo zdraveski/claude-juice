@@ -203,6 +203,18 @@ test('the fake window title is easy to read in both terminals', async () => {
   assert.ok(await ratio() >= 4.5, 'light');
 });
 
+// Final review (1.4.1): "A little faint" was styled like "Hard to read".
+test('a faint colour is marked softly, a hard-to-read one strongly, an easy one not at all', async () => {
+  const { page } = await open();
+  const mark = async (hex) => {
+    await page.fill('[data-custom="0"]', hex);
+    return page.evaluate(() => { const el = document.querySelector('[data-ratio="0"]'); return `${el.className} ${el.textContent.split(' (')[0]}`; });
+  };
+  assert.equal(await mark('#707070'), 'ratio faint A little faint');
+  assert.equal(await mark('#404040'), 'ratio bad Hard to read here');
+  assert.equal(await mark('#ffffff'), 'ratio Easy to read');
+});
+
 // The switch does add fable to show=; what the page can't do is let juice read the login.
 test('the Fable row reads as sentences, says the page cannot turn on reading the login, and names no plan as the only one', async () => {
   const { page } = await open();
