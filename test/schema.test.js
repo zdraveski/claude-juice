@@ -55,7 +55,7 @@ test('sanitize colours', () => {
 
 test('sanitize other enums fall back', () => {
   const r = sanitize({ cost: 'x', ends: 'x', terminal: 'x', refills: 'x', fable: 'x' }, { allowBadges: true });
-  assert.deepEqual(r.settings, DEFAULTS);
+  assert.deepEqual(r.settings, { ...DEFAULTS, fable: 'off' }, 'a mistyped fable falls back to off, never auto');
   assert.equal(r.warnings.length, 5);
   const old = sanitize({ clock: '24h' }, { allowBadges: true });
   assert.deepEqual([old.settings, old.warnings], [DEFAULTS, []], 'an old clock setting is ignored quietly');

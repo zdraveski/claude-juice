@@ -173,12 +173,26 @@ test('loadSettings: missing -> fresh defaults, corrupt -> warning, save round tr
   mkdirSync(p.config, { recursive: true });
   writeFileSync(p.settingsFile, '{"a":');
   const c = loadSettings(p);
-  assert.deepEqual(c.settings, DEFAULTS);
+  assert.deepEqual(c.settings, { ...DEFAULTS, fable: 'off' });
   assert.equal(c.warnings.length, 1);
   assert.throws(() => saveSettings(p, { ...DEFAULTS, layout: 'panel' }), /can't be read/, 'never saves defaults over a file it could not read');
   unlinkSync(p.settingsFile);
   saveSettings(p, { ...DEFAULTS, layout: 'panel' });
   assert.equal(loadSettings(p).settings.layout, 'panel');
+});
+
+test('a broken or mistyped juice.json never turns the Fable login read back on', () => {
+  // The file may hold a "no" from setup: reading the login on a guess would break that promise.
+  const p = paths({ CLAUDE_CONFIG_DIR: tmp() });
+  mkdirSync(p.config, { recursive: true });
+  for (const text of ['{"fable":"off",}', '{"fable":"Off"}', '{"fable":false}', '{"fable":"no"}']) {
+    writeFileSync(p.settingsFile, text);
+    assert.equal(loadSettings(p).settings.fable, 'off', text);
+  }
+  writeFileSync(p.settingsFile, '{"fable":"Off"}');
+  assert.match(loadSettings(p).warnings.join('\n'), /fable: 'Off' isn't valid, using 'off'/);
+  unlinkSync(p.settingsFile);
+  assert.equal(loadSettings(p).settings.fable, 'auto', 'no file at all is a fresh install, which /juice setup asks first');
 });
 
 test('hot-path writes fail fast and takeLock returns false instead of throwing', () => {

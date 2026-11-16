@@ -97,7 +97,9 @@ export function sanitize(x, { allowBadges }) {
   for (const k of Object.keys(CHECK)) {
     if (!(k in src)) continue;
     const v = CHECK[k](src[k]);
-    if (v === undefined) warnings.push(`${k}: ${show(src[k])} isn't valid, using ${show(DEFAULTS[k])}${k === 'show' ? '' : `. ${valid(k)}`}`);
+    // A mistyped fable was most likely a no: auto could read the login on a guess.
+    if (v === undefined && k === 'fable') settings.fable = 'off';
+    if (v === undefined) warnings.push(`${k}: ${show(src[k])} isn't valid, using ${show(settings[k])}${k === 'show' ? '' : `. ${valid(k)}`}`);
     else settings[k] = v;
     if (k === 'show' && v !== undefined && unknownShow(src.show).length) warnings.push(showWarning(unknownShow(src.show)));
   }

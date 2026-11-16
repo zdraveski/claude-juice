@@ -13,6 +13,8 @@ export function loadSettings(p) {
   const w = raw === null && why(p.settingsFile);
   if (w === 'broken') r.warnings.push('juice.json is unreadable, using defaults');
   if (w === 'locked') r.warnings.push("juice isn't allowed to read juice.json, using defaults");
+  // The unreadable file may hold a no to the Fable login read, so never read the login on a guess.
+  if (w === 'broken' || w === 'locked') r.settings.fable = 'off';
   return r;
 }
 
