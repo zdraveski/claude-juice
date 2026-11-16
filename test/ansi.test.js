@@ -50,11 +50,22 @@ test('to256 picks what searching all 240 colours picks', () => {
     for (const r of vals) for (const g of vals) for (const b of vals) {
       const rgb = [r, g, b], hex = '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
       const word = bg ? Math.sign(lumOf(rgb) - lumOf(bgRgb)) : 0, fill = bg ? (inkOn(hex) === '#ffffff' ? -1 : 1) : 0;
-      const got = to256(`\x1b[38;2;${r};${g};${b};48;2;${r};${g};${b}m`, bg), want = `\x1b[38;5;${search(rgb, word)};48;5;${search(rgb, fill)}m`;
+      const got = to256(`\x1b[38;2;${r};${g};${b}m`, bg) + to256(`\x1b[48;2;${r};${g};${b}m`, bg), want = `\x1b[38;5;${search(rgb, word)}m\x1b[48;5;${search(rgb, fill)}m`;
       if (got !== want && wrong.length < 5) wrong.push(`${hex} on ${bg}: ${JSON.stringify(got)} want ${JSON.stringify(want)}`);
     }
   }
   assert.deepEqual(wrong, []);
+});
+// Re-review (1.4.1): a round end is a word in the battery's casing colour and the battery a fill of it. In 256 colours
+// the word moved away from the background and the fill away from its ink, so they met with a seam (237 beside 236).
+test('in 256 colours a round end and the battery it closes get the same colour', () => {
+  for (const [back, casing] of [['#1e1e1e', '#353535'], ['#fafafa', '#e6e6e6']]) {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(casing.slice(i, i + 2), 16));
+    const out = to256(`${fg(casing, '')}\x1b[48;2;${r};${g};${b}m 42% \x1b[49m${fg(casing, '')}`, back);
+    const [left, body, right] = [...out.matchAll(/[34]8;5;(\d+)/g)].map((m) => m[1]);
+    assert.equal(left, body, `${casing} on ${back}: ${JSON.stringify(out)}`);
+    assert.equal(right, body, `${casing} on ${back}: ${JSON.stringify(out)}`);
+  }
 });
 test('strip removes every escape sequence and control char but keeps newlines', () => {
   assert.equal(strip('\x1b]0;x\x07hi'), 'hi');

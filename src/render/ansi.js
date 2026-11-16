@@ -83,17 +83,32 @@ function index256(rgb, away) {
 // With the terminal's background (bg), words move away from what they sit on (a fill drawn before them, else the
 // background) and a fill moves away from its ink (inkOn), so neither reads worse than in full colour: the nearest of
 // the 256 can be lighter on a light terminal (Claude's red fell to 3.7:1), and the pace tick fell below 3:1 on a fill.
+const rgbAt = (p, i) => {
+  const rgb = p.slice(i + 2, i + 5).map((v) => Math.min(255, Math.max(0, +v || 0)));
+  while (rgb.length < 3) rgb.push(0);
+  return rgb;
+};
 export const to256 = (s, bg) => {
   const back = bg ? lum(bg) : 0;
   let under = back; // shortcut: a fill sent in the same code after its words counts from the next code on
+  // A colour the line also fills with maps the fill's way wherever it is drawn: a round end is drawn as a word in its
+  // battery's colour, and moving the two apart left a seam between them.
+  const fills = new Set();
+  if (bg) for (const [, ps] of s.matchAll(/\x1b\[([0-9;]*)m/g)) {
+    const p = ps.split(';');
+    for (let i = 0; i < p.length; i++) if ((p[i] === '38' || p[i] === '48') && (p[i + 1] === '2' || p[i + 1] === '5')) {
+      if (p[i] === '48' && p[i + 1] === '2') fills.add(rgbAt(p, i).join());
+      i += p[i + 1] === '2' ? 4 : 2;
+    }
+  }
   return s.replace(/\x1b\[([0-9;]*)m/g, (_, ps) => {
     const p = ps.split(';'), out = [];
     for (let i = 0; i < p.length; i++) {
       if ((p[i] === '38' || p[i] === '48') && p[i + 1] === '2') {
-        const rgb = p.slice(i + 2, i + 5).map((v) => Math.min(255, Math.max(0, +v || 0)));
-        while (rgb.length < 3) rgb.push(0);
+        const rgb = rgbAt(p, i);
         const hex = '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
-        const away = !bg ? 0 : p[i] === '38' ? Math.sign(lumOf(rgb) - under) : inkOn(hex) === '#ffffff' ? -1 : 1;
+        const asFill = p[i] === '48' || fills.has(rgb.join());
+        const away = !bg ? 0 : asFill ? (inkOn(hex) === '#ffffff' ? -1 : 1) : Math.sign(lumOf(rgb) - under);
         const n = index256(rgb, away);
         if (bg && p[i] === '48') under = xterm()[n - 16].y;
         out.push(p[i], '5', n); i += 4;
