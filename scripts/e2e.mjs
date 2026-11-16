@@ -25,8 +25,12 @@ const copy = (from, to) => {
 const plugin = (to) => { for (const f of ['bin', 'src', 'package.json', '.claude-plugin']) copy(join(repo, f), join(to, f)); };
 // A fresh home with juice in Claude Code's plugin store, as <version>. The temp folder by its full name, as a real
 // home folder always is (C:\Users\Zoë, not RUNNER~1).
+// Every temp folder goes when the run ends, passed or failed.
+const temps = [];
+const temp = () => { const t = mkdtempSync(join(realpathSync.native(tmpdir()), 'juice-e2e-')); temps.push(t); return t; };
+process.on('exit', () => { for (const t of temps) rmSync(t, { recursive: true, force: true }); });
 const install = (name, v = version) => {
-  const home = join(mkdtempSync(join(realpathSync.native(tmpdir()), 'juice-e2e-')), name);
+  const home = join(temp(), name);
   const config = join(home, '.claude'), market = join(config, 'plugins', 'cache', 'juice', 'juice');
   const x = { home, config, market, plugin: join(market, v), settings: join(config, 'settings.json'), launcher: join(config, 'juice-statusline.mjs'), env: { ...process.env, HOME: home, USERPROFILE: home } };
   delete x.env.CLAUDE_CONFIG_DIR;
@@ -140,7 +144,7 @@ if (process.platform !== 'win32') {
   const old = join(home, 'old-node', 'bin');
   mkdirSync(old, { recursive: true });
   symlinkSync(process.execPath, join(old, 'node'));
-  const r = spawnSync(process.execPath, [join(main.plugin, 'bin', 'juice.js'), 'setup'], { env: { ...env, PATH: `${old}:${process.env.PATH}` }, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [join(main.plugin, 'bin', 'juice.js'), 'setup'], { env: { ...env, PATH: `${old}:${process.env.PATH}` }, cwd: parse(home).root, encoding: 'utf8' });
   assert.equal(r.status, 0, `setup with the old Node: ${r.stderr}`);
   const pinned = S(main).statusLine.command;
   assert.ok(pinned.startsWith(`PATH="${old}:$PATH" node `), pinned);
@@ -151,16 +155,16 @@ if (process.platform !== 'win32') {
 // People who set CLAUDE_CONFIG_DIR (the documented way to move the folder) get a different command: run that too, with a
 // folder name that has a space, an accent and an apostrophe, through bash.
 {
-  const odd = join(mkdtempSync(join(realpathSync.native(tmpdir()), 'juice-e2e-')), "Ünïcode d'ir (2)");
+  const odd = join(temp(), "Ünïcode d'ir (2)");
   const plugin2 = join(odd, 'plugins', 'cache', 'juice', 'juice', version);
   plugin(plugin2);
   const env2 = { ...env, CLAUDE_CONFIG_DIR: odd };
-  const setup2 = spawnSync(process.execPath, [join(plugin2, 'bin', 'juice.js'), 'setup'], { env: env2, encoding: 'utf8' });
+  const setup2 = spawnSync(process.execPath, [join(plugin2, 'bin', 'juice.js'), 'setup'], { env: env2, cwd: parse(odd).root, encoding: 'utf8' });
   assert.equal(setup2.status, 0, `setup with CLAUDE_CONFIG_DIR: ${setup2.stdout}${setup2.stderr}`);
   const command2 = JSON.parse(readFileSync(join(odd, 'settings.json'), 'utf8')).statusLine.command;
   assert.ok(command2.includes(odd.replaceAll('\\', '/')), command2);
   check('CLAUDE_CONFIG_DIR with a space, an accent and an apostrophe, through bash', 'bash', ['-c', command2], env2);
-  const doctor2 = spawnSync(process.execPath, [join(plugin2, 'bin', 'juice.js'), 'doctor'], { env: env2, encoding: 'utf8' }).stdout;
+  const doctor2 = spawnSync(process.execPath, [join(plugin2, 'bin', 'juice.js'), 'doctor'], { env: env2, cwd: parse(odd).root, encoding: 'utf8' }).stdout;
   assert.match(doctor2, /^✓ juice is your status line, refreshing once a minute$/m, doctor2);
   assert.match(doctor2, new RegExp(`^✓ The status line runs juice ${V}$`, 'm'), doctor2);
   assert.match(doctor2, /^✓ Drawing works/m, doctor2);
@@ -270,6 +274,8 @@ const first = install('first');
 }
 
 // A project whose own settings set a status line, and hooks turned off: setup and doctor both say so, by a short path.
+// The scan walks up from the project to the drive root, so on Windows, where the temp folder sits inside the real home,
+// it also reads the real home's project settings (read-only, and nothing below depends on them).
 {
   const x = install('project');
   const proj = join(x.home, 'proj'), sub = join(proj, 'sub');
@@ -321,7 +327,8 @@ const first = install('first');
   const next = join(x.market, version);
   plugin(next);
   writeFileSync(join(x.plugin, '.orphaned_at'), '1');
-  const long = new Date(Date.now() - 30 * 86400000);
+  // Older than the new version's launcher template, as after a real update (the copy keeps the repo file's time).
+  const long = new Date(statSync(join(next, 'bin', 'launcher.js')).mtimeMs - 86400000);
   utimesSync(x.launcher, long, long);
   lineOk(x, 'the first refresh after an update');
   assert.equal(S(x).statusLine.refreshInterval, 60, 'the update left the refresh at every second');
