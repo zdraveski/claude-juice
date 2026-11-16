@@ -11,7 +11,7 @@ Type `/juice doctor` first (when juice itself hits a problem, the line says `jui
 - **You see boxes or question marks instead of round battery ends.** Type `/juice use plain ends`.
 - **You want round battery ends outside VS Code.** Type `/juice use round ends`.
 - **The line runs past the edge or wraps.** Some terminals set up for Chinese, Japanese or Korean draw symbols like `■`, `░` and `·` two columns wide. Look for a setting called "ambiguous width" (iTerm2 and GNOME Terminal have one) and set it to narrow.
-- **There is no Fable battery.** juice asks before it reads your login, so type `/juice set fable=on` if you said no. Then `/juice doctor` says how the last check went and what to do, for example to type `/login` when Anthropic refused your sign-in.
+- **There is no Fable battery.** juice asks before it reads your login, so type `/juice set fable=on` if you said no. Then `/juice doctor` says how the last check went and what to do, for example to type `/login` when Anthropic refused your sign-in. [Privacy](privacy.md) says what juice reads and sends for this battery.
 - **The Fable battery doesn't show at work, behind a company proxy.** juice goes through the proxy named in `HTTPS_PROXY` (or `https_proxy`), so set it where you start Claude Code. If your company inspects secure connections, also point `NODE_EXTRA_CA_CERTS` at its certificate file.
 - **It says "juice is turned off" or "juice is not installed".** Turn juice back on, or install it again, in `/plugin`. Then `/juice setup` uses it, or `/juice restore` gives you your old status line back. If you don't want juice back, delete the `statusLine` entry in `~/.claude/settings.json`; your old one is in `~/.claude/juice-backup.json`.
 

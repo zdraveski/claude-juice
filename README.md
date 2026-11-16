@@ -4,13 +4,13 @@
 
 [![Tests](https://github.com/zdraveski/claude-juice/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/zdraveski/claude-juice/actions/workflows/test.yml) [![Latest release](https://img.shields.io/github/v/release/zdraveski/claude-juice?label=release)](https://github.com/zdraveski/claude-juice/releases/latest) [![License: MIT](https://img.shields.io/github/license/zdraveski/claude-juice)](LICENSE)
 
-**Your Claude Code usage limits as batteries under your prompt, turning amber when you're going too fast.**
+**Your Claude Code usage limits as batteries under your prompt, turning amber, then red, when you're using them too fast.**
 
-juice shows your 5-hour session, your weekly limit, the Fable limit and how full this chat is. It counts the same way as Anthropic's usage page, says when each limit resets, and, when you're on track to run out first, at what time.
+juice shows your 5-hour session, your weekly limit, the Fable limit and how full this chat is. It counts the same way as Anthropic's usage page, says when each limit resets and, if you're on track to run out before then, at what time.
 
 Free, open source and unofficial: juice is not made by Anthropic.
 
-[Install](#install) · [What you get](#what-you-get) · [Make it yours](#make-it-yours) · [Safe to try](#safe-to-try) · [Guide](docs/guide.md) · [Something wrong?](docs/troubleshooting.md) · [Privacy](docs/privacy.md)
+[Install](#install) · [Safe to try](#safe-to-try) · [What you get](#what-you-get) · [Make it yours](#make-it-yours) · [Guide](docs/guide.md) · [Fix or update](docs/troubleshooting.md) · [Privacy](docs/privacy.md)
 
 </div>
 
@@ -21,17 +21,26 @@ Free, open source and unofficial: juice is not made by Anthropic.
 
 ## Know before you run out
 
-Claude Code's `/usage` shows where you stand when you stop to ask. juice keeps every limit in sight while you work. It colours each one by your pace as well as by how much is used, so a limit that is draining too fast warns you while there is still time to slow down or wrap up.
+juice keeps your limits in sight while you work. It colours Session, Weekly and Fable by your pace as well as by how much is used, so a limit that is draining too fast warns you while there is still time to slow down or wrap up.
 
 - Green means plenty left.
 - Amber with ! means you are going a bit fast. At this pace you will use most of it (85% or more) before it resets.
 - Red with !! means almost empty, or half or more used and on track to run out before it resets.
 - An amber or red battery that is on track to run out before it resets also says when, for example "runs out ~4:04 PM · resets in 2h 10m".
+- Fable has its own colour while it is fine, violet in most colour sets.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/colours-dark.png">
   <img src="docs/images/colours-light.png" alt="Colours tell you how it is going, not only how much is used: green means plenty left, with a thin line marking an even pace; amber with ! means a bit fast; violet is Fable while it is fine; red with !! means nearly out and says when it runs out, here runs out ~2:33 PM.">
 </picture>
+
+## Safe to try
+
+- Setup saves your old status line first, and `/juice restore` puts it back.
+- Only the Fable battery needs your Claude login, and juice asks before it reads it, unless you already had the Fable battery before 1.4.0 on Windows or Linux. If you say no, Session, Weekly and Memory still work, though a window you're not using can show older numbers.
+- The only thing juice itself sends anywhere is a usage request to `api.anthropic.com`, and only while the Fable battery is on.
+
+[Privacy](docs/privacy.md) has the details, with links to the code that reads your login and sends it.
 
 ## Install
 
@@ -61,11 +70,11 @@ You need Node 24 or newer. To check, type `node --version` in a terminal; if you
    /juice setup
    ```
 
-If Claude Code still doesn't know `/juice`, restart it and type `/juice setup` again. juice saves your old status line first, if you had one, so `/juice restore` can always bring it back.
-
-Setup asks you once whether juice may read your Claude login for the Fable battery. Saying no keeps everything else working. [More in Privacy](docs/privacy.md).
+If Claude Code still doesn't know `/juice`, restart it and type `/juice setup` again. Setup asks you one question, about the Fable battery (see [Safe to try](#safe-to-try)).
 
 The very first time, the batteries fill in after Claude's first reply; until then only the model and effort level show. After that, a new chat shows Session and Weekly straight away, and Memory after the first reply.
+
+To update later, open `/plugin`, pick juice, and update it, then restart Claude Code. [What's new](CHANGELOG.md) lists what each version changed.
 
 juice works on Windows, macOS and Linux (tested by hand on Windows, automatically on all three). On a Mac or Linux, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) if something looks off.
 
@@ -91,7 +100,7 @@ If you use the VS Code chat panel or the desktop app, open a terminal and type `
   <img src="docs/images/features-light.png" alt="What you get, in five rows: when every limit resets, shown right next to it; warnings you can't miss, amber ! when you are going fast and red !! when nearly out; Fable in its own violet battery; 14 looks and 13 colour sets, with colour-blind safe and light-terminal sets, and Session drawn in three of the looks, Night owl, Easy to see and Colour-blind friendly; and safe to try, because /juice restore brings your old status line back.">
 </picture>
 
-[The guide](docs/guide.md#what-the-batteries-mean) explains every battery, the pace line and the reset times.
+[The guide](docs/guide.md#what-the-batteries-mean) explains every battery, the thin line that marks an even pace, and the reset times.
 
 ## Make it yours
 
@@ -115,14 +124,6 @@ Type `/juice` and then say what you want, in your own words. For example:
 </p>
 
 [The guide](docs/guide.md#ready-made-looks) shows every look, layout, colour set and battery style.
-
-## Safe to try
-
-- Setup saves your old status line first, and `/juice restore` puts it back.
-- juice asks before it reads your Claude login, which only the Fable battery needs. If you say no, Session, Weekly and Memory still work.
-- The only thing juice itself sends anywhere is a usage request to `api.anthropic.com`, and only while the Fable battery is on.
-
-[Privacy](docs/privacy.md) has the details, with links to the code that reads and sends.
 
 ## More
 

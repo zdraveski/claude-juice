@@ -1,4 +1,4 @@
-// README: a set HTTPS_PROXY carries juice's connection to Anthropic. bin/juice-statusline.js does that by handing the
+// docs/privacy.md: a set HTTPS_PROXY carries juice's connection to Anthropic. bin/juice-statusline.js does that by handing the
 // Fable refresher NODE_USE_ENV_PROXY=1; drop that and Node goes straight out, and the Fable battery quietly stays empty.
 // Here the real status line starts the real refresher, with a fake login and a fake proxy on this computer. A preload
 // stops every connection that is not to this computer, so even a broken pass-through sends nothing anywhere.
