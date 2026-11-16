@@ -1,7 +1,7 @@
 import './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, utimesSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, utimesSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paths } from '../src/paths.js';
@@ -230,4 +230,17 @@ test('a helper a badge starts in the background is stopped once the badge has pr
   const alive = () => { try { process.kill(pid, 0); return true; } catch { return false; } };
   for (let i = 0; i < 20 && alive(); i++) await new Promise((res) => setTimeout(res, 50));
   assert.equal(alive(), false, 'the background sleep is gone');
+});
+
+test('a badge runs in the folder Claude Code is in, not the refresher\'s own', async () => {
+  const p = tmp(), dir = realpathSync(mkdtempSync(join(tmpdir(), 'juice-badge-cwd-')));
+  const seen = [];
+  const spy = async (c, o) => { seen.push(o.cwd); return { ok: true, stdout: 'x' }; };
+  const go = (current_dir) => refreshBadges({ p, settings: { badges: [approve(p, 'rtk')] }, key: 'k', stdinText: JSON.stringify({ workspace: { current_dir } }), runImpl: spy });
+  await go(dir);
+  await go(join(dir, 'gone'));
+  await go(7);
+  assert.deepEqual(seen, [dir, undefined, undefined], 'a folder that is not there is left to the refresher\'s own');
+  const r = await run('node -p "process.cwd()"', { timeoutMs: 5000, cwd: dir });
+  assert.equal(realpathSync(r.stdout.trim()), dir);
 });

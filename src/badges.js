@@ -1,6 +1,6 @@
 // Badges: user-added shell commands whose first output line is shown before the batteries.
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { cut, ESCAPES } from './render/ansi.js';
@@ -54,13 +54,13 @@ function killTree(child) {
   try { child.stdout.destroy(); } catch {}
 }
 
-export function run(command, { input, timeoutMs }) {
+export function run(command, { input, timeoutMs, cwd }) {
   return new Promise((resolve) => {
     let out = '', done = false;
     const finish = (r) => { if (!done) { done = true; clearTimeout(timer); resolve(r); } };
     let child;
     // stderr is never read, so it is not opened: a helper the command starts could otherwise hold it, and us, open.
-    try { child = spawn(command, { shell: true, windowsHide: true, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'ignore'] }); } catch { return resolve({ ok: false, stdout: '' }); }
+    try { child = spawn(command, { shell: true, cwd, windowsHide: true, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'ignore'] }); } catch { return resolve({ ok: false, stdout: '' }); }
     const timer = setTimeout(() => { killTree(child); finish({ ok: false, stdout: '' }); }, timeoutMs);
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (d) => { if (out.length < MAX_OUT) out = (out + d).slice(0, MAX_OUT); });
@@ -116,9 +116,12 @@ export async function refreshBadges({ p, settings, key, stdinText, runImpl = run
     // The old text of a failing command is kept only briefly after its last success: an old branch name is not current.
     const okAtFor = (c) => prev?.okAt?.[prev.commands?.indexOf(c)];
     const keep = (c) => (now - okAtFor(c) <= GRACE_MS ? [textFor(prev, c) ?? '', okAtFor(c)] : ['', undefined]);
+    // Claude's current folder, which the cache key already uses: a command like git branch must see that repo.
+    let cwd;
+    try { const d = JSON.parse(stdinText)?.workspace?.current_dir; if (typeof d === 'string' && statSync(d).isDirectory()) cwd = d; } catch {}
     const results = await Promise.all(commands.map(async (command) => {
       try {
-        const r = await runImpl(command, { input: stdinText, timeoutMs: TIMEOUT_MS });
+        const r = await runImpl(command, { input: stdinText, timeoutMs: TIMEOUT_MS, cwd });
         return r.ok ? [cleanBadge(r.stdout), now] : keep(command);
       } catch { return keep(command); }
     }));
