@@ -35,4 +35,4 @@ The tests already do this. (The `now+…` reset times in `test/fixtures/` are fi
 
 ## Writing for juice
 
-juice is for people who don't code. Anything they read (status line, `/juice` replies, README) uses plain words without jargon and says what to do next. Record what changed for them in [CHANGELOG.md](CHANGELOG.md).
+juice is for people who don't code. Anything they read (status line, `/juice` replies, README, `docs/`) uses plain words without jargon and says what to do next. Record what changed for them in [CHANGELOG.md](CHANGELOG.md).
