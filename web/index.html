@@ -78,7 +78,7 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:999px;
 .card > p{margin:0 0 16px;color:var(--sub);font-size:14px}
 .layouts,.looks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .looks{grid-template-columns:repeat(2,minmax(0,1fr))}
-.opt{all:unset;cursor:pointer;display:flex;flex-direction:column;min-width:0;background:var(--panel2);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;transition:border-color .15s,background .15s,transform 160ms cubic-bezier(.23,1,.32,1)}
+.opt{all:unset;cursor:pointer;display:flex;flex-direction:column;min-width:0;background:var(--panel2);border:1.5px solid #4a4642;border-radius:12px;padding:12px 14px;transition:border-color .15s,background .15s,transform 160ms cubic-bezier(.23,1,.32,1)}
 .opt:active,.seg button:active,.btn:active{transform:scale(.97)}
 .opt[aria-pressed=true]{border-color:var(--clay);background:#26201c}
 .opt > strong{display:block;font-size:14.5px;font-weight:600}
@@ -100,9 +100,9 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:999px;
 .grip.none{cursor:default;visibility:hidden}
 .mv{all:unset;cursor:pointer;color:var(--mute);width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:12px}
 /* Hover looks only where there is a mouse: on a touch screen they stick after a tap. */
-@media (hover:hover) and (pointer:fine){.opt:hover{border-color:#4a4642}.mv:hover{background:#2a2825;color:var(--ink)}}
+@media (hover:hover) and (pointer:fine){.opt:hover{border-color:#6b665f}.mv:hover{background:#2a2825;color:var(--ink)}}
 .mv[disabled]{opacity:.25;cursor:default;background:none}
-.sw{all:unset;cursor:pointer;flex:0 0 auto;width:42px;height:24px;border-radius:999px;background:#3a3734;position:relative;transition:background .15s}
+.sw{all:unset;cursor:pointer;flex:0 0 auto;width:42px;height:24px;border-radius:999px;background:#6b665f;position:relative;transition:background .15s}
 .sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#cfcac3;transition:transform .18s cubic-bezier(.3,.7,.4,1)}
 .sw[aria-checked=true]{background:var(--clay)}
 .sw[aria-checked=true]::after{transform:translateX(18px);background:#fff}
@@ -132,7 +132,7 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:999px;
 .cmd{display:flex;gap:8px;align-items:stretch;margin:0 0 8px}
 .cmd code{flex:1;min-width:0;background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:10px 13px;font:13px/1.5 Consolas,monospace;color:#e8e3dc;overflow-wrap:anywhere}
 .btn{all:unset;cursor:pointer;background:var(--clay);color:#1a0f0a;font-weight:650;border-radius:10px;padding:0 16px;display:flex;align-items:center;justify-content:center;font-size:13.5px;white-space:nowrap;transition:transform 160ms cubic-bezier(.23,1,.32,1)}
-.btn.ghost{background:none;border:1px solid var(--line);color:var(--sub);padding:7px 14px;font-weight:500;font-size:13px}
+.btn.ghost{background:none;border:1px solid #4a4642;color:var(--ink);padding:7px 14px;font-weight:500;font-size:13px}
 /* "Copied" shows on the button itself, as wide as "Copy" so nothing jumps. */
 .btn[data-copy]{min-width:64px}
 .btn.ghost[data-done]{color:var(--clay);border-color:var(--clay)}
@@ -168,6 +168,10 @@ pre{background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:1
   /* On a phone every row of choices wraps. */
   .drow .seg{flex-wrap:wrap;border-radius:16px}
   .row{gap:8px}
+  /* Help text a phone can read: nothing under 14 px. */
+  .card > p{font-size:15px}
+  .row .d,.drow .d,.opt > span,.note,.hint{font-size:14px}
+  .badge{font-size:12px}
 }
 /* Fingers need 44 px: every control grows on a touch screen or a phone. */
 @media (pointer:coarse),(max-width:700px){
@@ -192,7 +196,7 @@ pre{background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:1
   [aria-pressed=true]{outline:2px solid Highlight;outline-offset:1px}
 }
 button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.opt:active,.seg button:active,.btn:active{transform:none}}
 </style>
 </head>
 <body>
