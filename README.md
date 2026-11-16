@@ -12,7 +12,10 @@ Free, open source and unofficial: juice is not made by Anthropic.
 
 </div>
 
-<img src="docs/images/hero.png" alt="juice for Claude Code: four batteries under your prompt. Memory is 91% and red with !! summary soon, Session is 47% and resets in 2h 10m, Fable is 41% in violet and resets Sat 7:20 PM, and Weekly is 50% and amber with ! because it is going a bit fast." width="480">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
+  <img src="docs/images/hero-light.png" alt="juice: your Claude Code limits as batteries, right under the prompt. The same numbers drawn in five of its looks, Juice, Spotlight, Retro phone, Capsule and Road trip: Memory 64%, Session 47%, and Weekly 50% in amber with ! because it is going a bit fast, with its reset time, Sat 7:20 PM. Road trip shows the same as what is left: 36%, 53% and 50%.">
+</picture>
 
 ## Install
 
@@ -68,18 +71,24 @@ juice is made for Claude Code only. It shows wherever Claude Code shows a status
 If you use the VS Code chat panel or the desktop app, open a terminal and type `claude` to see juice.
 
 <p align="center">
-  <a href="https://zdraveski.github.io/claude-juice/web/"><img src="docs/images/open-customizer.png" alt="Open the live customizer" width="340"></a>
+  <a href="https://zdraveski.github.io/claude-juice/web/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/open-customizer-dark.png"><img src="docs/images/open-customizer-light.png" alt="Open the live customizer" width="340"></picture></a>
   <br>
   <sub>Try every look, layout and colour with a live preview, without installing anything.</sub>
 </p>
 
 ## What you get
 
-<img src="docs/images/features.png" alt="What juice gives you, in five parts: when every limit resets, right next to it; amber ! when you are going fast and red !! when nearly out; Fable in its own violet battery; 14 looks and 13 colour sets, with colour-blind safe and light-terminal sets; and safe to try, because /juice restore brings your old status line back." width="480">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/features-dark.png">
+  <img src="docs/images/features-light.png" alt="What you get, in five rows: when every limit resets, shown right next to it; warnings you can't miss, amber ! when you are going fast and red !! when nearly out; Fable in its own violet battery; 14 looks and 13 colour sets, with colour-blind safe and light-terminal sets, and Session drawn in three of the looks, Night owl, Easy to see and Colour-blind friendly; and safe to try, because /juice restore brings your old status line back.">
+</picture>
 
 ## What the batteries mean
 
-<img src="docs/images/anatomy.png" alt="Reading the status line: the whole line, wrapped to fit, with its six parts numbered. 1 the model. 2 the effort level, more bars for more effort. 3 Memory, how full this chat is, with no reset time. 4 Session, the 5-hour limit and the time before it resets. 5 Fable, its own limit in a violet battery. 6 Weekly, the weekly limit with its reset day and time, where ! or !! warns you." width="480">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/anatomy-dark.png">
+  <img src="docs/images/anatomy-light.png" alt="Reading the status line: the whole line, wrapped to fit, with its six parts numbered. 1 Model, the model Claude is using. 2 Effort, more bars for more effort. 3 Memory, how full this chat is, with no reset time. 4 Session, the 5-hour limit and the time before it resets. 5 Fable, its own limit in a violet battery. 6 Weekly, the weekly limit with its reset day and time, where ! or !! warns you.">
+</picture>
 
 | Battery | What it shows |
 |:---|:---|
@@ -108,7 +117,10 @@ The colours for Session, Weekly and Fable depend on your pace as well as on how 
 
 While Fable is fine it has its own colour (violet in most colour sets), so you can tell it apart. When it goes fast or runs low it turns amber or red with ! or !! like the others.
 
-<img src="docs/images/colours.png" alt="Colours tell you how it is going: green means plenty left, with a thin line marking an even pace; amber with ! means a bit fast; violet is Fable while it is fine; red with !! means nearly out and says when it runs out." width="480">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/colours-dark.png">
+  <img src="docs/images/colours-light.png" alt="Colours tell you how it is going, not only how much is used: green means plenty left, with a thin line marking an even pace; amber with ! means a bit fast; violet is Fable while it is fine; red with !! means nearly out and says when it runs out, here runs out ~2:33 PM.">
+</picture>
 
 In the Status bar, Tightest first and Panel layouts, a thin line on these batteries marks where you would be if you used the limit evenly. If the colour reaches past the line, you are going faster than that. Before the line, you have time to spare. The Pace style shows the same thing as a softer fill up to that point. Of the shapes, only Pace race and Ruler draw the line.
 
@@ -122,7 +134,10 @@ Pro and Max plans show the limits that apply to them. If you pay as you go with 
 
 A look sets the layout, the colours, what shows and in what order, the cost, the reset times and the battery ends, all in one go. Your battery style, terminal colour, motion, Fable setting and badges stay as they are. Pick one, then change anything you like. (If you chose round or plain ends yourself, type `/juice use round ends` or `/juice use plain ends` again after picking a look.)
 
-<img src="docs/images/looks.png" alt="Four of the 14 ready-made looks, numbered as /juice look takes them: 1 Juice, 5 Retro phone, 8 Easy to see and 14 Road trip, each showing Session and Weekly, then the numbers and names of the other 10." width="480">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/looks-dark.png">
+  <img src="docs/images/looks-light.png" alt="All 14 ready-made looks, numbered as /juice look takes them, each showing the same Session 47% and Weekly 50% used (Road trip shows what is left: 53% and 50%): 1 Juice, 2 Just the basics, 3 Spotlight, 4 Everything, 5 Retro phone, 6 Quiet, 7 Night owl, 8 Easy to see, 9 Colour-blind friendly, 10 Works everywhere, 11 Cost watcher, 12 Fable first, 13 Capsule and 14 Road trip.">
+</picture>
 
 <details>
 <summary>The 14 looks in words</summary>
@@ -165,13 +180,16 @@ The batteries keep the order you chose. To let them move instead, type `/juice p
 
 There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose. Every colour in them reads at 4.5:1 or more on its terminal. Or make your own in the customizer, which tells you when one is hard to read.
 
-<img src="docs/images/colour-sets.png" alt="Four of the 13 colour sets on a dark terminal, Claude, Colour-blind safe, Midnight and Candy, each showing a fine battery, an amber one with ! and a red one with !!, then the names of the other 9." width="480">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/colour-sets-dark.png">
+  <img src="docs/images/colour-sets-light.png" alt="All 13 colour sets, each with three batteries under the columns Plenty left, Going fast ! and Nearly out !!: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose.">
+</picture>
 
 ## Change how it looks
 
 [Open the live customizer](https://zdraveski.github.io/claude-juice/web/) to try every look, layout and colour with a live preview, then copy one line into Claude Code. It runs in your browser, so there is nothing to install.
 
-[![The juice customizer on a phone: tapping the Juice, Spotlight and Colour-blind friendly looks, then a light and a dark terminal, while the live preview at the top changes with each tap.](docs/images/customizer.gif)](https://zdraveski.github.io/claude-juice/web/)
+[![The juice customizer in a desktop browser: clicking the Spotlight and Colour-blind friendly looks, then a light and a dark terminal, and back to Juice, while the live preview at the top changes with each click.](docs/images/customizer.gif)](https://zdraveski.github.io/claude-juice/web/)
 
 Or type `/juice` and then say what you want, in your own words. For example:
 
