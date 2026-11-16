@@ -188,9 +188,16 @@ test('no sideways scrolling at 320 px wide', async () => {
 });
 
 // On a phone the preview sat 2,000 px above the looks, so tapping one showed nothing (1.4.0).
-test('on a phone the preview starts at Small and stays in view while you pick a look', async () => {
+// Small (80 columns) still ran past a phone's edge and dropped the battery pictures, with no sign the line went on.
+test('on a phone the preview starts at Wide, fades where the line goes on, and stays in view while you pick a look', async () => {
   const { page } = await open(390);
-  assert.equal(await page.getAttribute('[data-view=width] [data-v=small]', 'aria-pressed'), 'true');
+  assert.equal(await page.getAttribute('[data-view=width] [data-v=wide]', 'aria-pressed'), 'true');
+  assert.equal(await page.textContent('#fitnote'), '', 'nothing dropped');
+  const more = () => page.evaluate(() => document.getElementById('out').classList.contains('more'));
+  assert.ok(await more(), 'fades at the right edge');
+  await page.evaluate(() => { const o = document.getElementById('out'); o.scrollLeft = o.scrollWidth; });
+  await page.waitForFunction(() => !document.getElementById('out').classList.contains('more'));
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'only the line scrolls');
   await page.click('[data-look=nightowl]');
   const box = await page.locator('#out').boundingBox();
   assert.ok(box && box.y >= 0 && box.y + box.height <= 900, `the preview is at ${box?.y}px`);

@@ -40,8 +40,8 @@ const DETAILS = [
 ];
 
 const phone = matchMedia('(max-width:700px)');
-// A phone can't show a wide window, so it starts at Small (80 columns).
-const view = { state: 'busy', term: 'dark', width: phone.matches ? 'small' : 'wide', plan: 'max', model: 'Opus 5.5', hover: null };
+// Wide on a phone too: Small still ran past a phone's edge and dropped the battery pictures. The line scrolls sideways instead.
+const view = { state: 'busy', term: 'dark', width: 'wide', plan: 'max', model: 'Opus 5.5', hover: null };
 let s, order, customs; // settings, full row order (hidden ones too), colour-picker values per terminal
 
 const arr = (c, t) => KEYS.map((k) => c[t][k]);
@@ -146,7 +146,17 @@ function preview() {
   $('cols').textContent = view.width === 'wide' ? '' : `${cols} columns`;
   $('fitnote').innerHTML = (p ? `Previewing <b>${p.name}</b>. ${view.hoverBy === 'focus' ? 'Press Enter' : 'Click it'} to use it. ` : '')
     + (dropped.length ? `Too narrow for everything, so it drops or shrinks <b>${dropped.join(', ')}</b>.` : view.width === 'wide' ? '' : 'Everything fits at this width.');
+  edge();
 }
+
+// The line fades at the right edge while more of it is out of view.
+function edge() {
+  const o = $('out');
+  o.classList.toggle('more', o.scrollWidth - o.clientWidth - o.scrollLeft > 1);
+}
+$('out').addEventListener('scroll', edge, { passive: true });
+addEventListener('resize', edge);
+$('win').addEventListener('transitionend', edge);
 
 function update() {
   preview();
