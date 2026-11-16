@@ -145,10 +145,14 @@ test('dragging a battery row reorders it, and so do the arrow buttons', async ()
   assert.match(await cmd(page), /show=model,effort,week,memory,session,fable,budget /);
   await page.click('[data-move=session][data-dir="-1"]');
   assert.deepEqual(await order(), ['week', 'session', 'memory', 'fable']);
+  // Dragged down onto the last row, it takes the last place (1.4.0 stopped one short, so the bottom was unreachable).
+  await page.dragAndDrop('[data-bat=week]', '[data-bat=fable]');
+  assert.deepEqual(await order(), ['session', 'memory', 'fable', 'week']);
 });
 
 test('light terminal, and no sideways scrolling on a phone', async () => {
   const { page } = await open(390);
+  await page.click('#popts summary'); // on a phone the preview's own options fold away under the preview
   await page.click('[data-view=term] [data-v=light]');
   assert.ok(await page.locator('#win.light').count());
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -181,6 +185,64 @@ test('each Copy button says what it copies', async () => {
 test('no sideways scrolling at 320 px wide', async () => {
   const { page } = await open(320);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+});
+
+// On a phone the preview sat 2,000 px above the looks, so tapping one showed nothing (1.4.0).
+// Small (80 columns) still ran past a phone's edge and dropped the battery pictures, with no sign the line went on.
+test('on a phone the preview starts at Wide, fades where the line goes on, and stays in view while you pick a look', async () => {
+  const { page } = await open(390);
+  assert.equal(await page.getAttribute('[data-view=width] [data-v=wide]', 'aria-pressed'), 'true');
+  assert.equal(await page.textContent('#fitnote'), '', 'nothing dropped');
+  const more = () => page.evaluate(() => document.getElementById('out').classList.contains('more'));
+  assert.ok(await more(), 'fades at the right edge');
+  await page.evaluate(() => { const o = document.getElementById('out'); o.scrollLeft = o.scrollWidth; });
+  await page.waitForFunction(() => !document.getElementById('out').classList.contains('more'));
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'only the line scrolls');
+  await page.click('[data-look=nightowl]');
+  const box = await page.locator('#out').boundingBox();
+  assert.ok(box && box.y >= 0 && box.y + box.height <= 900, `the preview is at ${box?.y}px`);
+  assert.match(await cmd(page), /look=nightowl|layout=/);
+});
+
+test('on a phone every control is at least 44 px to tap', async () => {
+  const { page } = await open(390);
+  await page.click('#popts summary');
+  const small = await page.evaluate(() => [...document.querySelectorAll('button,select,input,summary')]
+    .filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden')
+    .map((e) => {
+      const b = e.getBoundingClientRect(), extra = e.classList.contains('sw') ? 14 : 0; // the switch's invisible margin
+      return Math.min(b.height + extra, b.width) < 44 ? `${e.className || e.tagName} ${Math.round(b.width)}x${Math.round(b.height)}` : '';
+    }).filter(Boolean));
+  assert.deepEqual([...new Set(small)], []);
+});
+
+// Safari throws after 100 address changes in 10 s, and dragging a colour picker sends dozens a second.
+test('dragging a colour picker changes the address at most 5 times a second, and the link still ends up right', async () => {
+  const { page } = await open();
+  const n = await page.evaluate(async () => {
+    let calls = 0; const real = history.replaceState.bind(history);
+    history.replaceState = (...a) => { calls++; return real(...a); };
+    const inp = document.querySelector('[data-custom="0"]'), t0 = performance.now();
+    for (let i = 0; i < 60; i++) {
+      inp.value = `#${(16 + i * 3).toString(16)}8040`;
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    await new Promise((r) => setTimeout(r, 400));
+    return { calls, ms: performance.now() - t0 };
+  });
+  assert.ok(n.calls <= Math.ceil(n.ms / 200) + 1, JSON.stringify(n));
+  const want = await cmd(page), other = await open();
+  await other.page.goto(page.url());
+  assert.equal(await cmd(other.page), want);
+});
+
+test('a Copy button says Copied on itself, then goes back', async () => {
+  const { page } = await open();
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
+  await page.click('[data-copy=install1]');
+  await page.waitForFunction(() => document.querySelector('[data-copy=install1]').textContent === 'Copied', null, { timeout: 2000 });
+  await page.waitForFunction(() => document.querySelector('[data-copy=install1]').textContent === 'Copy', null, { timeout: 3000 });
 });
 
 test('a Content-Security-Policy is set, and the page still works under it', async () => {

@@ -1,4 +1,4 @@
-// Draws docs/images/customizer.png (the page down to the first row of looks) and customizer.gif (a short tour),
+// Draws docs/images/customizer.gif (a short tour of the phone page),
 // from this checkout's web/ page. Run: node scripts/pictures/customizer.mjs (needs Playwright and ffmpeg).
 import { createServer } from 'node:http';
 import { OUT, IMG, browser as launch } from './shot.mjs';
@@ -26,23 +26,6 @@ const open = async (w, h, scale) => {
   await pg.waitForSelector('[data-look]');
   return pg;
 };
-
-// ---------- PNG: page top through the first row of looks, then a dark margin ----------
-{
-  const pg = await open(PW, 1200, 2);
-  const bottom = await pg.evaluate(() => {
-    const cards = [...document.querySelectorAll('[data-look]')], top = cards[0].getBoundingClientRect().top;
-    cards.filter((c) => c.getBoundingClientRect().top > top + 1).forEach((c) => (c.style.display = 'none'));
-    const sec = document.querySelector('.c-looks');
-    let n = sec.nextElementSibling; while (n) { n.style.display = 'none'; n = n.nextElementSibling; }
-    let m = sec.parentElement.nextElementSibling; while (m) { m.style.display = 'none'; m = m.nextElementSibling; }
-    return Math.ceil(sec.getBoundingClientRect().bottom + scrollY);
-  });
-  await pg.setViewportSize({ width: PW, height: bottom + 60 });
-  await pg.screenshot({ path: join(IMG, 'customizer.png'), clip: { x: 0, y: 0, width: PW, height: bottom + 60 } });
-  console.log('customizer.png', `${PW}x${bottom + 60} @2x`);
-  await pg.close();
-}
 
 // ---------- GIF frames: Juice -> Spotlight -> Colour-blind friendly -> Light -> Dark -> Juice ----------
 const W = PW, H = 760, FPS = 10;
