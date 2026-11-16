@@ -57,21 +57,25 @@ export const readable = (c, on, min = 4.5) => {
 };
 
 const LEVELS = [0, 95, 135, 175, 215, 255];
-// The 240 colours of the xterm cube and grey ramp (0-15 are the terminal's own, so unknown).
-const XTERM = Array.from({ length: 240 }, (_, i) => {
+// The 240 colours of the xterm cube and grey ramp (0-15 are the terminal's own, so unknown). Made on first need.
+let XTERM;
+const xterm = () => (XTERM ??= Array.from({ length: 240 }, (_, i) => {
   const v = i < 216 ? [LEVELS[Math.floor(i / 36)], LEVELS[Math.floor(i / 6) % 6], LEVELS[i % 6]] : Array(3).fill(8 + (i - 216) * 10);
   return { n: 16 + i, v, y: lumOf(v) };
-});
-
+}));
 // The nearest xterm colour. With away 1 (or -1) only one as light or lighter (as dark or darker), so a colour moved
-// away from what it is read against never loses contrast to it.
+// away from what it is read against never loses contrast to it. Remembered: a line repeats ~20 colours ~70 times.
+const found = new Map();
 function index256(rgb, away) {
+  const key = `${rgb}/${away}`;
+  if (found.has(key)) return found.get(key);
   const y = lumOf(rgb);
   let best = 16, d0 = Infinity;
-  for (const c of XTERM) {
+  for (const c of xterm()) {
     const d = (c.v[0] - rgb[0]) ** 2 + (c.v[1] - rgb[1]) ** 2 + (c.v[2] - rgb[2]) ** 2;
     if (d < d0 && away * (c.y - y) >= 0) { d0 = d; best = c.n; }
   }
+  found.set(key, best);
   return best;
 }
 

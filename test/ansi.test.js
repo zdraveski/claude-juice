@@ -25,6 +25,37 @@ test('to256 maps truecolor to xterm-256', () => {
   const g = Number(/48;5;(\d+)m/.exec(to256('\x1b[48;2;24;24;24mx'))[1]);
   assert.ok(g >= 232 && g <= 255);
 });
+// Final review (1.4.1): to256 finds the nearest without searching all 240 colours each time (a refresh draws ~160).
+// It must pick what the search picks, ties included, on words and fills, with and without a background.
+test('to256 picks what searching all 240 colours picks', () => {
+  const L = [0, 95, 135, 175, 215, 255];
+  const lumOf = (rgb) => { const [r, g, b] = rgb.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const all = Array.from({ length: 240 }, (_, i) => {
+    const v = i < 216 ? [L[Math.floor(i / 36)], L[Math.floor(i / 6) % 6], L[i % 6]] : Array(3).fill(8 + (i - 216) * 10);
+    return { n: 16 + i, v, y: lumOf(v) };
+  });
+  const search = (rgb, away) => {
+    const y = lumOf(rgb);
+    let best = 16, d0 = Infinity;
+    for (const c of all) {
+      const d = (c.v[0] - rgb[0]) ** 2 + (c.v[1] - rgb[1]) ** 2 + (c.v[2] - rgb[2]) ** 2;
+      if (d < d0 && away * (c.y - y) >= 0) { d0 = d; best = c.n; }
+    }
+    return best;
+  };
+  // Every 51st value, the halfway points between cube levels, and greys halfway between two greys.
+  const vals = [...Array.from({ length: 6 }, (_, i) => i * 51), 13, 23, 47, 48, 114, 115, 116, 123, 154, 155, 156, 194, 195, 196, 233, 235, 236];
+  const wrong = [];
+  for (const [bg, bgRgb] of [[undefined], ['#1e1e1e', [30, 30, 30]], ['#fafafa', [250, 250, 250]]]) {
+    for (const r of vals) for (const g of vals) for (const b of vals) {
+      const rgb = [r, g, b], hex = '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
+      const word = bg ? Math.sign(lumOf(rgb) - lumOf(bgRgb)) : 0, fill = bg ? (inkOn(hex) === '#ffffff' ? -1 : 1) : 0;
+      const got = to256(`\x1b[38;2;${r};${g};${b};48;2;${r};${g};${b}m`, bg), want = `\x1b[38;5;${search(rgb, word)};48;5;${search(rgb, fill)}m`;
+      if (got !== want && wrong.length < 5) wrong.push(`${hex} on ${bg}: ${JSON.stringify(got)} want ${JSON.stringify(want)}`);
+    }
+  }
+  assert.deepEqual(wrong, []);
+});
 test('strip removes every escape sequence and control char but keeps newlines', () => {
   assert.equal(strip('\x1b]0;x\x07hi'), 'hi');
   assert.equal(strip('\x1b]0;x\x1b\\hi'), 'hi');
