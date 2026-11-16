@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { paths } from '../src/paths.js';
 import { install, restore } from '../src/setup.js';
-import { launcherFor, constant } from '../src/launcher-file.js';
+import { launcherFor, constant, fwd } from '../src/launcher-file.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '');
 const tmp = () => mkdtempSync(join(tmpdir(), 'juice-install-'));
@@ -101,11 +101,17 @@ test('the launcher follows updates when the plugins folder is a link, and stays 
   const linked = launcherFor('D:/shared/claude-plugins/cache/my-market/juice/1.3.1');
   assert.equal(constant(linked, 'MARKET'), 'my-market');
   assert.equal(constant(linked, 'PINNED'), null);
-  assert.equal(constant(launcherFor('C:\\Users\\a\\.claude\\plugins\\cache\\m2\\juice\\41f619d61b99'), 'MARKET'), 'm2');
+  assert.equal(constant(launcherFor('C:\\Users\\a\\.claude\\plugins\\cache\\m2\\juice\\41f619d61b99', 'win32'), 'MARKET'), 'm2');
   assert.equal(constant(launcherFor('/home/a/.claude/plugins/cache/m3/juice/1.0.0'), 'MARKET'), 'm3');
   // A checkout, even one with juice in its path, is not a plugin version folder.
   for (const checkout of ['/home/a/code/juice', '/home/a/dev/juice/main']) {
     assert.equal(constant(launcherFor(checkout), 'PINNED'), checkout);
     assert.equal(constant(launcherFor(checkout), 'MARKET'), null);
   }
+});
+
+test('a backslash in a Linux or macOS folder name stays a backslash; only Windows paths get slashes', () => {
+  assert.equal(fwd('/home/a/we\\ird/.claude', 'linux'), '/home/a/we\\ird/.claude');
+  assert.equal(fwd('C:\\Users\\a\\.claude', 'win32'), 'C:/Users/a/.claude');
+  assert.equal(constant(launcherFor('/home/a/we\\ird/juice', 'darwin'), 'PINNED'), '/home/a/we\\ird/juice');
 });

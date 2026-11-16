@@ -35,7 +35,7 @@ const NODE = String.raw`(?:node|"(?:[^"]*[\\/])?node(?:js)?(?:\.exe)?"|\S*[\\/]n
 const JUICE_COMMAND = new RegExp(String.raw`^\s*(?:PATH="[^"]*"\s+)?${NODE}\s+"[^"]*[\\/]juice-statusline\.mjs"\s*$`, 'i');
 export const isJuice = (statusLine) => typeof statusLine?.command === 'string' && JUICE_COMMAND.test(statusLine.command);
 // Windows paths ignore case and slash direction.
-const samePath = (a, b, platform) => (platform === 'win32' ? fwd(a).toLowerCase() === fwd(b).toLowerCase() : a === b);
+const samePath = (a, b, platform) => (platform === 'win32' ? fwd(a, 'win32').toLowerCase() === fwd(b, 'win32').toLowerCase() : a === b);
 // Whether a juice line runs this config folder's launcher, whatever way it finds Node.
 export const runsLauncher = (p, command, platform) => samePath(command.replace(/^.*\s(?="[^"]*"\s*$)/, '').trim(), `"${fwd(p.launcherFile)}"`, platform);
 
@@ -55,7 +55,8 @@ function nodeCommand(platform, env) {
 
 // The shell Claude Code runs the status line in (Git Bash on Windows, sh elsewhere) would change a $ or a
 // backtick inside the quoted path, cmd a %, and a " would end the quotes, so such a path can't be set up safely.
-// (Backslashes never reach the shell: the command is written with forward slashes.)
+// (On Windows backslashes never reach the shell: the command is written with forward slashes. On Linux and macOS a
+// backslash is part of the name, and inside double quotes the shell keeps a single one (shortcut: a doubled one would be halved).)
 const SHELL_UNSAFE = /[$`%"]/;
 
 // Settings that beat the person's own: a project's .claude/settings(.local).json in this folder or any folder
