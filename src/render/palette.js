@@ -10,7 +10,9 @@ export const PRESETS = {
   calm: { name: 'Calm', note: 'Grey until it matters', dark: ['#b5b0a8', '#f3c467', '#ff7f86', '#b5b0a8'], light: ['#6b665f', '#a6680a', '#d0394a', '#6b665f'], fable: 'good' },
   // Violet and this blue can look alike to colour-blind eyes, so Fable takes the set's own pink-purple.
   safe: { name: 'Colour-blind safe', note: 'Blue, yellow, orange', dark: ['#56b4e9', '#f0e442', '#ff8b4d', '#cc79a7'], light: ['#0072b2', '#8a7200', '#d55e00', '#a8457e'], fable: 'accent' },
-  bold: { name: 'High contrast', note: 'Brightest, easiest to see', dark: ['#4ade80', '#facc15', '#f87171', '#fb923c'], light: ['#15803d', '#a16207', '#b91c1c', '#c2410c'] },
+  // The highest contrast of any set on both backgrounds (a test holds it there); the mint green and light red stay
+  // further apart for red-green colour-blind eyes than the brighter pure green did.
+  bold: { name: 'High contrast', note: 'Brightest, easiest to see', dark: ['#6ee7b7', '#fde047', '#ff8f8f', '#fdba74'], light: ['#166534', '#805400', '#8b1a1a', '#9a3412'] },
   ocean: { name: 'Ocean', note: 'Teal and blue', dark: ['#5eead4', '#fcd34d', '#fb7185', '#60a5fa'], light: ['#0f766e', '#a16207', '#be123c', '#1d4ed8'] },
   midnight: { name: 'Midnight', note: 'Soft night colours', dark: ['#9ece6a', '#e0af68', '#f7768e', '#7aa2f7'], light: ['#3f6b1c', '#8f5e15', '#b4334f', '#2e5bb8'] },
   vampire: { name: 'Vampire', note: 'Bright neon on dark', dark: ['#50fa7b', '#f1fa8c', '#ff5555', '#bd93f9'], light: ['#1e873a', '#7d6f00', '#d42e2e', '#7c4dce'] },

@@ -190,6 +190,14 @@ test('every colour set is readable on its terminal background', () => {
   for (const t of ['dark', 'light']) assert.ok(contrast(NEUTRAL[t].fable, NEUTRAL[t].bg) >= 3, `fable ${t}`);
 });
 
+// It was named "High contrast" while five sets read better on a light terminal (audit, 1.4.1).
+test('High contrast is the easiest set to read: its faintest colour beats every other set\'s, on both backgrounds', () => {
+  for (const t of ['dark', 'light']) {
+    const faintest = (p) => Math.min(...p[t].map((c) => contrast(c, NEUTRAL[t].bg)));
+    for (const [id, p] of Object.entries(PRESETS)) if (id !== 'bold') assert.ok(faintest(PRESETS.bold) > faintest(p) + 0.25, `${t}: bold ${faintest(PRESETS.bold).toFixed(2)} vs ${id} ${faintest(p).toFixed(2)}`);
+  }
+});
+
 test('samples and withAccount', () => {
   const d = SAMPLES.busy, before = JSON.stringify(d);
   assert.deepEqual(Object.keys(withAccount(d, 'pro').limits), ['session', 'week']);
