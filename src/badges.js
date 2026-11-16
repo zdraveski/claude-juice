@@ -26,7 +26,7 @@ export function cleanBadge(raw) {
 
 export function badgeKey(stdin) {
   const text = `${stdin?.session_id}\0${stdin?.workspace?.current_dir}`;
-  return createHash('sha1').update(text).digest('hex').slice(0, 16);
+  return createHash('sha256').update(text).digest('hex').slice(0, 16);
 }
 
 const file = (p, key) => join(p.cacheDir, 'badges', `${key}.json`);
