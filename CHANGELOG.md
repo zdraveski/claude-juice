@@ -28,11 +28,11 @@ Fixed:
 - In a pane under 26 columns, a panel shows `Session 88%!!` instead of `Session …`. When only one battery fits, it is the one that blocks you first, not the first in your order.
 - The "batteries appear after Claude's first reply" hint no longer shows when no battery is chosen.
 - Words now read at 4.5:1 or more wherever juice draws them: numbers in a battery and words in a capsule (some were down to 2.5:1), and white text on a fill in four light sets (Claude, Calm, Vampire, Forest). The pace tick on a glossy battery no longer fades into its casing.
-- On a 256-colour terminal, words never read worse than in full colour. Claude's red fell to 3.7:1 there on a light terminal.
+- On a 256-colour terminal, words never read worse than in full colour, on the background or on a fill. Claude's red fell to 3.7:1 there on a light terminal.
 - A badge like `git branch` shows the repo Claude Code is in, not the folder juice runs from.
 - On Linux and macOS, a Claude folder with a backslash in its name no longer leaves the line blank. If yours was blank, type `/juice setup` once after updating.
-- `/juice doctor`'s report shortens a folder to `~` only when it is really your home folder (`/rootfs/x` showed as `~fs/x`), and hides your home folder even when it is quoted or ends in a slash.
-- If `/juice setup` can't save your settings, it puts the old launcher back instead of leaving it changed.
+- `/juice doctor`'s report shortens a folder to `~` only when it is really your home folder (`/rootfs/x` showed as `~fs/x`), and hides your home folder even when it is quoted or ends in a slash. A home at a drive's root (`C:\`) no longer turns every folder on that drive into `~`.
+- If `/juice setup` can't save your settings, or its copy of your old status line, it leaves the launcher as it was.
 - On a Mac, a slow answer to the Keychain question no longer lets a second Fable check start and ask again.
 - Cutting a line or a badge at the window's edge never splits a flag, a joined emoji or a letter from its accent.
 - After an error, the line juice shows stays on one row inside the window.
