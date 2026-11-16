@@ -18,7 +18,7 @@ Fixed:
 - Windows PowerShell 5.1 could pipe in a hidden mark (a BOM) that left the line blank.
 - A saved reset time could be read 1000 times too far away, so it never ended.
 - `/juice badges list` and `remove` hide the whole value of a key typed before a command, however it is quoted.
-- Adding a badge that is already there adds no second copy. A badge copied over in `juice.json` from another computer is approved where it stands when you add it again.
+- Adding a badge that is already there adds no second copy. A badge copied over in `juice.json` from another computer is approved where it stands when you add it again. `/juice badges list` now says to do that, instead of removing it first.
 - A program a badge leaves running in the background is stopped (Linux and macOS). The project folder and chat path handed to badges are deleted once read.
 - A `juice.json` that holds something other than settings, like `[]`, is left alone instead of replaced by `/juice set`.
 - `/juice setup` takes your status line as unchanged when only the order of its settings differs, and names the copy it sets aside. `/juice set` takes names in any case.

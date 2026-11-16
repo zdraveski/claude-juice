@@ -28,4 +28,5 @@ body:
     id: terminal
     attributes:
       label: Where you run Claude Code
+      description: Also say your Claude Code version (type `claude --version` in a terminal).
       placeholder: e.g. Windows Terminal, VS Code, the Claude desktop app, iTerm2

@@ -112,7 +112,7 @@ export async function main(argv, io) {
         if (sub === 'list') {
           const l = listBadges(p), off = unapprovedBadges(p);
           const name = (c) => (all.includes('--show') ? strip(c) : hidden(c));
-          io.out(l.length ? l.map((c, i) => `${i + 1}. ${name(c)}${off.includes(i + 1) ? ' (not approved on this computer, so it never runs: remove it, then add it again to use it)' : ''}`).join('\n') : 'No badges.');
+          io.out(l.length ? l.map((c, i) => `${i + 1}. ${name(c)}${off.includes(i + 1) ? ' (not approved on this computer, so it never runs: add the same command again to approve it)' : ''}`).join('\n') : 'No badges.');
           loadSettings(p).warnings.forEach((w) => io.out(`Warning: ${w}`));
           return 0;
         }

@@ -777,6 +777,9 @@ test('badges list says which badges this computer never approved, so they never 
   const out = (await run(d, ['badges', 'list', '--show'])).out;
   assert.match(out, /1\. echo copied \(not approved on this computer/);
   assert.match(out, /2\. echo mine$/m);
+  // Adding it again approves it where it stands, so removing it first would only lose its place.
+  assert.match(out, /add the same command again to approve it\)/);
+  assert.doesNotMatch(out, /remove it/);
 });
 
 test('get says whether the Fable battery is on', async () => {

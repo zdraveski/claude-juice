@@ -4,6 +4,6 @@
 
 ## Checks
 
-- [ ] `node --test` passes.
+- [ ] `node --test` and `node scripts/e2e.mjs` pass.
 - [ ] CHANGELOG.md is updated, if people using juice will notice the change.
 - [ ] If this touches the login token or badge commands, it says so above.
