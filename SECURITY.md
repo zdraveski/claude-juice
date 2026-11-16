@@ -11,4 +11,4 @@ Say what you found, which juice version (`/juice doctor` prints it) and how to r
 
 Only the newest version gets fixes. To update, open `/plugin` in Claude Code, update juice, then restart Claude Code.
 
-What juice does with your data is in the README's [Privacy](README.md#privacy) section.
+What juice does with your data is in [Privacy](docs/privacy.md).

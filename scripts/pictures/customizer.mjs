@@ -1,4 +1,4 @@
-// Draws docs/images/customizer.gif (a short tour of the page at the README's desktop width),
+// Draws docs/images/customizer.gif (a short tour of the page at the width GitHub shows docs/guide.md on a desktop),
 // from this checkout's web/ page. Run: node scripts/pictures/customizer.mjs (needs Playwright and ffmpeg).
 import { createServer } from 'node:http';
 import { OUT, IMG, DESK, browser as launch } from './shot.mjs';

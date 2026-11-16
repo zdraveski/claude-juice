@@ -32,7 +32,8 @@ The tests already do this. (The `now+…` reset times in `test/fixtures/` are fi
 | `skills/juice/` | The `/juice` instructions Claude follows |
 | `web/` | The live customizer (GitHub Pages) |
 | `test/` | Tests, with sample status-line input in `test/fixtures/` |
+| `docs/` | The pages the README links to (guide, troubleshooting, privacy, badges), its pictures in `docs/images/`, and maintainer notes: the release checklist in `docs/release/`, designs and plans in `docs/superpowers/` |
 
 ## Writing for juice
 
-juice is for people who don't code. Anything they read (status line, `/juice` replies, README) uses plain words without jargon and says what to do next. Record what changed for them in [CHANGELOG.md](CHANGELOG.md).
+juice is for people who don't code. Anything they read (status line, `/juice` replies, the README and its pages in `docs/`) uses plain words without jargon and says what to do next. Record what changed for them in [CHANGELOG.md](CHANGELOG.md).
