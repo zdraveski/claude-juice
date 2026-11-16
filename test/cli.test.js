@@ -614,6 +614,20 @@ test('a read-only settings file gets plain words, not a raw EPERM with the path 
   assert.deepEqual(json(f), OLD, 'left exactly as it was');
 });
 
+// Only Windows lets a read-only settings.json stop the save; elsewhere the file's own mode doesn't stop a rename.
+test('a settings.json juice cannot save leaves the launcher as it was, or absent on a first setup', { skip: process.platform !== 'win32' && 'a read-only file does not stop a rename here' }, async () => {
+  for (const launcher of ['an older launcher', null]) {
+    const d = env(), f = join(d, 'settings.json'), l = join(d, 'juice-statusline.mjs');
+    writeFileSync(f, JSON.stringify(OLD));
+    if (launcher) writeFileSync(l, launcher);
+    chmodSync(f, 0o444);
+    try {
+      assert.equal((await run(d, ['setup'])).code, 1);
+    } finally { chmodSync(f, 0o644); }
+    assert.equal(existsSync(l) ? readFileSync(l, 'utf8') : null, launcher);
+  }
+});
+
 test('restore treats a saved copy that is valid JSON but not an object as damaged, never crashing', async () => {
   for (const content of ['"x"', '5', 'true', 'null']) {
     const d = env();

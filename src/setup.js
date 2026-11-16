@@ -141,6 +141,13 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   const fix = before === null || !launcherTarget(before) ? 'Its launcher file was missing or from an older juice, so juice put it back.'
     : launcherTarget(before) !== launcherTarget(launcher) ? 'It now uses the juice you just ran setup from.' : '';
   writeAtomic(p.launcherFile, launcher);
+  // A settings.json juice can't save must not leave the launcher pointing at this copy of juice.
+  const save = (s) => {
+    try { writeSettings(p, s); } catch (e) {
+      try { if (before === null) unlinkSync(p.launcherFile); else writeAtomic(p.launcherFile, before); } catch {}
+      throw e;
+    }
+  };
 
   if (stale || damaged) {
     const aside = p.backupFile.replace(/\.json$/, `-${Date.now()}.json`);
@@ -158,18 +165,18 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   const want = refreshFor(ours ? settings.statusLine : null, loadSettings(p).settings.motion);
   if (current && settings.statusLine.refreshInterval === want) lines.push(fix ? 'juice is already your status line.' : 'juice is already your status line. Nothing changed.');
   else if (current) {
-    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, refreshInterval: want } });
+    save({ ...settings, statusLine: { ...settings.statusLine, refreshInterval: want } });
     lines.push(want === 1 ? 'juice now refreshes every second, so its pictures climb and its numbers stay current.'
       : 'juice now refreshes once a minute, so its numbers and reset times stay current while Claude Code is idle.');
   } else if (ours) {
     // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing;
     // one with the right launcher but an older way of finding Node just gets the current one.
     const sameLauncher = runsLauncher(p, settings.statusLine.command, platform);
-    writeSettings(p, { ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: want } });
+    save({ ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: want } });
     lines.push(sameLauncher ? 'juice is your status line, now set up to find Node even when Claude Code starts from an app.'
       : 'juice was your status line but pointed somewhere else, so it now points at this copy of juice.');
   } else {
-    writeSettings(p, { ...settings, statusLine: { type: 'command', command, padding: 0, refreshInterval: want } });
+    save({ ...settings, statusLine: { type: 'command', command, padding: 0, refreshInterval: want } });
     lines.push("juice is now your status line. It shows up the next time Claude Code redraws it, and the batteries fill in after Claude's first reply.");
   }
   if (fix && ours) lines.push(fix); // a first setup has no launcher yet: nothing to say about putting it back
