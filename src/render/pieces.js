@@ -1,4 +1,4 @@
-import { fg, bg, bold, inkOn, mix, contrast } from './ansi.js';
+import { fg, bg, bold, inkOn, mix, contrast, readable } from './ansi.js';
 import { tone } from './palette.js';
 import { EFFORT } from './words.js';
 
@@ -63,11 +63,11 @@ function skin(ctx, c, level, cells, w, elapsed) {
     if (glossy && glyph === ' ') return bg(casing, fg(mix(casing, '#ffffff', dark ? 0.07 : 0.45), '▀'));
     return bg(casing, fg(col, glyph));
   };
-  const tick = (i) => (outline ? fg(P.text, '│') : cells - i >= 0.5 ? bg(color(i), fg(casing, '│')) : bg(casing, fg(P.text, '│')));
+  const tick = (i) => (outline ? fg(P.text, '│') : cells - i >= 0.5 ? bg(color(i), fg(readable(casing, color(i), 3), '│')) : bg(casing, fg(P.text, '│')));
   // A number on the fill takes the fill colour where it starts as background, so the whole number is one colour.
   const digit = (ch, onFill, at) => (outline ? fg(onFill ? color(at) : c, bold(ch))
     // Off the fill, glossy's glass would pull the background toward the digit colour, so digits sit on the plain casing.
-    : onFill ? bg(color(at), fg(inkOn(color(at)), bold(ch))) : bg(P.casing, fg(c, bold(ch))));
+    : onFill ? bg(color(at), fg(readable(inkOn(color(at)), color(at)), bold(ch))) : bg(P.casing, fg(readable(c, P.casing), bold(ch))));
   // Rounded caps only when ctx.round and there is a casing to round; always ends in the nub.
   const shell = (body, first, end) => (outline
     ? fg(P.mute, '▕') + body + fg(P.mute, '▏') + fg(P.mute, '▪')

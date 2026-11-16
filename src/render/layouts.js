@@ -1,4 +1,4 @@
-import { fg, bg, bold, inkOn } from './ansi.js';
+import { fg, bg, bold, inkOn, readable } from './ansi.js';
 import { assess, memLevel } from './limits.js';
 import { limitNote, memoryNote, saysOut, LABELS, EFFORT } from './words.js';
 import { tone } from './palette.js';
@@ -149,7 +149,7 @@ export const LAYOUTS = {
     const pill = (i) => {
       if (ctx.fit.bare) return name(ctx, i) + ' ' + num(ctx, `${i.used}%`, i.level) + mark(ctx, i);
       const c = tone(ctx, paint(i)), fill = i.level === 'ok' ? P.casing : c, pad = ctx.fit.tight ? '' : ' ';
-      const body = bg(fill, fg(i.level === 'ok' ? c : inkOn(c), bold(`${pad}${i.short} ${i.used}%${MARK[i.level] ? pad + MARK[i.level] : ''}${pad}`)));
+      const body = bg(fill, fg(readable(i.level === 'ok' ? c : inkOn(c), fill), bold(`${pad}${i.short} ${i.used}%${MARK[i.level] ? pad + MARK[i.level] : ''}${pad}`)));
       return ctx.round ? fg(fill, '') + body + fg(fill, '') : body;
     };
     // The time sits right after its own capsule, so it needs no name.

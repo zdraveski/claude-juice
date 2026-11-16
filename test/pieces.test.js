@@ -336,6 +336,27 @@ test('glossy: a number off the fill sits on the plain casing, as readable as cla
   }
 });
 
+// A number off the fill was drawn in its level colour on the casing, down to 2.5:1 (solar), and one on a tinted
+// fill (pace's soft part, hot, liquid's edge) at 4.3:1, under the 4.5:1 small text needs.
+test('every number in a battery reads at 4.5:1, on the fill or off it, in every set, theme, style and level', () => {
+  for (const theme of ['dark', 'light']) for (const colors of PRESET_IDS) for (const style of SKINS.filter((s) => s !== 'outline'))
+    for (const level of ['ok', 'warn', 'crit', 'fable']) for (const pct of [10, 45, 82]) for (const e of [undefined, 0.5]) {
+      const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, colors, battery: style }, { theme });
+      for (const x of cells(batteryPct(ctx, pct, level, 7, e)).filter((x) => /[\d%]/.test(x.ch) && x.bg))
+        assert.ok(contrast(hexOf(x.fg), hexOf(x.bg)) >= 4.5, `${colors} ${theme} ${style} ${level} ${pct}% ${e}: ${x.ch}`);
+    }
+});
+
+// The even-pace tick on the fill took the casing colour: under 3:1 on light glossy fills.
+test('the pace tick on the fill stands out at 3:1 in every set, theme, style and level', () => {
+  for (const theme of ['dark', 'light']) for (const colors of PRESET_IDS) for (const style of SKINS.filter((s) => s !== 'outline' && s !== 'pace'))
+    for (const level of ['ok', 'warn', 'crit', 'fable']) {
+      const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, colors, battery: style }, { theme });
+      const tick = cells(battery(ctx, 90, level, 8, 0.3)).find((x) => x.ch === '│');
+      assert.ok(tick && contrast(hexOf(tick.fg), hexOf(tick.bg)) >= 3, `${colors} ${theme} ${style} ${level}`);
+    }
+});
+
 // The forms: shapes instead of a battery, the number after them.
 const FORM_W = { pie: [1, 1], sand: [5, 3], slider: [8, 5], race: [9, 6], lives: [5, 3], dots: [8, 5], chevrons: [6, 4], ruler: [10, 7] };
 const fm = (style, pct, small = false, elapsed, extra) => strip(form(sk(style, 'dark', extra), pct, 'ok', small, elapsed));

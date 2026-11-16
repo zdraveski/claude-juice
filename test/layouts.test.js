@@ -300,6 +300,22 @@ test('text on a coloured fill (pills, a number inside a battery) is readable, 4.
   }
 });
 
+// A fine capsule wrote its words in the level colour on the casing: 3.4:1 on light (claude), 3.6:1 on dark (solar).
+test('every word in a capsule reads at 4.5:1 in every colour set and theme', () => {
+  const hex = (c) => '#' + c.split(';').slice(2).map((v) => (+v).toString(16).padStart(2, '0')).join('');
+  for (const colors of Object.keys(PRESETS)) for (const theme of ['dark', 'light']) for (const data of [SAMPLES.busy, SAMPLES.trouble]) {
+    let f = null, b = null, seen = 0;
+    for (const m of run(data, { layout: 'pills', colors }, { theme }).matchAll(/\x1b\[([\d;]*)m|([^])/gu)) {
+      const c = m[1];
+      if (c === undefined) { if (f && b && /[A-Za-z\d%]/.test(m[2])) { seen++; assert.ok(contrast(hex(f), hex(b)) >= 4.5, `${colors} ${theme}: ${m[2]}`); } }
+      else if (c === '0' || c === '') f = b = null;
+      else if (c === '39') f = null; else if (c === '49') b = null;
+      else if (c.startsWith('38;2;')) f = c; else if (c.startsWith('48;2;')) b = c;
+    }
+    assert.ok(seen > 10, `${colors} ${theme}: capsule words found`);
+  }
+});
+
 // A fresh Node builds its number formatter cold: about 40 ms on every pay-as-you-go refresh.
 test('cost is written without a locale formatter', () => {
   const d = { ...SAMPLES.busy, account: 'payg', limits: {} }, was = Number.prototype.toLocaleString;

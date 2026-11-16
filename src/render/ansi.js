@@ -38,6 +38,13 @@ export function cut(s, n) {
 const lum = (h) => { const [r, g, b] = rgbOf(h).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 export const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 export const inkOn = (h) => (contrast(h, '#141312') >= contrast(h, '#ffffff') ? '#141312' : '#ffffff');
+// c, pushed toward black or white only as far as it needs to read on `on` (4.5:1 is small text); a colour that already reads is unchanged.
+export const readable = (c, on, min = 4.5) => {
+  const to = contrast(on, '#000000') >= contrast(on, '#ffffff') ? '#000000' : '#ffffff';
+  let x = c;
+  for (let t = 0.05; contrast(x, on) < min && t <= 1.001; t += 0.05) x = mix(c, to, t);
+  return x;
+};
 
 const LEVELS = [0, 95, 135, 175, 215, 255];
 const nearestLevel = (v) => LEVELS.reduce((best, l, i) => (Math.abs(l - v) < Math.abs(LEVELS[best] - v) ? i : best), 0);
