@@ -24,6 +24,8 @@ once and under whatever version number `main` says. So:
 - [ ] `node scripts/e2e.mjs` passes (GitHub runs it after the tests; it uses a fake home and never touches yours). A changed default, message or step it checks needs it changed too.
 - [ ] `node scripts/check-customizer.js` passes every browser check (needs Playwright: `npm i -g playwright`; GitHub runs it too, as `customizer`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
+- [ ] The pinned Playwright in `.github/workflows/test.yml` (`npm i -g playwright@...`) is bumped when it ages (dependabot can't see it): bump it, and check the customizer job is still green.
+- [ ] If a look or layout changed since the last release, rebuild the pictures in `docs/images` (`scripts/pictures`) so the README shows what juice draws now.
 - [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json`, and CHANGELOG.md has its `## X.Y.Z` section (tests fail if the versions differ or the section is missing; Claude Code uses plugin.json's version to find updates).
 - [ ] `CHANGELOG.md` has a section for the new version, in plain words for users, with `[Changes since <previous>](https://github.com/zdraveski/claude-juice/compare/v<previous>...v<version>)` under its heading.
 - [ ] After merging: tag `v<version>` and publish a GitHub release with that section as its notes (`gh release create v<version> --verify-tag --notes-file -`).

@@ -32,6 +32,15 @@ jobs:
       - name: End to end, through the shell Claude Code uses
         shell: bash
         run: node scripts/e2e.mjs
+      - name: Start-up time (informational, never fails the run)
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 24
+        continue-on-error: true
+        shell: bash
+        run: |
+          node scripts/bench.js > bench.txt 2>&1; code=$?
+          cat bench.txt
+          { echo '### juice start-up time (informational)'; echo '```'; cat bench.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
       - name: Mac Keychain, through the real security tool
         if: runner.os == 'macOS'
         run: node scripts/mac-keychain.mjs
