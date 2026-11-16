@@ -177,6 +177,12 @@ test('grey labels and countdowns are readable (WCAG AA, 4.5:1) on both default b
   for (const t of ['dark', 'light']) assert.ok(contrast(NEUTRAL[t].mute, NEUTRAL[t].bg) >= 4.5, t);
 });
 
+// The accent writes the name of the battery that needs you (and the badge's ◆): Claude's own light accent sat at 4.2:1.
+test('every colour of every set reads at 4.5:1 on its terminal, the accent too', () => {
+  for (const [id, p] of Object.entries(PRESETS)) for (const t of ['dark', 'light']) for (const c of p[t])
+    assert.ok(contrast(c, NEUTRAL[t].bg) >= 4.5, `${id} ${t} ${c} ${contrast(c, NEUTRAL[t].bg).toFixed(2)}:1`);
+});
+
 test('gateway shows Budget', () => {
   const d = { ...SAMPLES.busy, account: 'gateway', limits: { budget: { used: 20, resetsAt: null, windowSec: null } } };
   assert.ok(text(d).includes('Budget'));

@@ -135,6 +135,22 @@ test('applySet colours', () => {
   });
 });
 
+// Audit (1.4.1): your own colours were saved without a word even when they vanish into the background, and Dark: failed.
+test('applySet says when your own colour is hard to read, and takes Dark: as well as dark:', () => {
+  const good = '#7fd8a0,#f3c467,#ff7f86,#e2885f', goodLight = '#1c874c,#a6680a,#d0394a,#b85932';
+  assert.deepEqual(applySet(DEFAULTS, [`colors=dark:${good}/light:${goodLight}`]).warnings, []);
+  const mixed = applySet(DEFAULTS, [`colors=Dark:${good}/LIGHT: ${goodLight}`]);
+  assert.deepEqual(mixed.warnings, []);
+  assert.equal(mixed.settings.colors.light.plentyLeft, '#1c874c');
+  // Dark grey on a dark terminal, and a pale yellow on a light one.
+  const r = applySet(DEFAULTS, [`colors=dark:${good.replace('#7fd8a0', '#333333')}/light:${goodLight.replace('#a6680a', '#e0c060')}`]);
+  assert.equal(r.settings.colors.dark.plentyLeft, '#333333', 'still saved: they are your colours');
+  assert.equal(r.warnings.length, 2, r.warnings.join('\n'));
+  assert.match(r.warnings[0], /^colors: your dark .*#333333 is hard to read .*\(1\.\d:1/);
+  assert.match(r.warnings[1], /#e0c060.*light/);
+  assert.match(applySet(DEFAULTS, ['colors=dark:#12,#1,#1,#1/light:#1']).warnings[0], /6-digit/);
+});
+
 test('toCommand', () => {
   // The public page starts at Automatic: pasting a look from it keeps the person's own terminal colour.
   // Still, too: it starts at Still, and pasting must not undo the "/juice set motion=on" they chose earlier.

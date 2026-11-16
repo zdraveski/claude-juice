@@ -1,5 +1,6 @@
 // The one definition of a valid setting. Files, /juice set and share links all pass through here.
-import { PRESETS } from './render/palette.js';
+import { PRESETS, NEUTRAL } from './render/palette.js';
+import { contrast } from './render/ansi.js';
 export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank'];
 // The layouts that draw the battery style; the others keep their own shapes.
 export const STYLE_LAYOUTS = ['bar', 'focus'];
@@ -82,7 +83,7 @@ const CHECK = {
 
 const show = (v) => (typeof v === 'string' ? `'${v}'` : isObj(v) ? 'your own colours' : JSON.stringify(v)); // only colours is an object
 // The right values, from the same table that checks them (show has its own, longer warning).
-const valid = (key) => key === 'colors' ? `Use one of: ${PRESET_IDS.join(', ')}. Or your own: dark:a,b,c,d/light:a,b,c,d, each a hex colour like #22c55e (${COLOR_KEYS.join(', ')} in that order).`
+const valid = (key) => key === 'colors' ? `Use one of: ${PRESET_IDS.join(', ')}. Or your own: dark:a,b,c,d/light:a,b,c,d, each a 6-digit hex colour like #22c55e (${COLOR_KEYS.join(', ')} in that order).`
   : CHECK[key].ids ? `Use one of: ${CHECK[key].ids.join(', ')}.` : '';
 // A misspelt battery name is dropped, but never silently: "sesion" would otherwise just make Session vanish.
 const unknownShow = (v) => (Array.isArray(v) ? v.filter((id) => !SHOW_IDS.includes(id)) : []);
@@ -116,9 +117,9 @@ const parseColors = (text) => {
   if (PRESET_IDS.includes(text)) return text;
   const o = {};
   for (const part of text.split('/')) {
-    const m = /^(dark|light):(.*)$/.exec(part);
+    const m = /^\s*(dark|light)\s*:(.*)$/i.exec(part);
     if (!m) return undefined;
-    o[m[1]] = Object.fromEntries(m[2].split(',').map((c, i) => [COLOR_KEYS[i], c]));
+    o[m[1].toLowerCase()] = Object.fromEntries(m[2].split(',').map((c, i) => [COLOR_KEYS[i], c.trim()]));
   }
   return o;
 };
@@ -156,6 +157,7 @@ export function applySet(settings, pairs) {
       continue;
     }
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));
+    if (key === 'colors' && isObj(v)) warnings.push(...faint(v));
     put(key, v);
   }
   // Compared at the end, so a key set twice back to where it was has not changed.
@@ -170,6 +172,13 @@ export function applySet(settings, pairs) {
   }
   return { settings: next, warnings, changed, chosen };
 }
+
+// Your own colours are saved as typed, but a colour that fades into the background is said out loud: juice's own sets
+// all read at 4.5:1 or more, the usual bar for small text.
+const COLOR_WORDS = { plentyLeft: 'plenty left', goingFast: 'going fast', almostEmpty: 'almost empty', accent: 'accent' };
+const faint = (c) => ['dark', 'light'].flatMap((t) => COLOR_KEYS.map((k) => [k, c[t][k], contrast(c[t][k], NEUTRAL[t].bg)])
+  .filter(([, , r]) => r < 4.5)
+  .map(([k, hex, r]) => `colors: your ${t} '${COLOR_WORDS[k]}' colour ${hex} is ${r < 3 ? 'hard to read' : 'a little faint'} on a ${t} terminal (${r.toFixed(1)}:1; 4.5:1 or more reads well). It's saved anyway.`));
 
 const colorWord = (c) => (typeof c === 'string' ? c
   : ['dark', 'light'].map((t) => `${t}:${COLOR_KEYS.map((k) => c[t][k]).join(',')}`).join('/'));

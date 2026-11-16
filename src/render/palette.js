@@ -5,7 +5,7 @@ export const NEUTRAL = {
 };
 // [plenty left, going fast, almost empty, accent]
 export const PRESETS = {
-  claude: { name: 'Claude', note: 'Warm, the default', dark: ['#7fd8a0', '#f3c467', '#ff7f86', '#e2885f'], light: ['#1c874c', '#a6680a', '#d0394a', '#c45f35'] },
+  claude: { name: 'Claude', note: 'Warm, the default', dark: ['#7fd8a0', '#f3c467', '#ff7f86', '#e2885f'], light: ['#1c874c', '#a6680a', '#d0394a', '#b85932'] },
   frost: { name: 'Frost', note: 'Cool and soft', dark: ['#a3be8c', '#ebcb8b', '#e07a85', '#88c0d0'], light: ['#4f7a3a', '#946708', '#b03a48', '#2e6f86'] },
   calm: { name: 'Calm', note: 'Grey until it matters', dark: ['#b5b0a8', '#f3c467', '#ff7f86', '#b5b0a8'], light: ['#6b665f', '#a6680a', '#d0394a', '#6b665f'], fable: 'good' },
   // Violet and this blue can look alike to colour-blind eyes, so Fable takes the set's own pink-purple. The four were
@@ -20,7 +20,7 @@ export const PRESETS = {
   candy: { name: 'Candy', note: 'Pastel and friendly', dark: ['#a6e3a1', '#f9e2af', '#f38ba8', '#cba6f7'], light: ['#2f7d1f', '#a0650d', '#d20f39', '#8839ef'] },
   forest: { name: 'Forest', note: 'Earthy, warm retro', dark: ['#b8bb26', '#fabd2f', '#fb4934', '#fe8019'], light: ['#6f6a0c', '#a66910', '#9d0006', '#af3a03'] },
   sunset: { name: 'Sunset', note: 'Peach, orange, pink', dark: ['#ffd59e', '#ff9e64', '#ff5c8a', '#c792ea'], light: ['#7f6512', '#c2410c', '#be185d', '#7e22ce'] },
-  solar: { name: 'Solar', note: 'Classic muted tones', dark: ['#859900', '#b58900', '#dc322f', '#268bd2'], light: ['#5f6e00', '#8a6a00', '#c0281f', '#1f6fa8'] },
+  solar: { name: 'Solar', note: 'Classic muted tones', dark: ['#859900', '#b58900', '#e1514e', '#268bd2'], light: ['#5f6e00', '#8a6a00', '#c0281f', '#1f6fa8'] },
   rose: { name: 'Rose', note: 'Dusty pink and pine', dark: ['#9ccfd8', '#f6c177', '#eb6f92', '#c4a7e7'], light: ['#286983', '#a35f17', '#b4506e', '#7d64a0'] },
 };
 
