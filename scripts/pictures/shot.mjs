@@ -17,7 +17,8 @@ export async function browser() {
   return pw.chromium.launch();
 }
 
-export async function shoot(br, name, html, width = 720, pad = 48) {
+// clear: transparent where the page has no background, for a picture that sits on GitHub's light and dark themes.
+export async function shoot(br, name, html, width = 720, pad = 48, { clear = false } = {}) {
   mkdirSync(OUT, { recursive: true });
   writeFileSync(join(OUT, `${name}.html`), html);
   const pg = await br.newPage({ viewport: { width, height: 4000 }, deviceScaleFactor: 2 });
@@ -39,7 +40,7 @@ export async function shoot(br, name, html, width = 720, pad = 48) {
   }, CODE);
   const h = r.bottom + pad, ph = (f) => +(f * PHONE / width).toFixed(1);
   await pg.setViewportSize({ width, height: h }); // a clip below the window comes out cut off
-  await pg.screenshot({ path: join(IMG, `${name}.png`), clip: { x: 0, y: 0, width, height: h } });
+  await pg.screenshot({ path: join(IMG, `${name}.png`), clip: { x: 0, y: 0, width, height: h }, omitBackground: clear });
   await pg.close();
   const bad = [ph(r.code) < MIN_CODE && `code ${ph(r.code)}px`, r.text < 99 && ph(r.text) < MIN_TEXT && `text ${ph(r.text)}px`, r.over && `${r.over} boxes overflow`].filter(Boolean);
   console.log(name, `${width}x${h} @2x`, `phone: code ${ph(r.code)}px, text ${r.text < 99 ? ph(r.text) : '-'}px`, bad.length ? 'FAIL' : 'ok');
