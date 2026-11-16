@@ -22,15 +22,19 @@ export const strip = (s) => s.replace(ESCAPES, '');
 const width = (ch) => (ch === '\ufe0f' ? 0 : ch.endsWith('\ufe0f') ? 2 : !'♥♡▪'.includes(ch) && WIDE.test(ch) ? 2 : 1);
 export const vis = (s) => { let n = 0; for (const m of strip(s).matchAll(/[\s\S]\ufe0f?/gu)) n += width(m[0]); return n; };
 
-// Cut a coloured line to n visible columns without breaking its escape codes.
+// Cut a coloured line to n visible columns without breaking its escape codes, or what draws as one character
+// (a flag, a joined emoji, a skin tone, a letter and its accent): the cut goes between whole characters.
+const CHARS = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 export function cut(s, n) {
   let out = '', seen = 0;
-  for (const m of s.matchAll(/\x1b\[[0-9;]*m|[\s\S]\ufe0f?/gu)) {
-    if (m[0].startsWith('\x1b')) { out += m[0]; continue; }
-    const w = width(m[0]);
-    if (seen + w > n) break;
-    seen += w;
-    out += m[0];
+  for (const m of s.matchAll(/\x1b\[[0-9;]*m|[^\x1b]+|\x1b/g)) {
+    if (/^\x1b\[[0-9;]*m$/.test(m[0])) { out += m[0]; continue; }
+    for (const { segment } of CHARS.segment(m[0])) {
+      const w = vis(segment);
+      if (seen + w > n) return out + `${E}0m`;
+      seen += w;
+      out += segment;
+    }
   }
   return out + `${E}0m`;
 }
