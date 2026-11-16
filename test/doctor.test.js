@@ -268,6 +268,17 @@ test('doctor: Fable off, failing, and checked', () => {
 test('hideHome leaves a folder that only starts like the home folder alone', () => {
   assert.equal(hideHome('/rootfs/x and /root/y and /root', { HOME: '/root' }, 'linux'), '/rootfs/x and ~/y and ~');
   assert.equal(hideHome('C:\\Users\\Kire2\\y and C:\\Users\\Kire\\z', { USERPROFILE: 'C:\\Users\\Kire' }, 'win32'), 'C:\\Users\\Kire2\\y and ~\\z');
+  assert.equal(hideHome('/root.bak/x', { HOME: '/root' }, 'linux'), '/root.bak/x');
+});
+
+// The boundary first hid the home only before a slash or the end, so a quoted one kept the name (review, 1.4.1).
+test('hideHome hides the home folder wherever it ends: quoted, before a full stop, or written with a final slash', () => {
+  const linux = (t, HOME = '/home/kire') => hideHome(t, { HOME }, 'linux');
+  assert.equal(linux("open '/home/kire' failed"), "open '~' failed");
+  assert.equal(linux('"/home/kire": no access, and /home/kire, too.'), '"~": no access, and ~, too.');
+  assert.equal(linux('your home is /home/kire.'), 'your home is ~.');
+  assert.equal(linux('/home/kire/.claude/x', '/home/kire/'), '~/.claude/x');
+  assert.equal(hideHome('C:\\Users\\a\\.claude', { USERPROFILE: 'C:\\Users\\a\\' }, 'win32'), '~\\.claude');
 });
 
 test('hideHome: the home folder becomes ~ with either slash, and on Windows in any letter case', () => {
