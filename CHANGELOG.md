@@ -2,6 +2,34 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.4.1 (2026-11-16)
+
+[Changes since 1.4.0](https://github.com/zdraveski/claude-juice/compare/v1.4.0...v1.4.1)
+
+Changed:
+- juice starts about 20 ms faster on each refresh, and the cost now draws in a few milliseconds instead of about 40.
+- In a narrow window, a red battery first drops the reset time beside its run-out time, so it reads `Session 93% !! runs out ~2:33 PM` rather than `93%!! out`.
+- When your Claude login has expired, juice no longer sends it. Claude Code renews it on your next message, and juice looks again 5 minutes later.
+- `/juice doctor` says why the last Fable check failed: the login was refused, it had expired, Anthropic was busy, the login changed, or you were offline. Only a refused login gets "type /login".
+
+Fixed:
+- If you said no to the Fable battery, a mistyped or broken `juice.json` (a trailing comma, `"Off"`, a locked file) no longer turns the login read back on.
+- On a Mac, the Keychain question now waits 25 seconds for your answer instead of closing after 3. juice also reads a Keychain login macOS prints as hex, and finds the login in `.credentials.json` when the Keychain has none.
+- Windows PowerShell 5.1 could pipe in a hidden mark (a BOM) that left the line blank.
+- A saved reset time could be read 1000 times too far away, so it never ended.
+- `/juice badges list` and `remove` hide the whole value of a key typed before a command, however it is quoted.
+- Adding a badge that is already there adds no second copy. A badge copied over in `juice.json` from another computer is approved where it stands when you add it again.
+- A program a badge leaves running in the background is stopped (Linux and macOS). The project folder and chat path handed to badges are deleted once read.
+- A `juice.json` that holds something other than settings, like `[]`, is left alone instead of replaced by `/juice set`.
+- `/juice setup` takes your status line as unchanged when only the order of its settings differs, and names the copy it sets aside. `/juice set` takes names in any case.
+- In a pane under 26 columns, a panel shows `Session 88%!!` instead of `Session …`. When only one battery fits, it is the one that blocks you first, not the first in your order.
+- An amber Fable battery that resets with Weekly says the reset time when Weekly has no room to.
+- The "batteries appear after Claude's first reply" hint no longer shows when no battery is chosen.
+- Four light colour sets (Claude, Calm, Vampire, Forest) now reach 4.5:1 contrast for white text on a fill.
+- More wide characters (Tangut, Kana supplement, small form variants) count as two columns, so the line doesn't spill.
+- Temp files left by a refresh that was stopped are now cleared after every update, and `/juice customize` opens without a window flashing up on Windows.
+- Badge cache files are named with SHA-256, which clears a GitHub security alert. Old ones are ignored and cleared after 7 days.
+
 ## 1.4.0 (2026-11-15)
 
 [Changes since 1.3.1](https://github.com/zdraveski/claude-juice/compare/v1.3.1...v1.4.0)
