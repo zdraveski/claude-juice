@@ -24,7 +24,7 @@ export const fableEnabled = (setting, platform, hasReading) =>
 
 export const DEFAULTS = Object.freeze({
   layout: 'bar', show: SHOW_IDS, order: 'yours', cost: 'auto', colors: 'claude',
-  ends: 'auto', battery: 'glossy', terminal: 'auto', refills: 'always', fable: 'auto', badges: [],
+  ends: 'auto', battery: 'glossy', terminal: 'auto', truecolor: 'auto', refills: 'always', fable: 'auto', badges: [],
   // Off: the line stands at its true fill and refreshes once a minute. On: it climbs, refreshing every second.
   motion: 'off',
 });
@@ -65,6 +65,7 @@ const CHECK = {
   ends: oneOf(['auto', 'round', 'plain']),
   battery: oneOf(BATTERY_IDS),
   terminal: oneOf(['auto', 'dark', 'light']),
+  truecolor: oneOf(['auto', 'on', 'off']),
   refills: oneOf(['always', 'warnings']),
   fable: oneOf(['auto', 'on', 'off']),
   motion: oneOf(['on', 'off']),

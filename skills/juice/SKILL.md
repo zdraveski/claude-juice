@@ -46,6 +46,7 @@ If the request is empty (the user typed just `/juice`), run `JUICE get`, say in 
    - ends: auto, round, plain ("boxes or question marks instead of round ends" -> `ends=plain`)
    - battery: glossy, classic, outline, hot, liquid, pace, and the shapes pie, sand, slider, race (Pace race), lives (hearts), dots, chevrons, ruler ("the old look" -> `battery=classic`, "thin lines" -> `battery=outline`, "show when I'm going fast" -> `battery=pace` or `battery=race`, "hearts" -> `battery=lives`). Styles and shapes draw only in the Status bar and Tightest first layouts (`layout=bar` or `layout=focus`); the other layouts keep their own shapes, so say so before promising one there
    - terminal: auto, dark, light ("my terminal is light" or "the text is hard to read" on a light background -> `terminal=light`)
+   - truecolor: auto, on, off ("the colours look off over ssh" or "the colours look washed out" -> `truecolor=on`; "the colours are wrong or garbled" in a terminal that can't draw full colour -> `truecolor=off`)
    - refills (the reset times): always, warnings
    - motion: off, on (on: the effort level and batteries climb, and the line refreshes every second, about a sixth of a CPU core per open window)
    - fable: auto, on, off

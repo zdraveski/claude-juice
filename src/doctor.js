@@ -104,6 +104,9 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
     out.push(bad(`Drawing with your settings failed: ${e?.message}. Type /juice reset the look to start over.`));
   }
   out.push(info(`Terminal, as seen from here: ${term.theme} background, ${COLOURS[term.colorDepth] ?? term.colorDepth}, ${term.ends} ends`));
+  // COLORTERM, which says a terminal draws full colour, is lost over ssh and sudo (and may be missing here only).
+  // macOS Terminal.app really draws 256, so the hint is an if, with the way back.
+  if (term.colorDepth === '256' && mine.truecolor === 'auto') out.push(info('Only if your terminal draws full colour (iTerm2, Windows Terminal, VS Code, kitty and most others; not the macOS Terminal app): /juice set truecolor=on makes the colours exact. Undo it with truecolor=off.'));
   // A problem from more than a day ago has passed; one this recent is worth a look.
   const err = readJson(p.lastErrorFile);
   if (Number.isFinite(err?.at) && typeof err.message === 'string' && t - err.at >= 0 && t - err.at < DAY) {
