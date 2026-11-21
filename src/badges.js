@@ -1,6 +1,6 @@
 // Badges: user-added shell commands whose first output line is shown before the batteries.
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, renameSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, renameSync, statSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { cut, ESCAPES } from './render/ansi.js';
@@ -158,5 +158,10 @@ export function unapprovedBadges(p) {
 
 export function removeBadge(p, n) {
   const { settings } = loadSettings(p);
-  saveSettings(p, { badges: settings.badges.filter((_, i) => i !== n - 1) });
+  const badges = settings.badges.filter((_, i) => i !== n - 1);
+  saveSettings(p, { badges });
+  // Only approved badges refresh, and only a refresh runs the sweep: with none left, the saved outputs and session
+  // details would stay forever. Unapproved copies (from a copied juice.json) never run, so they don't count.
+  // Best effort: the badge is already removed, and a file a refresher still holds open on Windows must not fail that.
+  if (!approved(p, badges).length) try { rmSync(join(p.cacheDir, 'badges'), { recursive: true, force: true }); } catch {}
 }

@@ -2,6 +2,11 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## Unreleased
+
+Fixed:
+- Removing your last badge now deletes the badge outputs and the copy of the status line details badges read. Before, they stayed in `juice-cache/badges` for good.
+
 ## 1.4.1 (2026-11-16)
 
 [Changes since 1.4.0](https://github.com/zdraveski/claude-juice/compare/v1.4.0...v1.4.1)
