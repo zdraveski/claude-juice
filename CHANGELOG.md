@@ -2,7 +2,9 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
-## Unreleased
+## 1.5.0 (2026-11-22)
+
+[Changes since 1.4.3](https://github.com/zdraveski/claude-juice/compare/v1.4.3...v1.5.0)
 
 New:
 - A new look, Sand: batteries that fill like an hourglass, in bold colours. `/juice look sand` also switches the battery style to sand, and picking any other look puts it back to Glossy.

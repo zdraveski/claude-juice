@@ -157,7 +157,7 @@ Pick one in the customizer, or type `/juice set battery=outline` (or glossy, cla
 
 [Open the live customizer](https://zdraveski.github.io/claude-juice/web/) to try every look, layout and colour with a live preview, then copy one line into Claude Code. It runs in your browser, so there is nothing to install.
 
-[![The juice customizer in a desktop browser: clicking looks and terminal colours while the live preview changes.](images/customizer.gif)](https://zdraveski.github.io/claude-juice/web/)
+[![The juice customizer in a desktop browser: clicking through looks while the live preview changes.](images/customizer.gif)](https://zdraveski.github.io/claude-juice/web/)
 
 Or type `/juice` and say what you want in your own words. Claude reads what follows, turns it into the matching command, runs it and tells you what changed. A few examples:
 
