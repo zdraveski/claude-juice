@@ -9,6 +9,7 @@
   "license": "MIT",
   "network": { "hosts": ["api.anthropic.com"] },
   "icon": "./.claude-plugin/icon.png",
+  "documentationUrl": "https://github.com/zdraveski/claude-juice/blob/main/docs/guide.md",
   "supportUrl": "https://github.com/zdraveski/claude-juice/issues",
   "privacyPolicyUrl": "https://github.com/zdraveski/claude-juice/blob/main/docs/privacy.md"
 }
