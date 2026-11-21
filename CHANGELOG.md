@@ -2,9 +2,13 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
-## Unreleased
+## 1.4.2 (2026-11-21)
+
+[Changes since 1.4.1](https://github.com/zdraveski/claude-juice/compare/v1.4.1...v1.4.2)
 
 Fixed:
+- After you switch accounts, a new chat no longer pushes Weekly down (for example from 40% to 22%). juice shows the highest number any open chat has sent for that week.
+- At the moment a limit resets, juice no longer shows it refilled a few seconds before Anthropic does.
 - Removing your last badge now deletes the badge outputs and the copy of the status line details badges read. Before, they stayed in `juice-cache/badges` for good.
 
 ## 1.4.1 (2026-11-16)
