@@ -107,7 +107,7 @@ One more, Terminal (`/juice set colors=terminal`), draws in your terminal's own 
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/colour-sets-dark.png">
-  <img src="images/colour-sets-light.png" alt="All 13 colour sets, each with three batteries under the columns Plenty left, Going fast ! and Nearly out !!: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose.">
+  <img src="images/colour-sets-light.png" alt="All 14 colour sets, each with three batteries under the columns Plenty left, Going fast ! and Nearly out !!: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar, Rose and Terminal, shown in VS Code's default 16 colours.">
 </picture>
 
 ## Change how it looks

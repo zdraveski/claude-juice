@@ -97,7 +97,7 @@ If you use the VS Code chat panel or the desktop app, open a terminal and type `
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/features-dark.png">
-  <img src="docs/images/features-light.png" alt="What you get, in five rows: when every limit resets, shown right next to it; warnings you can't miss, amber ! when you are going fast and red !! when nearly out; Fable in its own violet battery; 14 looks and 13 colour sets, with colour-blind safe and light-terminal sets, and Session drawn in three of the looks, Night owl, Easy to see and Colour-blind friendly; and safe to try, because /juice restore brings your old status line back.">
+  <img src="docs/images/features-light.png" alt="What you get, in five rows: when every limit resets, shown right next to it; warnings you can't miss, amber ! when you are going fast and red !! when nearly out; Fable in its own violet battery; 14 looks and 14 colour sets, with colour-blind safe, light-terminal and terminal's-own-colours sets, and Session drawn in three of the looks, Night owl, Easy to see and Colour-blind friendly; and safe to try, because /juice restore brings your old status line back.">
 </picture>
 
 [The guide](docs/guide.md#what-the-batteries-mean) explains every battery, the thin line that marks an even pace, and the reset times.
