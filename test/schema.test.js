@@ -82,12 +82,13 @@ test('applySet', () => {
 
 const LOOK_KEYS = ['layout', 'show', 'order', 'colors', 'cost', 'refills', 'ends'];
 
-test('Sand sets the sand battery and any other look undoes it, but a hand-picked battery stays', () => {
+test('Sand sets the sand battery and any other look undoes it, even by hand, but other batteries stay', () => {
   assert.equal(LOOKS.find((l) => l.id === 'sand').set.battery, 'sand');
   const sand = applySet(DEFAULTS, ['look=sand']).settings;
   assert.equal(sand.battery, 'sand');
   assert.equal(applySet(sand, ['look=juice']).settings.battery, DEFAULTS.battery);
   assert.equal(applySet({ ...DEFAULTS, battery: 'outline' }, ['look=juice']).settings.battery, 'outline');
+  assert.equal(applySet({ ...DEFAULTS, battery: 'sand' }, ['look=juice']).settings.battery, DEFAULTS.battery);
 });
 
 test('looks: fifteen, each sets the seven look keys (Sand adds battery) to valid values', () => {

@@ -6,8 +6,11 @@ To update, type `/plugin`, update juice, then restart Claude Code.
 
 New:
 - A new look, Sand: batteries that fill like an hourglass, in bold colours. `/juice look sand` also switches the battery style to sand, and picking any other look puts it back to Glossy.
-- The customizer page is easier to use: on a phone the "What to show" rows and the colour and look cards are compact, the live preview stays at the top with its options folded away, and "Climbing" is now called "Animated" (the command is still `motion=on`). The contrast numbers next to your own colours now show only when you hover them.
+- The customizer page is easier to use: on a phone the "What to show" rows and the colour and look cards are compact, the live preview stays at the top with its options folded away, and "Climbing" is now called "Animated" (the command is still `motion=on`).
 - A new colour set, Terminal: `/juice set colors=terminal` draws in your terminal's own 16 colours, so if you changed your terminal's colour scheme, juice follows it. Green is plenty left, yellow is going fast, red is almost empty, cyan is the model name and Fable is magenta. juice can't promise these read well, since that depends on your scheme.
+
+Fixed:
+- With `colors=terminal` on a light terminal, the words on plain green and yellow batteries are now black, so you can read them.
 
 ## 1.4.3 (2026-11-21)
 

@@ -45,7 +45,7 @@ Each row is one `key=value` for `/juice set`. The default is first.
 
 Notes:
 
-- `look` sets layout, show, order, colors, cost, refills and ends in one go. Put other keys after it. See the [guide](guide.md#ready-made-looks).
+- `look` sets layout, show, order, colors, cost, refills and ends in one go. `look=sand` also sets `battery=sand`, and any other look puts `battery=sand` back to `glossy`. Put other keys after it. See the [guide](guide.md#ready-made-looks).
 - `layout` names: `pills` is Capsules, `tank` is Fuel tank, `focus` is Tightest first, `segments` is Classic segments.
 - `show` uses `week` for Weekly.
 - The setting is spelled `colors`. The text elsewhere says colours.

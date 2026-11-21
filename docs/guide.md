@@ -61,7 +61,9 @@ The Status bar, Tightest first and Panel layouts draw it. Of the battery shapes,
 A look sets the layout, colours, what shows and in what order, the cost, the reset times and the battery ends, all in one go. Pick one, then change anything you like.
 
 - A look changes: layout, colours, what shows, order, cost, reset times, battery ends.
-- A look keeps: your battery style, terminal colour, full-colour setting, motion, Fable setting and [badges](badges.md).
+- A look keeps: your battery style (except Sand, see below), terminal colour, full-colour setting, motion, Fable setting and [badges](badges.md).
+
+Sand also sets the sand battery. Picking any other look after that puts sand back to glossy, even if you chose sand yourself. Other battery styles stay.
 
 If you chose round or plain ends yourself, type `/juice use round ends` or `/juice use plain ends` again after picking a look.
 

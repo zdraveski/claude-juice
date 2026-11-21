@@ -68,6 +68,10 @@ Type `/juice my terminal is light`.
 
 The macOS Terminal app before macOS 26 does not draw full colour. See [By system](#by-system).
 
+### Part of a battery disappears with `colors=terminal`
+
+The Terminal colour set draws in your terminal's own 16 colours. Some schemes, such as Solarized, use the same dark grey for the background and for "bright black", so anything juice draws in dark grey can vanish against the background. Pick another colour set, for example `/juice set colors=claude`.
+
 ### Boxes or question marks show instead of round battery ends
 
 Type `/juice use plain ends`.

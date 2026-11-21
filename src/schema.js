@@ -29,7 +29,7 @@ export const DEFAULTS = Object.freeze({
   motion: 'off',
 });
 
-// A look sets these seven in one go; terminal, fable and badges stay the person's own, and so does battery, except that Sand sets it and any other look then undoes it (see applySet).
+// A look sets these seven in one go; terminal, fable and badges stay the person's own, and so does battery, except that Sand sets it and any other look then puts sand back to glossy (see applySet).
 const LOOK_BASE = { layout: 'bar', show: SHOW_IDS, order: 'yours', colors: 'claude', cost: 'auto', refills: 'always', ends: 'auto' };
 const look = (id, name, note, o = {}) => Object.freeze({ id, name, note, set: Object.freeze({ ...LOOK_BASE, ...o }) });
 export const LOOKS = Object.freeze([
@@ -154,7 +154,7 @@ export function applySet(settings, pairs) {
       const l = LOOKS.find((x) => x.id === text);
       if (l) {
         Object.entries(l.set).forEach(([k, v]) => put(k, v));
-        // A look without a battery undoes the one a look set (Sand), so the style never outlives its look; a style picked by hand otherwise stays.
+        // A look without a battery undoes any battery a look can set (sand), even one picked by hand; every other battery style stays.
         if (!('battery' in l.set) && LOOKS.some((x) => x.set.battery === next.battery)) put('battery', DEFAULTS.battery);
       }
       else warnings.push(`look: '${typed}' isn't a look. Use one of: ${LOOKS.map((x) => x.id).join(', ')}.`);

@@ -141,7 +141,7 @@ function preview() {
   // A chosen terminal colour wins, as in the real line (terminal.js): the preview's Dark/Light only stands in for Automatic.
   if (s.terminal !== 'auto') view.term = s.terminal;
   const cols = WIDTHS[view.width], p = peek(view.hover);
-  const { text, dropped } = drawn({ ...s, ...p?.set }, cols);
+  const { text, dropped } = drawn(p?.id && LOOK[p.id] === p ? applySet(s, [`look=${p.id}`]).settings : { ...s, ...p?.set }, cols);
   $('out').innerHTML = ansiToHtml(text, NEUTRAL[view.term].fg);
   // The glyph bars read as noise to a screen reader, so name the preview by its words only.
   $('out').setAttribute('aria-label', text.replace(/\x1b\[[0-9;]*m/g, '').replace(/\s+│\s+/g, ', ').replace(/[^\p{L}\p{N}%!:.,$\-+\/~ \n]/gu, ' ').split('\n').map((l) => l.replace(/\s+/g, ' ').replace(/ ,/g, ',').trim()).join('. '));
@@ -173,7 +173,7 @@ function update() {
     el.classList.toggle('light', view.term === 'light');
   };
   document.querySelectorAll('[data-thumb]').forEach((el) => thumb(el, { layout: el.dataset.thumb }));
-  document.querySelectorAll('[data-lookthumb]').forEach((el) => thumb(el, LOOK[el.dataset.lookthumb].set, true));
+  document.querySelectorAll('[data-lookthumb]').forEach((el) => thumb(el, applySet(s, [`look=${el.dataset.lookthumb}`]).settings, true));
   document.querySelectorAll('[data-look]').forEach((b) => b.setAttribute('aria-pressed', Object.entries(LOOK[b.dataset.look].set).every(([k, v]) => JSON.stringify(s[k]) === JSON.stringify(v))));
   document.querySelectorAll('[data-layout]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.layout === s.layout));
   document.querySelectorAll('[data-show]').forEach((b) => {
@@ -200,7 +200,7 @@ function update() {
   document.querySelectorAll('[data-ratio]').forEach((el) => {
     const r = contrast(set[el.dataset.ratio], NEUTRAL[view.term].bg);
     // The same bar juice holds its own colours to, and /juice set warns below.
-    el.textContent = r < 3 ? `Hard to read here` : r < 4.5 ? `A little faint` : `Easy to read`;
+    el.textContent = `${r < 3 ? 'Hard to read here' : r < 4.5 ? 'A little faint' : 'Easy to read'} (${r.toFixed(1)}:1)`;
     el.title = r.toFixed(1) + ':1';
     el.classList.toggle('bad', r < 3);
     el.classList.toggle('faint', r >= 3 && r < 4.5);
