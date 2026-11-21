@@ -246,7 +246,7 @@ test('the /juice skill lists exactly the values the code accepts for every key',
   };
   // The accepted values come from the warning a wrong one gets: it lists the table that checks them.
   const accepted = (key) => /Use one of: ([^.]+)\./.exec(applySet(DEFAULTS, [`${key}=zzz`]).warnings[0])[1].split(', ');
-  for (const key of ['layout', 'order', 'cost', 'ends', 'battery', 'terminal', 'refills', 'fable', 'motion']) assert.deepEqual([...listed(key)].sort(), accepted(key).sort(), key);
+  for (const key of ['layout', 'order', 'cost', 'ends', 'battery', 'terminal', 'truecolor', 'refills', 'fable', 'motion']) assert.deepEqual([...listed(key)].sort(), accepted(key).sort(), key);
   assert.deepEqual(listed('show'), [...SHOW_IDS], 'show');
   assert.deepEqual([...listed('colors')].sort(), [...PRESET_IDS].sort(), 'colors');
 });

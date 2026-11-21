@@ -2,6 +2,11 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## Unreleased
+
+New:
+- `/juice set truecolor=on` gives full colour where juice can't tell your terminal draws it, such as over `ssh` or `sudo`, which drop the note that says so. `truecolor=off` keeps 256 colours for a terminal that can't. `/juice doctor` suggests it when it sees 256 colours.
+
 ## 1.4.2 (2026-11-21)
 
 [Changes since 1.4.1](https://github.com/zdraveski/claude-juice/compare/v1.4.1...v1.4.2)

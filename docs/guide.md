@@ -55,7 +55,7 @@ Pro and Max plans show the limits that apply to them. If you pay as you go with 
 
 ## Ready-made looks
 
-A look sets the layout, the colours, what shows and in what order, the cost, the reset times and the battery ends, all in one go. Your battery style, terminal colour, motion, Fable setting and [badges](badges.md) stay as they are. Pick one, then change anything you like. (If you chose round or plain ends yourself, type `/juice use round ends` or `/juice use plain ends` again after picking a look.)
+A look sets the layout, the colours, what shows and in what order, the cost, the reset times and the battery ends, all in one go. Your battery style, terminal colour, full-colour setting, motion, Fable setting and [badges](badges.md) stay as they are. Pick one, then change anything you like. (If you chose round or plain ends yourself, type `/juice use round ends` or `/juice use plain ends` again after picking a look.)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/looks-dark.png">

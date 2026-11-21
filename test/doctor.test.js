@@ -300,3 +300,12 @@ test('hideHome: the home folder becomes ~ with either slash, and on Windows in a
 test('ago: plain words for how long ago', () => {
   assert.deepEqual([0, 30e3, 5 * 60e3, 3 * 3600e3, 3 * 86400e3, -60e3, NaN].map(ago), ['just now', 'just now', '5 min ago', '3 h ago', '3 days ago', 'just now', 'just now']);
 });
+
+test('doctor: suggests truecolor=on only when it sees 256 colours and the setting is auto', () => {
+  const d = config();
+  const hint = /Only if your terminal draws full colour.*truecolor=on.*Undo it with truecolor=off/;
+  assert.match(check(d, { env: {} }), hint);
+  assert.doesNotMatch(check(d, { env: { COLORTERM: 'truecolor' } }), hint);
+  writeFileSync(join(d, 'juice.json'), JSON.stringify({ truecolor: 'off' }));
+  assert.doesNotMatch(check(d, { env: {} }), hint, 'the person already chose');
+});
