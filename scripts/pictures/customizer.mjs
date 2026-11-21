@@ -26,7 +26,7 @@ const open = async (w, h, scale) => {
   return pg;
 };
 
-// ---------- GIF frames: Juice -> Spotlight -> Colour-blind friendly -> Light -> Dark -> Juice ----------
+// ---------- GIF frames: Juice -> Spotlight -> Colour-blind friendly -> Sand -> Juice ----------
 // As wide as a desktop shows a README picture (DESK), so GitHub shows the page 1:1 instead of shrinking its text.
 const W = DESK, H = 600, FPS = 10;
 const pg = await open(W, H, 1);
@@ -50,11 +50,10 @@ const spot = await centre(look('spotlight'), scrollSpot);
 const cbY = await pg.evaluate((s) => document.querySelector(s).getBoundingClientRect().top + scrollY, look('colorblind'));
 const scroll1 = Math.round(cbY - stageH - 30);
 const cb = await centre(look('colorblind'), scroll1);
-// The sticky preview only pins once scrolled far enough, so measure its buttons where they get clicked.
-await pg.evaluate((y) => scrollTo(0, y), scroll1); await pg.waitForTimeout(200);
-const LIGHT = '[data-view="term"] [data-v="light"]', DARK = '[data-view="term"] [data-v="dark"]';
-const light = await centre(LIGHT, scroll1), dark = await centre(DARK, scroll1);
-await pg.evaluate((y) => scrollTo(0, y), scroll0); await pg.waitForTimeout(200);
+// Light and Dark sit in the folded preview options since 1.5.0, so the tour ends on the last look, Sand, instead.
+const sandY = await pg.evaluate((s) => document.querySelector(s).getBoundingClientRect().top + scrollY, look('sand'));
+const scroll2 = Math.round(sandY - stageH - 30);
+const sand = await centre(look('sand'), scroll2);
 
 await pg.mouse.click(juice[0], juice[1]); await pg.waitForTimeout(200); // first frame = last frame (Juice chosen), so the loop is seamless
 await rm(FR, { recursive: true, force: true }); await mkdir(FR);
@@ -83,8 +82,7 @@ const click = async (sel) => {
 await hold(0.5);
 await move(spot, 0.7, scrollSpot); await click(look('spotlight')); await hold(0.9);
 await move(cb, 0.8, scroll1); await click(look('colorblind')); await hold(0.9);
-await move(light, 0.6); await click(LIGHT); await hold(0.9);
-await move(dark, 0.4); await click(DARK); await hold(0.4);
+await move(sand, 0.9, scroll2); await click(look('sand')); await hold(0.9);
 await move(juice, 0.8, scroll0); await click(look('juice')); await hold(0.5);
 console.log('frames', f, `${W}x${H}`, (f / FPS).toFixed(1) + 's');
 await browser.close();

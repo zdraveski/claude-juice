@@ -179,7 +179,8 @@ test('grey labels and countdowns are readable (WCAG AA, 4.5:1) on both default b
 
 // The accent writes the name of the battery that needs you (and the badge's ◆): Claude's own light accent sat at 4.2:1.
 test('every colour of every set reads at 4.5:1 on its terminal, the accent too', () => {
-  for (const [id, p] of Object.entries(PRESETS)) for (const t of ['dark', 'light']) for (const c of p[t])
+  // terminal draws in your palette's colours, so it has no contrast to promise
+  for (const [id, p] of Object.entries(PRESETS)) if (id !== 'terminal') for (const t of ['dark', 'light']) for (const c of p[t])
     assert.ok(contrast(c, NEUTRAL[t].bg) >= 4.5, `${id} ${t} ${c} ${contrast(c, NEUTRAL[t].bg).toFixed(2)}:1`);
 });
 
@@ -309,7 +310,8 @@ test('text on a coloured fill (pills, a number inside a battery) is readable, 4.
 // A fine capsule wrote its words in the level colour on the casing: 3.4:1 on light (claude), 3.6:1 on dark (solar).
 test('every word in a capsule reads at 4.5:1 in every colour set and theme', () => {
   const hex = (c) => '#' + c.split(';').slice(2).map((v) => (+v).toString(16).padStart(2, '0')).join('');
-  for (const colors of Object.keys(PRESETS)) for (const theme of ['dark', 'light']) for (const data of [SAMPLES.busy, SAMPLES.trouble]) {
+  // terminal draws no 24-bit colours to measure
+  for (const colors of Object.keys(PRESETS).filter((id) => id !== 'terminal')) for (const theme of ['dark', 'light']) for (const data of [SAMPLES.busy, SAMPLES.trouble]) {
     let f = null, b = null, seen = 0;
     for (const m of run(data, { layout: 'pills', colors }, { theme }).matchAll(/\x1b\[([\d;]*)m|([^])/gu)) {
       const c = m[1];

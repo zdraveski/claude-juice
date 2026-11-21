@@ -3,6 +3,9 @@ contact_links:
   - name: Report a security problem privately
     url: https://github.com/zdraveski/claude-juice/security/advisories/new
     about: Please don't post security problems in a public issue.
+  - name: Read troubleshooting
+    url: https://github.com/zdraveski/claude-juice/blob/main/docs/troubleshooting.md
+    about: Run /juice doctor first. The troubleshooting page covers the usual problems.
   - name: Ask a question
     url: https://github.com/zdraveski/claude-juice/discussions/categories/q-a
     about: Not sure how something works? Ask in Discussions.

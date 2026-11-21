@@ -22,6 +22,9 @@ export const PRESETS = {
   sunset: { name: 'Sunset', note: 'Peach, orange, pink', dark: ['#ffd59e', '#ff9e64', '#ff5c8a', '#c792ea'], light: ['#7f6512', '#c2410c', '#be185d', '#7e22ce'] },
   solar: { name: 'Solar', note: 'Classic muted tones', dark: ['#859900', '#b58900', '#e1514e', '#268bd2'], light: ['#5f6e00', '#8a6a00', '#c0281f', '#1f6fa8'] },
   rose: { name: 'Rose', note: 'Dusty pink and pine', dark: ['#9ccfd8', '#f6c177', '#eb6f92', '#c4a7e7'], light: ['#286983', '#a35f17', '#b4506e', '#7d64a0'] },
+  // Only the hues matter here: to16 turns each colour into the terminal's own 16, whatever your palette makes of them.
+  // So this set cannot promise the 4.5:1 the others keep, and the contrast tests skip it.
+  terminal: { name: 'Terminal', note: "Your terminal's own colours", dark: ['#00ff00', '#ffff00', '#ff0000', '#00ffff'], light: ['#00a000', '#a0a000', '#a00000', '#00a0a0'], fable: '#ff00ff' },
 };
 
 export function palette(settings, theme) {
@@ -31,7 +34,7 @@ export function palette(settings, theme) {
     ? preset[theme]
     : [c[theme].plentyLeft, c[theme].goingFast, c[theme].almostEmpty, c[theme].accent];
   const P = { ...NEUTRAL[theme], good, watch, bad, accent };
-  if (preset?.fable) P.fable = P[preset.fable]; // a set can pick one of its own colours for Fable
+  if (preset?.fable) P.fable = P[preset.fable] ?? preset.fable; // a set can pick one of its own colours for Fable, or give a hex
   return P;
 }
 

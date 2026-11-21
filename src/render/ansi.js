@@ -126,3 +126,43 @@ export const to256 = (s, bg) => {
     return `${E}${out.join(';')}m`;
   });
 };
+
+// The terminal's own 16 colours: 0 black, 1 red, 2 green, 3 yellow, 4 blue, 5 magenta, 6 cyan, 7 white, and 8-15 their bright ones.
+// A grey takes the grey that sits where its lightness is, never the one that is usually the terminal's own background;
+// a colour takes its hue's name, bright on a dark terminal and plain on a light one, where bright ones wash out.
+const slot16 = (rgb, dark) => {
+  const [r, g, b] = rgb.map((v) => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), c = mx - mn, l = (mx + mn) / 2;
+  if (c < 0.2) return (dark ? [[8, 0.46], [7, 0.8], [15, 1]] : [[0, 0], [8, 0.46], [7, 0.8]]).reduce((a, x) => (Math.abs(x[1] - l) < Math.abs(a[1] - l) ? x : a))[0];
+  const h = ((mx === r ? ((g - b) / c) % 6 : mx === g ? (b - r) / c + 2 : (r - g) / c + 4) * 60 + 360) % 360;
+  const n = h < 20 || h >= 340 ? 1 : h < 70 ? 3 : h < 165 ? 2 : h < 200 ? 6 : h < 250 ? 4 : 5; // orange counts as yellow
+  return dark ? n + 8 : n;
+};
+// The codes are 30-37 and 90-97 for words, 40-47 and 100-107 for fills.
+const code16 = (layer, n) => (layer === '38' ? 30 : 40) + (n < 8 ? n : 52 + n);
+// Any colour code becomes one of the 16: a 256 colour from a badge goes by its rgb, 0-15 stay as they are.
+// Words on a fill take black or bright white, whichever reads on the fill's 16 colour; a battery cell or round end
+// keeps its colour, it is the fill's own shape. Every code says both colours again, so one change cannot undo the other.
+export const to16 = (s, dark) => {
+  let f = null, b = null;
+  return s.replace(/\x1b\[([0-9;]*)m/g, (m, ps, at) => {
+    const p = ps.split(';'), out = [];
+    for (let i = 0; i < p.length; i++) {
+      const k = +p[i];
+      if ((p[i] === '38' || p[i] === '48') && (p[i + 1] === '2' || p[i + 1] === '5')) {
+        const rgb = p[i + 1] === '2' ? rgbAt(p, i) : null, v = Math.min(255, +p[i + 2] || 0);
+        const n = rgb ? slot16(rgb, dark) : v < 16 ? v : slot16(xterm()[v - 16].v, dark);
+        if (p[i] === '38') f = n; else b = n;
+        i += rgb ? 4 : 2;
+      }
+      else if (k >= 30 && k <= 37 || k >= 90 && k <= 97) f = k < 90 ? k - 30 : k - 82;
+      else if (k >= 40 && k <= 47 || k >= 100 && k <= 107) b = k < 100 ? k - 40 : k - 92;
+      else if (p[i] === '39') f = null;
+      else if (p[i] === '49') b = null;
+      else { if (p[i] === '0' || p[i] === '') f = b = null; out.push(p[i]); }
+    }
+    const ink = b !== null && !SHAPE.test(s[at + m.length] ?? '');
+    const word = ink ? ([0, 1, 4, 5, 8].includes(b) ? 15 : 0) : f; // white only on the usual dark ones
+    out.push(word === null ? '39' : code16('38', word), b === null ? '49' : code16('48', b));
+    return `${E}${out.join(';')}m`;
+  });
+};

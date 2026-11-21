@@ -182,6 +182,7 @@ test('Fable colour: violet, but grey under Calm and pink-purple under Colour-bli
 test('every colour set is readable on its terminal background', () => {
   for (const [id, p] of Object.entries(PRESETS)) {
     assert.ok(p.name && p.note, id);
+    if (id === 'terminal') continue; // it draws in your palette's colours, so there is no contrast to promise
     for (const t of ['dark', 'light']) {
       assert.equal(p[t].length, 4, `${id}.${t}`);
       p[t].forEach((c, i) => assert.ok(contrast(c, NEUTRAL[t].bg) >= 3, `${id}.${t}[${i}] ${c}`));

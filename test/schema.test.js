@@ -8,7 +8,7 @@ const custom = { dark: A, light: { ...A, accent: '#ffffff' } };
 
 test('ids and url', () => {
   assert.deepEqual(LAYOUT_IDS, ['bar', 'segments', 'focus', 'panel', 'pills', 'tank']);
-  assert.deepEqual(PRESET_IDS, ['claude', 'frost', 'calm', 'safe', 'bold', 'ocean', 'midnight', 'vampire', 'candy', 'forest', 'sunset', 'solar', 'rose']);
+  assert.deepEqual(PRESET_IDS, ['claude', 'frost', 'calm', 'safe', 'bold', 'ocean', 'midnight', 'vampire', 'candy', 'forest', 'sunset', 'solar', 'rose', 'terminal']);
   assert.match(CUSTOMIZER_URL, /^https:\/\//);
 });
 
@@ -82,11 +82,20 @@ test('applySet', () => {
 
 const LOOK_KEYS = ['layout', 'show', 'order', 'colors', 'cost', 'refills', 'ends'];
 
-test('looks: fourteen, each sets exactly the seven look keys to valid values', () => {
-  assert.deepEqual(LOOKS.map((l) => l.id), ['juice', 'basics', 'spotlight', 'everything', 'retro', 'quiet', 'nightowl', 'easy', 'colorblind', 'anywhere', 'costwatch', 'fablefirst', 'capsule', 'roadtrip']);
+test('Sand sets the sand battery and any other look undoes it, even by hand, but other batteries stay', () => {
+  assert.equal(LOOKS.find((l) => l.id === 'sand').set.battery, 'sand');
+  const sand = applySet(DEFAULTS, ['look=sand']).settings;
+  assert.equal(sand.battery, 'sand');
+  assert.equal(applySet(sand, ['look=juice']).settings.battery, DEFAULTS.battery);
+  assert.equal(applySet({ ...DEFAULTS, battery: 'outline' }, ['look=juice']).settings.battery, 'outline');
+  assert.equal(applySet({ ...DEFAULTS, battery: 'sand' }, ['look=juice']).settings.battery, DEFAULTS.battery);
+});
+
+test('looks: fifteen, each sets the seven look keys (Sand adds battery) to valid values', () => {
+  assert.deepEqual(LOOKS.map((l) => l.id), ['juice', 'basics', 'spotlight', 'everything', 'retro', 'quiet', 'nightowl', 'easy', 'colorblind', 'anywhere', 'costwatch', 'fablefirst', 'capsule', 'roadtrip', 'sand']);
   for (const l of LOOKS) {
     assert.ok(l.name && l.note, l.id);
-    assert.deepEqual(Object.keys(l.set).sort(), [...LOOK_KEYS].sort(), l.id);
+    assert.deepEqual(Object.keys(l.set).sort(), [...LOOK_KEYS, ...(l.id === 'sand' ? ['battery'] : [])].sort(), l.id);
     const r = sanitize(l.set, { allowBadges: false });
     assert.deepEqual(r.warnings, [], l.id);
     for (const k of LOOK_KEYS) assert.deepEqual(r.settings[k], l.set[k], `${l.id}.${k}`);

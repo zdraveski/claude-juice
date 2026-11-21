@@ -1,7 +1,7 @@
 import { makeCtx } from './palette.js';
 import { LAYOUTS } from './layouts.js';
 import { fit } from './fit.js';
-import { fg, to256, strip, vis } from './ansi.js';
+import { fg, to256, to16, strip, vis } from './ansi.js';
 
 const WAIT = "batteries appear after Claude's first reply";
 
@@ -19,6 +19,6 @@ export function render(data, settings, terminal) {
   if (batteries && data.memoryUsed === null && !Object.keys(data.limits).length && vis(first) && vis(first) + vis(add) <= cols) {
     text = [first + fg(ctx.P.sub, add), ...rest].join('\n');
   }
-  const out = terminal.colorDepth === 'none' ? strip(text) : terminal.colorDepth === '256' ? to256(text, ctx.P.bg) : text;
+  const out = terminal.colorDepth === 'none' ? strip(text) : settings.colors === 'terminal' ? to16(text, ctx.dark) : terminal.colorDepth === '256' ? to256(text, ctx.P.bg) : text;
   return { text: out, get dropped() { return fitted.dropped; } };
 }
