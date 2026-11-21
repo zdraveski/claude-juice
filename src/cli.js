@@ -9,7 +9,7 @@ import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
 import { refreshFable } from './fable.js';
-import { refreshBadges, addBadge, listBadges, removeBadge, unapprovedBadges } from './badges.js';
+import { refreshBadges, addBadge, checkEnv, listBadges, removeBadge, unapprovedBadges } from './badges.js';
 import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm, Unreadable } from './setup.js';
 
 const ROOT = new URL('..', import.meta.url);
@@ -100,13 +100,29 @@ export async function main(argv, io) {
         // Only a final --yes is the go-ahead; one inside the command (npx --yes ccusage) belongs to the command.
         const yes = all.at(-1) === '--yes', rest = yes ? all.slice(0, -1) : all;
         if (sub === 'add') {
-          const command = rest.join(' ');
+          // --env NAME,NAME just before the --yes: the extra environment variables this badge may see.
+          const at = rest.at(-2) === '--env' ? rest.length - 2 : rest.length;
+          const env = [...new Set((rest[at + 1] ?? '').split(',').map((n) => n.trim()).filter(Boolean))];
+          const command = rest.slice(0, at).join(' ');
           if (!command) { io.err('Give the command to add, for example: badges add "git branch --show-current" --yes'); return 1; }
-          const l = listBadges(p), off = unapprovedBadges(p), there = l.findIndex((c, i) => c === command && !off.includes(i + 1)) + 1;
-          if (there) { io.out(`That badge is already there, as badge ${there}.`); return 0; }
-          if (!yes) { io.out(`This badge would run: ${command}`); io.out('Run again with --yes to add it.'); return 2; }
-          addBadge(p, command);
-          io.out(off.some((n) => l[n - 1] === command) ? `Approved badge: ${command}` : `Added badge: ${command}`);
+          // A --env anywhere else (no names after it, or names split by a space) would end up inside the command.
+          if (rest.slice(0, at).includes('--env')) { io.err('Put the names right after --env, joined by commas with no spaces, for example: --env HTTPS_PROXY,NO_PROXY'); return 1; }
+          try { checkEnv(env); } catch (e) { io.err(e.message); return 1; }
+          const saved = loadSettings(p).settings.badges, l = saved.map((b) => b.command), off = unapprovedBadges(p);
+          const mine = l.findIndex((c, i) => c === command && !off.includes(i + 1));
+          const was = saved[mine]?.env ?? [];
+          if (mine >= 0 && was.join(',') === env.join(',')) { io.out(`That badge is already there, as badge ${mine + 1}.`); return 0; }
+          const sees = env.length ? `also see ${env.join(', ')}` : 'see only the basic environment variables';
+          if (!yes) {
+            // An update says so: re-adding without --env takes a badge's variables away.
+            if (mine >= 0) { io.out(`Badge ${mine + 1} would then ${sees}.`); io.out('Run again with --yes to change it.'); return 2; }
+            io.out(`This badge would run: ${command}`);
+            if (env.length) io.out(`It would also see these environment variables: ${env.join(', ')}`);
+            io.out('Run again with --yes to add it.'); return 2;
+          }
+          addBadge(p, command, env);
+          io.out(mine >= 0 ? `Updated badge ${mine + 1}: it will now ${sees}.`
+            : off.some((n) => l[n - 1] === command) ? `Approved badge: ${command}` : `Added badge: ${command}`);
           return 0;
         }
         if (sub === 'list') {
@@ -120,7 +136,9 @@ export async function main(argv, io) {
             const twin = l.findIndex((d, j) => d === c && !off.includes(j + 1)) + 1; // 1.4.0 added a second copy instead of approving
             return twin ? ` (a copy of badge ${twin} that never runs: remove it)` : ' (not approved on this computer, so it never runs: add the same command again to approve it)';
           };
-          io.out(l.length ? l.map((c, i) => `${i + 1}. ${name(c)}${why(c, i)}`).join('\n') : 'No badges.');
+          // Names only, never values, so this is safe in the chat.
+          const env = loadSettings(p).settings.badges.map((b) => (b.env ? ` (also sees ${b.env.join(', ')})` : ''));
+          io.out(l.length ? l.map((c, i) => `${i + 1}. ${name(c)}${env[i] ?? ''}${why(c, i)}`).join('\n') : 'No badges.');
           loadSettings(p).warnings.forEach((w) => io.out(`Warning: ${w}`));
           return 0;
         }
@@ -151,7 +169,7 @@ export async function main(argv, io) {
         const stash = join(p.cacheDir, 'badges', `${key}.stdin.json`);
         try { stdinText = readFileSync(stash, 'utf8'); } catch { stdinText = ''; }
         try { rmSync(stash, { force: true }); } catch {} // a week-old one goes with the badge caches
-        await refreshBadges({ p, settings: loadSettings(p).settings, key, stdinText });
+        await refreshBadges({ p, settings: loadSettings(p).settings, key, stdinText, env: io.env });
         return 0;
       }
       default: io.err(USAGE); return 1;

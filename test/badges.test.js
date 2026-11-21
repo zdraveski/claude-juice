@@ -12,7 +12,7 @@ import { loadSettings, saveSettings } from '../src/settings.js';
 
 const busyText = JSON.stringify(fixture('busy'));
 import { strip, at, NOW } from './helpers.js';
-import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, listBadges, removeBadge, run, approve, approved } from '../src/badges.js';
+import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, listBadges, removeBadge, run, approve, approved, badgeEnv } from '../src/badges.js';
 
 // process.getBuiltinModule came in Node 22.3 and 20.16. On an older Node the line still draws, so its badges must still run.
 test('a badge runs on a Node without process.getBuiltinModule', async () => {
@@ -259,4 +259,38 @@ test('a badge runs in the folder Claude Code is in, not the refresher\'s own', a
   assert.deepEqual(seen, [dir, undefined, undefined], 'a folder that is not there is left to the refresher\'s own');
   const r = await run('node -p "process.cwd()"', { timeoutMs: 5000, cwd: dir });
   assert.equal(realpathSync(r.stdout.trim()), dir);
+});
+
+// A badge sees only what a shell and common tools need, so a pasted command can't read keys and tokens it was never meant to see.
+test('a badge gets only basic environment variables, plus the ones it was added with', () => {
+  const env = { Path: '/bin', SystemRoot: 'C:\\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm', ANTHROPIC_API_KEY: 'k', GITHUB_TOKEN: 't', CLAUDE_CODE_OAUTH_TOKEN: 'o', GH_TOKEN: 'g', AWS_PROFILE: 'dev' };
+  assert.deepEqual(badgeEnv(env), { Path: '/bin', SystemRoot: 'C:\\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm' });
+  assert.deepEqual(badgeEnv(env, ['GH_TOKEN', 'AWS_PROFILE']), { Path: '/bin', SystemRoot: 'C:\\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm', GH_TOKEN: 'g', AWS_PROFILE: 'dev' });
+});
+
+test('refreshBadges gives each badge only its own extra variables', async () => {
+  const p = tmp(), seen = {};
+  const settings = { badges: [approve(p, 'a'), { ...approve(p, 'b'), env: ['GH_TOKEN'] }] };
+  const runImpl = async (command, { env }) => { seen[command] = env; return { ok: true, stdout: command }; };
+  await refreshBadges({ p, settings, key: 'k', stdinText: '{}', runImpl, env: { PATH: '/bin', GH_TOKEN: 'g', GITHUB_TOKEN: 't' } });
+  assert.deepEqual(seen, { a: { PATH: '/bin' }, b: { PATH: '/bin', GH_TOKEN: 'g' } });
+});
+
+test('the environment a badge is given is the one its command sees', async () => {
+  const cmd = `"${process.execPath}" -p "process.env.JUICE_SEEN || 'none'"`;
+  const base = badgeEnv(process.env);
+  assert.equal((await run(cmd, { timeoutMs: 5000, env: base })).stdout.trim(), 'none');
+  assert.equal((await run(cmd, { timeoutMs: 5000, env: { ...base, JUICE_SEEN: 'yes' } })).stdout.trim(), 'yes');
+});
+
+test('addBadge keeps valid extra variable names and updates them when the same command is added again', () => {
+  const p = tmp();
+  addBadge(p, 'gh pr status', ['GH_TOKEN']);
+  assert.deepEqual(loadSettings(p).settings.badges.map((b) => b.env), [['GH_TOKEN']]);
+  addBadge(p, 'gh pr status', ['GH_TOKEN', 'GH_HOST']);
+  assert.deepEqual(loadSettings(p).settings.badges.map((b) => b.env), [['GH_TOKEN', 'GH_HOST']]);
+  addBadge(p, 'gh pr status');
+  assert.deepEqual(loadSettings(p).settings.badges.map((b) => b.env), [undefined]);
+  assert.equal(approved(p, loadSettings(p).settings.badges).length, 1);
+  assert.throws(() => addBadge(p, 'x', ['BAD NAME']), /variable name/);
 });

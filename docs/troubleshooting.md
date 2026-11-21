@@ -8,6 +8,7 @@ Type `/juice doctor` first (when juice itself hits a problem, the line says `jui
 
 - **The status line is empty.** Type `/juice setup` again; it repairs the line and says if a project setting or `disableAllHooks` is hiding it. If it is still empty, check that Node is installed (type `node --version` in a terminal; you need 24 or newer, from nodejs.org), then restart Claude Code.
 - **The text is hard to read on a light background.** Type `/juice my terminal is light`.
+- **The colours look slightly off, for example over `ssh` or `sudo`.** juice uses full colour only when the terminal says it can, and that note gets lost over `ssh` and `sudo`, so you get the nearest of 256 colours. If your terminal draws full colour (iTerm2, Windows Terminal, VS Code, kitty and most others, but not the macOS Terminal app before macOS 26), type `/juice set truecolor=on`. If the colours come out wrong or garbled, type `/juice set truecolor=off`.
 - **You see boxes or question marks instead of round battery ends.** Type `/juice use plain ends`.
 - **You want round battery ends outside VS Code.** Type `/juice use round ends`.
 - **The line runs past the edge or wraps.** Some terminals set up for Chinese, Japanese or Korean draw symbols like `■`, `░` and `·` two columns wide. Look for a setting called "ambiguous width" (iTerm2 and GNOME Terminal have one) and set it to narrow.

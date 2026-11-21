@@ -27,8 +27,10 @@ export function detectTerminal({ env, settings, claudeTheme }) {
     theme: theme(settings.terminal, claudeTheme, env),
     ends: env.NO_COLOR ? 'plain' : ['round', 'plain'].includes(settings.ends) ? settings.ends : env.TERM_PROGRAM === 'vscode' ? 'round' : 'plain',
     // NO_COLOR (no-color.org): any non-empty value means no colour codes at all.
-    // Windows Terminal draws full colour but doesn't announce it in COLORTERM.
+    // Windows Terminal draws full colour but doesn't announce it in COLORTERM. COLORTERM is lost over ssh and sudo,
+    // so the person can say what their terminal draws.
     colorDepth: env.NO_COLOR ? 'none'
+      : settings.truecolor === 'on' ? 'truecolor' : settings.truecolor === 'off' ? '256'
       : env.COLORTERM === 'truecolor' || env.COLORTERM === '24bit' || !!env.WT_SESSION ? 'truecolor' : '256',
   };
 }

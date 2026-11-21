@@ -24,7 +24,7 @@ export const fableEnabled = (setting, platform, hasReading) =>
 
 export const DEFAULTS = Object.freeze({
   layout: 'bar', show: SHOW_IDS, order: 'yours', cost: 'auto', colors: 'claude',
-  ends: 'auto', battery: 'glossy', terminal: 'auto', refills: 'always', fable: 'auto', badges: [],
+  ends: 'auto', battery: 'glossy', terminal: 'auto', truecolor: 'auto', refills: 'always', fable: 'auto', badges: [],
   // Off: the line stands at its true fill and refreshes once a minute. On: it climbs, refreshing every second.
   motion: 'off',
 });
@@ -65,6 +65,7 @@ const CHECK = {
   ends: oneOf(['auto', 'round', 'plain']),
   battery: oneOf(BATTERY_IDS),
   terminal: oneOf(['auto', 'dark', 'light']),
+  truecolor: oneOf(['auto', 'on', 'off']),
   refills: oneOf(['always', 'warnings']),
   fable: oneOf(['auto', 'on', 'off']),
   motion: oneOf(['on', 'off']),
@@ -91,6 +92,9 @@ const unknownShow = (v) => (Array.isArray(v) ? v.filter((id) => !SHOW_IDS.includ
 const NEWER = " If it's new, update juice: type /plugin, update juice, restart Claude Code.";
 const showWarning = (bad, then = 'so it was left out') => `show: ${bad.map(show).join(', ')} isn't a battery name (they are ${SHOW_IDS.join(', ')}; Weekly is "week"), ${then}`;
 
+// The name of an extra environment variable a badge may see (badges.js).
+export const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/, MAX_ENV = 20;
+
 export function sanitize(x, { allowBadges }) {
   const src = isObj(x) ? x : {};
   const settings = { ...DEFAULTS, show: [...SHOW_IDS], badges: [] };
@@ -108,7 +112,10 @@ export function sanitize(x, { allowBadges }) {
     // sig: this computer's approval of the command (badges.js), so a copied juice.json can't run anything.
     settings.badges = src.badges
       .filter((b) => isObj(b) && typeof b.command === 'string' && b.command.length >= 1 && b.command.length <= 500)
-      .map((b) => (typeof b.sig === 'string' && /^[0-9a-f]{64}$/.test(b.sig) ? { command: b.command, sig: b.sig } : { command: b.command }));
+      .map((b) => {
+        const env = Array.isArray(b.env) ? [...new Set(b.env.filter((n) => typeof n === 'string' && ENV_NAME.test(n)))].slice(0, MAX_ENV) : [];
+        return { command: b.command, ...(typeof b.sig === 'string' && /^[0-9a-f]{64}$/.test(b.sig) ? { sig: b.sig } : {}), ...(env.length ? { env } : {}) };
+      });
   }
   return { settings, warnings };
 }

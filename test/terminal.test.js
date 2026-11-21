@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { paths } from '../src/paths.js';
-import { DEFAULTS } from '../src/schema.js';
+import { DEFAULTS, applySet } from '../src/schema.js';
 import { detectTerminal, readClaudeTheme } from '../src/terminal.js';
 import { remember, recall } from '../src/lastseen.js';
 import { NOW, at, cleanEnv } from './helpers.js';
@@ -51,6 +51,14 @@ test('colour depth', () => {
   assert.equal(det({ WT_SESSION: 'a1b2' }).colorDepth, 'truecolor');
   assert.equal(det({ NO_COLOR: '1', COLORTERM: 'truecolor' }).colorDepth, 'none');
   assert.equal(det({ NO_COLOR: '' }).colorDepth, '256', 'an empty NO_COLOR does not count');
+});
+test('the truecolor setting overrides what the terminal announces, but never NO_COLOR', () => {
+  assert.equal(det({}, { ...DEFAULTS, truecolor: 'on' }).colorDepth, 'truecolor', 'ssh dropped COLORTERM');
+  assert.equal(det({ WT_SESSION: 'a1b2' }, { ...DEFAULTS, truecolor: 'off' }).colorDepth, '256');
+  assert.equal(det({ NO_COLOR: '1' }, { ...DEFAULTS, truecolor: 'on' }).colorDepth, 'none');
+  assert.equal(det({ COLORTERM: 'truecolor' }, DEFAULTS).colorDepth, 'truecolor');
+  assert.equal(applySet(DEFAULTS, ['TrueColor=ON']).settings.truecolor, 'on');
+  assert.match(applySet(DEFAULTS, ['truecolor=yes']).warnings.join(), /Use one of: auto, on, off/);
 });
 test('readClaudeTheme', () => {
   const d = mkdtempSync(join(tmpdir(), 'juice-'));

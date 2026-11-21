@@ -3,10 +3,10 @@ import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, renameSync, statSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { cut, ESCAPES } from './render/ansi.js';
+import { cut, strip, ESCAPES } from './render/ansi.js';
 import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
 import { loadSettings, saveSettings } from './settings.js';
-import { sanitize } from './schema.js';
+import { sanitize, ENV_NAME, MAX_ENV } from './schema.js';
 
 const TIMEOUT_MS = 2000;
 // How long a badge's output counts as current; Claude Code redraws on every tool call, so this caps how often commands run.
@@ -16,6 +16,14 @@ const GRACE_MS = 10 * FRESH_MS;
 const WIDTH = 40;
 const MAX_OUT = 4096;
 const KEEP_MS = 7 * 86400000;
+// What a shell and everyday tools (git, node, cmd, ccusage) need to run; keys and tokens stay out unless a badge names
+// them. Certificate paths are in, so HTTPS works on networks that inspect it; proxy URLs can hold a password, so they
+// are opt-in. Case-blind: Windows spells them Path, SystemRoot and so on.
+const BASIC_ENV = /^(PATH|PATHEXT|HOME|USERPROFILE|HOMEDRIVE|HOMEPATH|APPDATA|LOCALAPPDATA|PROGRAMDATA|ALLUSERSPROFILE|PROGRAMFILES|PROGRAMFILES\(X86\)|PROGRAMW6432|COMMONPROGRAMFILES|SYSTEMROOT|SYSTEMDRIVE|WINDIR|COMSPEC|OS|COMPUTERNAME|USERDOMAIN|PROCESSOR_ARCHITECTURE|NUMBER_OF_PROCESSORS|TEMP|TMP|TMPDIR|USER|USERNAME|LOGNAME|SHELL|LANG|LANGUAGE|LC_[A-Z]+|TZ|TERM|COLORTERM|NO_COLOR|COLUMNS|XDG_[A-Z_]+|CLAUDE_CONFIG_DIR|NODE_EXTRA_CA_CERTS|SSL_CERT_FILE|SSL_CERT_DIR|NO_PROXY)$/i;
+export function badgeEnv(env, extra = []) {
+  const more = new Set(extra.map((n) => n.toUpperCase()));
+  return Object.fromEntries(Object.entries(env).filter(([k]) => BASIC_ENV.test(k) || more.has(k.toUpperCase())));
+}
 export function cleanBadge(raw) {
   const line = String(raw).split(/\r?\n/)[0];
   // Keep SGR colour codes; drop every other escape and control character.
@@ -54,13 +62,13 @@ function killTree(child) {
   try { child.stdout.destroy(); } catch {}
 }
 
-export function run(command, { input, timeoutMs, cwd }) {
+export function run(command, { input, timeoutMs, cwd, env }) {
   return new Promise((resolve) => {
     let out = '', done = false;
     const finish = (r) => { if (!done) { done = true; clearTimeout(timer); resolve(r); } };
     let child;
     // stderr is never read, so it is not opened: a helper the command starts could otherwise hold it, and us, open.
-    try { child = spawn(command, { shell: true, cwd, windowsHide: true, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'ignore'] }); } catch { return resolve({ ok: false, stdout: '' }); }
+    try { child = spawn(command, { shell: true, cwd, env, windowsHide: true, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'ignore'] }); } catch { return resolve({ ok: false, stdout: '' }); }
     const timer = setTimeout(() => { killTree(child); finish({ ok: false, stdout: '' }); }, timeoutMs);
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (d) => { if (out.length < MAX_OUT) out = (out + d).slice(0, MAX_OUT); });
@@ -109,19 +117,19 @@ export function approved(p, badges) {
   return key ? badges.filter((b) => b.sig === sign(key, b.command)) : [];
 }
 
-export async function refreshBadges({ p, settings, key, stdinText, runImpl = run, now = Date.now() }) {
+export async function refreshBadges({ p, settings, key, stdinText, runImpl = run, now = Date.now(), env = process.env }) {
   try {
     const prev = readJson(file(p, key));
-    const commands = approved(p, settings.badges).map((b) => b.command);
+    const ok = approved(p, settings.badges), commands = ok.map((b) => b.command);
     // The old text of a failing command is kept only briefly after its last success: an old branch name is not current.
     const okAtFor = (c) => prev?.okAt?.[prev.commands?.indexOf(c)];
     const keep = (c) => (now - okAtFor(c) <= GRACE_MS ? [textFor(prev, c) ?? '', okAtFor(c)] : ['', undefined]);
     // Claude's current folder, which the cache key already uses: a command like git branch must see that repo.
     let cwd;
     try { const d = JSON.parse(stdinText)?.workspace?.current_dir; if (typeof d === 'string' && statSync(d).isDirectory()) cwd = d; } catch {}
-    const results = await Promise.all(commands.map(async (command) => {
+    const results = await Promise.all(ok.map(async ({ command, env: extra }) => {
       try {
-        const r = await runImpl(command, { input: stdinText, timeoutMs: TIMEOUT_MS, cwd });
+        const r = await runImpl(command, { input: stdinText, timeoutMs: TIMEOUT_MS, cwd, env: badgeEnv(env, extra) });
         return r.ok ? [cleanBadge(r.stdout), now] : keep(command);
       } catch { return keep(command); }
     }));
@@ -139,12 +147,25 @@ function sweep(p) {
   removeOld(p.cacheDir, (f) => /^badges-.*\.(lock|steal)$|\.tmp$/.test(f), KEEP_MS);
 }
 
-export function addBadge(p, command) {
+// env: names of extra environment variables the command may see. They aren't signed: only someone who can already
+// write juice.json could change them, and they could as well change anything else in it.
+// Throws with a message for the person when the names can't be used.
+export function checkEnv(env) {
+  const bad = env.find((n) => !ENV_NAME.test(n));
+  if (bad !== undefined) throw new Error(`${strip(bad)} isn't a variable name: use letters, digits and _.`);
+  if (env.length > MAX_ENV) throw new Error(`A badge can see at most ${MAX_ENV} extra variables.`);
+}
+
+export function addBadge(p, command, env = []) {
   const { settings } = loadSettings(p);
   if (typeof command !== 'string' || command.length < 1 || command.length > 500) throw new Error('A badge command must be 1 to 500 characters.');
-  // A copy this computer never approved (from a copied juice.json) is approved where it stands, so it keeps its place.
-  const ok = new Set(approved(p, settings.badges)), i = settings.badges.findIndex((b) => b.command === command && !ok.has(b));
-  const badges = i < 0 ? [...settings.badges, approve(p, command)] : settings.badges.map((b, j) => (j === i ? approve(p, command) : b));
+  checkEnv(env);
+  const badge = { ...approve(p, command), ...(env.length ? { env } : {}) };
+  // The same command again takes its new variables in place. A copy this computer never approved (from a copied
+  // juice.json) is approved where it stands, so it keeps its place.
+  const ok = new Set(approved(p, settings.badges)), same = (b) => b.command === command;
+  const i = [settings.badges.findIndex((b) => same(b) && ok.has(b)), settings.badges.findIndex(same)].find((n) => n >= 0) ?? -1;
+  const badges = i < 0 ? [...settings.badges, badge] : settings.badges.map((b, j) => (j === i ? badge : b));
   saveSettings(p, { badges: sanitize({ ...settings, badges }, { allowBadges: true }).settings.badges });
 }
 

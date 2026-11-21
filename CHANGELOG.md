@@ -2,6 +2,16 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.4.3 (2026-11-21)
+
+[Changes since 1.4.2](https://github.com/zdraveski/claude-juice/compare/v1.4.2...v1.4.3)
+
+New:
+- `/juice set truecolor=on` gives full colour where juice can't tell your terminal draws it, such as over `ssh` or `sudo`, which drop the note that says so. `truecolor=off` keeps 256 colours for a terminal that can't. `/juice doctor` suggests it when it sees 256 colours.
+
+Changed:
+- Badge commands now see only the basic environment variables a shell needs (`PATH`, your home and temp folders, the language and the like), not every key and token your terminal holds, such as `ANTHROPIC_API_KEY` or `GITHUB_TOKEN`. Proxy addresses stay out too, since they can hold a password. A badge that needs one gets it by name: `/juice badges add '<command>' --env HTTPS_PROXY,AWS_PROFILE`. `/juice badges list` shows the names a badge can see. If one of your badges stops working after the update, add it again with the `--env` it needs.
+
 ## 1.4.2 (2026-11-21)
 
 [Changes since 1.4.1](https://github.com/zdraveski/claude-juice/compare/v1.4.1...v1.4.2)
