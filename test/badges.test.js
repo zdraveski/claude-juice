@@ -8,6 +8,7 @@ import { paths } from '../src/paths.js';
 import { runStatusLine } from '../src/statusline.js';
 import { fixture } from './helpers.js';
 import { writeJsonAtomic, takeLock } from '../src/cache.js';
+import { loadSettings, saveSettings } from '../src/settings.js';
 
 const busyText = JSON.stringify(fixture('busy'));
 import { strip, at, NOW } from './helpers.js';
@@ -121,6 +122,21 @@ test('add, list and remove badges', () => {
   assert.throws(() => addBadge(p, 'x'.repeat(501)), Error);
   removeBadge(p, 1);
   assert.deepEqual(listBadges(p), ['echo yo']);
+});
+
+// The sweep runs only from a badge refresh, so with no badges left nothing else would ever clear the saved session details.
+test('removing the last badge deletes its saved outputs and session details', async () => {
+  const p = tmp();
+  addBadge(p, 'echo hi');
+  addBadge(p, 'echo yo');
+  // A copy from another computer's juice.json: it never runs, so it must not keep the folder alive.
+  saveSettings(p, { badges: [...loadSettings(p).settings.badges, { command: 'echo copied', sig: '0'.repeat(64) }] });
+  await refreshBadges({ p, settings: loadSettings(p).settings, key: 'k', stdinText: '', runImpl: ok('HI') });
+  writeFileSync(join(p.cacheDir, 'badges', 'k.stdin.json'), '{"session_id":"s"}');
+  removeBadge(p, 1);
+  assert.ok(existsSync(join(p.cacheDir, 'badges', 'k.stdin.json')), 'one badge left, so its session details stay');
+  removeBadge(p, 1);
+  assert.equal(existsSync(join(p.cacheDir, 'badges')), false);
 });
 
 test('default run captures stdout and honours the timeout', async () => {
