@@ -754,6 +754,36 @@ test('badges remove takes --yes before or after the number', async () => {
   assert.equal((await run(d, ['badges', 'list', '--show'])).out, '1. echo A');
 });
 
+test('badges add --env lets one badge see extra environment variables, and badges list names them', async () => {
+  const d = env();
+  const ask = await run(d, ['badges', 'add', 'gh pr status', '--env', 'GH_TOKEN']);
+  assert.equal(ask.code, 2);
+  assert.match(ask.out, /This badge would run: gh pr status\n.*also see these environment variables: GH_TOKEN/);
+  assert.equal((await run(d, ['badges', 'add', 'gh pr status', '--env', 'GH_TOKEN', '--yes'])).code, 0);
+  assert.match((await run(d, ['badges', 'list'])).out, /1\. gh … \(also sees GH_TOKEN\)/);
+  assert.match((await run(d, ['badges', 'add', 'gh pr status', '--env', 'GH_TOKEN', '--yes'])).out, /already there, as badge 1/);
+  // The preview of an update says what the badge loses, not "would run" as if it were new.
+  const upd = await run(d, ['badges', 'add', 'gh pr status']);
+  assert.equal(upd.code, 2);
+  assert.match(upd.out, /Badge 1 would then see only the basic environment variables/);
+  assert.doesNotMatch(upd.out, /would run/);
+  assert.match((await run(d, ['badges', 'add', 'gh pr status', '--yes'])).out, /Updated badge 1: it will now see only the basic environment variables/);
+  assert.doesNotMatch((await run(d, ['badges', 'list'])).out, /also sees/);
+  // A --env with no names, or names split by a space, would land inside the command.
+  for (const args of [['x', '--env', '--yes'], ['x', '--env', 'A,', 'B', '--yes']]) {
+    const r = await run(d, ['badges', 'add', ...args]);
+    assert.equal(r.code, 1);
+    assert.match(r.err, /right after --env/);
+  }
+  const many = await run(d, ['badges', 'add', 'x', '--env', Array.from({ length: 21 }, (_, i) => `V${i}`).join(','), '--yes']);
+  assert.equal(many.code, 1);
+  assert.match(many.err, /at most 20/);
+  assert.doesNotMatch((await run(d, ['badges', 'list', '--show'])).out, /\bx\b/);
+  const bad = await run(d, ['badges', 'add', 'x', '--env', 'NOT OK', '--yes']);
+  assert.equal(bad.code, 1);
+  assert.match(bad.err, /isn't a variable name/);
+});
+
 test('badges add with no command gives an example that works in every shell', async () => {
   const r = await run(env(), ['badges', 'add']);
   assert.match(r.err, /badges add "git branch --show-current" --yes/);
