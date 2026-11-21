@@ -35,10 +35,19 @@ export function toSave(kept, seen, { known, news }, now) {
 // A fetched number then refines it: within one window usage only grows, so the higher wins. A later window
 // replaces ours only once ours has ended; while both are current they disagree, as when the fetch used another
 // account's login.
-export function toShow({ own, saved, fetched }, now) {
+// `sent`: each session's last reading. Only one window per limit is saved, so after an account switch this window's may
+// be the unsaved one, and a /clear window's old copy would beat a higher number another session just sent for it.
+// shortcut: a plan change that lowered usage mid-window loses to an idle session's older, higher reading here (saved
+// handles that case; this path only runs while the saved reading is another window). Fix if people report it.
+export function toShow({ own, saved, fetched, sent = [] }, now) {
+  if (own) own = sent.reduce((r, s) => (sameWindow(s, r) && s.used > r.used ? { ...r, used: s.used } : r), own);
   const ours = !saved ? own : !own ? saved : ended(saved, now) || (!ended(own, now) && !sameWindow(saved, own)) ? own : saved;
   if (!ours || !fetched) return ours || fetched;
-  if (sameWindow(ours, fetched)) return fetched.used > ours.used ? fetched : ours;
+  if (sameWindow(ours, fetched)) {
+    const [high, low] = fetched.used > ours.used ? [fetched, ours] : [ours, fetched];
+    // They disagree on the reset by a few seconds: until both have passed it, the window still runs.
+    return ended(high, now) && !ended(low, now) ? { ...high, resetsAt: low.resetsAt } : high;
+  }
   const [early, late] = time(ours) < time(fetched) ? [ours, fetched] : [fetched, ours];
   return ended(early, now) ? late : ours;
 }
