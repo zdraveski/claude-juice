@@ -161,7 +161,7 @@ export const to16 = (s, dark) => {
       else { if (p[i] === '0' || p[i] === '') f = b = null; out.push(p[i]); }
     }
     const ink = b !== null && !SHAPE.test(s[at + m.length] ?? '');
-    const word = ink ? (b === 7 || b === 15 || (![0, 8].includes(b) && dark) ? 0 : 15) : f;
+    const word = ink ? ([0, 1, 4, 5, 8].includes(b) ? 15 : 0) : f; // white only on the usual dark ones
     out.push(word === null ? '39' : code16('38', word), b === null ? '49' : code16('48', b));
     return `${E}${out.join(';')}m`;
   });

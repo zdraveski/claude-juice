@@ -157,7 +157,6 @@ test('to16 gives a grey the grey of its lightness, never the one that is usually
 
 test('to16 puts black or white words on a fill, but a battery cell keeps its colour', () => {
   assert.equal(to16('\x1b[48;2;255;255;0m 5% \x1b[0m', true), '\x1b[30;103m 5% \x1b[0;39;49m');
-  assert.equal(to16('\x1b[48;2;0;160;0m 5%', false), '\x1b[97;42m 5%');
   assert.equal(to16('\x1b[38;2;255;255;0;48;2;40;40;40m█', true), '\x1b[93;100m█');
 });
 
@@ -171,4 +170,12 @@ test('colors=terminal draws with no 24-bit or 256-colour codes', () => {
     const out = render(SAMPLES.busy, { ...DEFAULTS, layout, colors: 'terminal' }, { columns: 200, theme: 'dark', ends: 'round', colorDepth }).text;
     assert.ok(/\x1b\[[0-9;]*m/.test(out) && !/\x1b\[[0-9;]*[34]8;[25];/.test(out), `${colorDepth} ${layout}`);
   }
+});
+
+test('to16 on a light terminal: black words on plain green and yellow fills, white on red; a second pass changes nothing', () => {
+  assert.equal(to16('\x1b[48;2;0;160;0mx', false), '\x1b[30;42mx');
+  assert.equal(to16('\x1b[48;2;160;160;0mx', false), '\x1b[30;43mx');
+  assert.equal(to16('\x1b[48;2;160;0;0mx', false), '\x1b[97;41mx');
+  const once = render(SAMPLES.busy, { ...DEFAULTS, layout: 'pills', colors: 'terminal' }, { columns: 200, theme: 'light', ends: 'round', colorDepth: 'truecolor' }).text;
+  assert.equal(to16(once, false), once);
 });
