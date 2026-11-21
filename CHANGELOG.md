@@ -2,6 +2,11 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## Unreleased
+
+New:
+- A new colour set, Terminal: `/juice set colors=terminal` draws in your terminal's own 16 colours, so if you changed your terminal's colour scheme, juice follows it. Green is plenty left, yellow is going fast, red is almost empty, cyan is the model name and Fable is magenta. juice can't promise these read well, since that depends on your scheme.
+
 ## 1.4.3 (2026-11-21)
 
 [Changes since 1.4.2](https://github.com/zdraveski/claude-juice/compare/v1.4.2...v1.4.3)

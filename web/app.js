@@ -75,6 +75,8 @@ function glyph(ch, f, b0) {
   return null;
 }
 const esc = (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c] || c;
+// A browser has no terminal palette, so colors=terminal previews in VS Code's default 16.
+const ANSI16 = ['#000000', '#cd3131', '#0dbc79', '#e5e510', '#2472c8', '#bc3fbc', '#11a8cd', '#e5e5e5', '#666666', '#f14c4c', '#23d18b', '#f5f543', '#3b8eea', '#d670d6', '#29b8db', '#ffffff'];
 function ansiToHtml(text, termFg) {
   return text.split('\n').map((ln) => {
     let f0 = null, b0 = null, bo = false, out = '', run = '', runStyle = '';
@@ -86,6 +88,8 @@ function ansiToHtml(text, termFg) {
           const c = p[i];
           if (c === 0) { f0 = b0 = null; bo = false; } else if (c === 1) bo = true; else if (c === 22) bo = false;
           else if (c === 39) f0 = null; else if (c === 49) b0 = null;
+          else if (c >= 30 && c <= 37 || c >= 90 && c <= 97) f0 = ANSI16[c < 90 ? c - 30 : c - 82];
+          else if (c >= 40 && c <= 47 || c >= 100 && c <= 107) b0 = ANSI16[c < 100 ? c - 40 : c - 92];
           else if ((c === 38 || c === 48) && p[i + 1] === 2) { const col = `rgb(${p[i + 2]},${p[i + 3]},${p[i + 4]})`; i += 4; if (c === 38) f0 = col; else b0 = col; }
         }
         continue;

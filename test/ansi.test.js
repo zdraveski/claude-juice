@@ -1,7 +1,8 @@
 import './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fg, strip, vis, cut, contrast, inkOn, to256 } from '../src/render/ansi.js';
+import { fg, strip, vis, cut, contrast, inkOn, to256, to16 } from '../src/render/ansi.js';
+import { render } from '../src/render/index.js';
 import { makeCtx } from '../src/render/palette.js';
 import { batteryPct } from '../src/render/pieces.js';
 import { SAMPLES } from '../src/samples.js';
@@ -136,5 +137,38 @@ test('to256 rewrites 24-bit colour wherever it sits in the code, and leaves 256-
 test('the less common wide characters count as 2 columns too', () => {
   for (const ch of ['\u2329', '\ufe10', '\ufe50', '\ua960', '\u{16fe0}', '\u{17000}', '\u{18b00}', '\u{1b000}', '\u{1f200}', '\u{1f260}']) {
     assert.equal(vis(ch), 2, ch.codePointAt(0).toString(16));
+  }
+});
+
+// colors=terminal: juice's own colours become the terminal's 16, so a palette you remapped shows through.
+test('to16 names each hue by its terminal colour: bright on a dark terminal, plain on a light one', () => {
+  for (const [hex, dark, plain] of [['#7fd8a0', 92, 32], ['#f3c467', 93, 33], ['#ff9e64', 93, 33], ['#ff7f86', 91, 31], ['#88c0d0', 96, 36], ['#60a5fa', 94, 34], ['#a78bfa', 95, 35]]) {
+    const rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(';');
+    assert.equal(to16(`\x1b[38;2;${rgb}mx`, true), `\x1b[${dark};49mx`, hex);
+    assert.equal(to16(`\x1b[38;2;${rgb}mx`, false), `\x1b[${plain};49mx`, hex);
+  }
+});
+
+test('to16 gives a grey the grey of its lightness, never the one that is usually the background', () => {
+  const grey = (v, dark) => to16(`\x1b[38;2;${v};${v};${v}mx`, dark);
+  assert.deepEqual([0x18, 0x7a, 0xcc, 0xff].map((v) => grey(v, true)), ['\x1b[90;49mx', '\x1b[90;49mx', '\x1b[37;49mx', '\x1b[97;49mx']);
+  assert.deepEqual([0x18, 0x7a, 0xcc, 0xff].map((v) => grey(v, false)), ['\x1b[30;49mx', '\x1b[90;49mx', '\x1b[37;49mx', '\x1b[37;49mx']);
+});
+
+test('to16 puts black or white words on a fill, but a battery cell keeps its colour', () => {
+  assert.equal(to16('\x1b[48;2;255;255;0m 5% \x1b[0m', true), '\x1b[30;103m 5% \x1b[0;39;49m');
+  assert.equal(to16('\x1b[48;2;0;160;0m 5%', false), '\x1b[97;42m 5%');
+  assert.equal(to16('\x1b[38;2;255;255;0;48;2;40;40;40m█', true), '\x1b[93;100m█');
+});
+
+test('to16 keeps other codes and the 16 colours a badge sends, and maps its 256 colours', () => {
+  assert.equal(to16('\x1b[1;31mx\x1b[22;39m', true), '\x1b[1;31;49mx\x1b[22;39;49m');
+  assert.equal(to16('\x1b[38;5;196mx\x1b[38;5;9mx', false), '\x1b[31;49mx\x1b[91;49mx');
+});
+
+test('colors=terminal draws with no 24-bit or 256-colour codes', () => {
+  for (const colorDepth of ['truecolor', '256']) for (const layout of ['bar', 'pills']) {
+    const out = render(SAMPLES.busy, { ...DEFAULTS, layout, colors: 'terminal' }, { columns: 200, theme: 'dark', ends: 'round', colorDepth }).text;
+    assert.ok(/\x1b\[[0-9;]*m/.test(out) && !/\x1b\[[0-9;]*[34]8;[25];/.test(out), `${colorDepth} ${layout}`);
   }
 });

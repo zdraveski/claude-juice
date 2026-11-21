@@ -103,6 +103,8 @@ The batteries keep the order you chose. To let them move instead, type `/juice p
 
 There are 13 colour sets to choose from: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose. Every colour in them reads at 4.5:1 or more on its terminal. Or make your own in the customizer, which tells you when one is hard to read.
 
+One more, Terminal (`/juice set colors=terminal`), draws in your terminal's own 16 colours, so it follows any colour scheme you set there. juice can't promise those read well: that depends on your scheme.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/colour-sets-dark.png">
   <img src="images/colour-sets-light.png" alt="All 13 colour sets, each with three batteries under the columns Plenty left, Going fast ! and Nearly out !!: Claude, Frost, Calm, Colour-blind safe, High contrast, Ocean, Midnight, Vampire, Candy, Forest, Sunset, Solar and Rose.">
