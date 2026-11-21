@@ -133,6 +133,29 @@ assert.match(readFileSync(join(badgeDir, written()[0]), 'utf8'), /E2EBADGE/);
 assert.doesNotMatch(juice('doctor').stdout, /E2EBADGE|mid\.cjs/, 'doctor shows a badge command');
 console.log('ok the line starts the detached badge refresher');
 
+// Badges get a trimmed environment: a real git badge still works on every system, a secret in the terminal stays
+// out, and --env lets that one variable in.
+{
+  const work = join(home, 'work');
+  mkdirSync(work);
+  const g = spawnSync('git', ['init', '-q', '-b', 'e2e-branch'], { cwd: work, encoding: 'utf8' });
+  assert.equal(g.status, 0, `git init: ${g.stderr}`);
+  const shown = (tag) => `node -e "process.stdout.write('${tag}'+process.env.E2E_SECRET)"`;
+  const cmds = ['git branch --show-current', shown('hidden:'), shown('let-in:')];
+  juice('badges', 'add', cmds[0], '--yes');
+  juice('badges', 'add', cmds[1], '--yes');
+  juice('badges', 'add', cmds[2], '--env', 'E2E_SECRET', '--yes');
+  const key = 'fedcba9876543210';
+  writeFileSync(join(badgeDir, `${key}.stdin.json`), JSON.stringify({ ...JSON.parse(stdin), workspace: { current_dir: work } }));
+  juiceIn({ ...main, env: { ...env, E2E_SECRET: 's3cret' } }, ['refresh-badges', key]);
+  const c = JSON.parse(readFileSync(join(badgeDir, `${key}.json`), 'utf8'));
+  const text = (cmd) => c.texts[c.commands.indexOf(cmd)];
+  assert.equal(text(cmds[0]), 'e2e-branch', 'a git badge under the trimmed environment');
+  assert.equal(text(cmds[1]), 'hidden:undefined', 'a badge saw a variable it was not given');
+  assert.equal(text(cmds[2]), 'let-in:s3cret', '--env did not let the variable in');
+  console.log('ok badges: git works, secrets stay out, --env lets one in');
+}
+
 assert.match(juice('restore').stdout, /^Your old status line is back\.$/m);
 assert.equal(S(main).statusLine.command, 'echo old');
 for (const f of ['juice-backup.json', 'juice-statusline.mjs']) assert.ok(!existsSync(join(config, f)), `restore left ${f}`);
