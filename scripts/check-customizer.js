@@ -65,9 +65,9 @@ test('a screen reader hears each card by its name, not the whole preview drawn i
   assert.equal(await page.locator('.thumb:not([aria-hidden=true]), .chips:not([aria-hidden=true])').count(), 0);
 });
 
-test('loads with no errors: 14 looks, 6 layouts, 14 colour sets plus your own', async () => {
+test('loads with no errors: 15 looks, 6 layouts, 14 colour sets plus your own', async () => {
   const { page, errors } = await open();
-  assert.equal(await page.locator('[data-look]').count(), 14);
+  assert.equal(await page.locator('[data-look]').count(), 15);
   assert.equal(await page.locator('[data-layout]').count(), 6);
   assert.equal(await page.locator('[data-preset]').count(), 15);
   assert.deepEqual(errors, []);
@@ -125,9 +125,9 @@ test('Copy buttons put exactly the shown text on the clipboard', async () => {
   const { page } = await open();
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
   const clip = () => page.evaluate(() => navigator.clipboard.readText());
-  for (const id of ['install1', 'install2', 'install3', 'install4', 'cmd']) {
-    await page.click(`[data-copy=${id}]`);
-    assert.equal(await clip(), await page.textContent(`#${id}`), id);
+  for (const id of ['install1', 'install2', 'install3', 'install4', 'cmd', 'stagecopy']) {
+    await page.click(id === 'stagecopy' ? '#stagecopy' : `.c-apply [data-copy=${id}]`);
+    assert.equal(await clip(), await page.textContent(id === 'stagecopy' ? '#cmd' : `#${id}`), id);
   }
   assert.match(await page.textContent('#toast'), /Copied/);
   await page.click('#link');
@@ -165,6 +165,7 @@ test('light terminal, and no sideways scrolling on a phone', async () => {
 
 test('a screen reader hears the live preview as words, and they follow every redraw', async () => {
   const { page } = await open();
+  await page.click('#popts summary'); // the preview's options start folded away
   assert.equal(await page.getAttribute('#out', 'role'), 'img');
   const name = () => page.getAttribute('#out', 'aria-label');
   assert.match(await name(), /Memory 64%.*Session 47%.*resets in 2h 10m/);
@@ -177,9 +178,9 @@ test('a screen reader hears the live preview as words, and they follow every red
 test('each Copy button says what it copies', async () => {
   const { page } = await open();
   const names = await page.$$eval('[data-copy]', (bs) => bs.map((b) => b.getAttribute('aria-label')));
-  assert.equal(names.length, 5);
+  assert.equal(names.length, 6);
   assert.ok(names.every((n) => /^Copy /.test(n || '')), String(names));
-  assert.equal(new Set(names).size, 5, 'no two alike');
+  assert.equal(new Set(names).size, 6, 'no two alike');
 });
 
 test('no sideways scrolling at 320 px wide', async () => {
@@ -274,7 +275,7 @@ test('in forced colours every chosen button still shows it is chosen', async () 
 test('a Copy button keeps its width while it says Copied, however often it is clicked', async () => {
   const { page } = await open(1280);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
-  for (const sel of ['#link', '[data-copy=cmd]']) {
+  for (const sel of ['#link', '.c-apply [data-copy=cmd]', '#stagecopy']) {
     await page.locator(sel).scrollIntoViewIfNeeded();
     const before = (await page.locator(sel).boundingBox()).width, seen = [];
     for (let i = 0; i < 3; i++) { await page.click(sel); await page.waitForTimeout(100); seen.push((await page.locator(sel).boundingBox()).width); }
@@ -285,6 +286,7 @@ test('a Copy button keeps its width while it says Copied, however often it is cl
 // Re-review (1.4.1): in forced colours a chosen button's outline is its "chosen" mark, so focus has to look different.
 test('in forced colours focus on a chosen button still shows', async () => {
   const { page } = await open();
+  await page.click('#popts summary'); // the preview's options start folded away
   await page.emulateMedia({ forcedColors: 'active' });
   const sel = '.seg button[aria-pressed=true]';
   const ring = () => page.evaluate((s) => { const e = document.querySelector(s), c = getComputedStyle(e); return `${c.outlineStyle} ${c.outlineWidth} ${c.outlineOffset}`; }, sel);
@@ -298,6 +300,7 @@ test('in forced colours focus on a chosen button still shows', async () => {
 // was chosen showed two rings alike.
 test('in forced colours a focused button that is not chosen does not look chosen', async () => {
   const { page } = await open();
+  await page.click('#popts summary'); // the preview's options start folded away
   await page.emulateMedia({ forcedColors: 'active' });
   const style = (s) => page.evaluate((q) => getComputedStyle(document.querySelector(q)).outlineStyle, s);
   const chosen = await style('.seg button[aria-pressed=true]');
@@ -359,6 +362,7 @@ test('a Content-Security-Policy is set, and the page still works under it', asyn
 
 test('the fake window title is easy to read in both terminals', async () => {
   const { page } = await open();
+  await page.click('#popts summary'); // the preview's options start folded away
   const ratio = () => page.evaluate(() => {
     const lum = (c) => { const [r, g, b] = c.match(/\d+/g).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
     const el = document.getElementById('wintitle'), a = lum(getComputedStyle(el).color), b = lum(getComputedStyle(el.parentElement).backgroundColor);
@@ -382,10 +386,11 @@ test('a faint colour is marked softly, a hard-to-read one strongly, an easy one 
 });
 
 // The switch does add fable to show=; what the page can't do is let juice read the login.
-test('the Fable row reads as sentences, says the page cannot turn on reading the login, and names no plan as the only one', async () => {
+test('the Fable row reads as sentences, says it needs /juice set fable=on, and names no plan as the only one', async () => {
   const { page } = await open();
+  await page.click('#popts summary'); // the preview's options start folded away
   const row = () => page.textContent('[data-bat=fable] .d');
-  const tail = " This page can't turn on reading your login: type /juice set fable=on.";
+  const tail = " Shows only after you run /juice set fable=on in Claude Code.";
   assert.equal(await row(), `The separate weekly limit for Fable.${tail}`);
   await page.click('[data-view=plan] [data-v=pro]');
   assert.equal(await row(), `The separate weekly limit for Fable · The preview hides it on Pro.${tail}`);
@@ -402,4 +407,60 @@ test('the Motion choice reaches the copied command, once the person makes it', a
   assert.match(await cmd(page), / motion=on$/);
   await page.click('[data-key=motion][data-v=off]');
   assert.match(await cmd(page), / motion=off$/);
+});
+
+test('the control cards keep a side gutter, and a short window lets the preview scroll', async () => {
+  const { page } = await open(1024);
+  assert.ok(await page.$eval('#opts', (el) => parseFloat(getComputedStyle(el).paddingLeft)) > 0);
+  await page.setViewportSize({ width: 844, height: 390 });
+  assert.equal(await page.$eval('.stage', (el) => getComputedStyle(el).position), 'static');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  assert.equal(await page.$eval('.stage', (el) => getComputedStyle(el).position), 'sticky');
+});
+
+test('Reset puts the preview and the command back to the default', async () => {
+  const { page } = await open();
+  await page.click('[data-key=terminal][data-v=light]');
+  await page.click('[data-key=motion][data-v=on]');
+  await page.click('#reset');
+  assert.doesNotMatch(await cmd(page), /terminal=|motion=/);
+  assert.equal(await page.$eval('#win', (el) => el.classList.contains('light')), false);
+});
+
+test('choosing another look afterwards undoes Sand, and only Sand', async () => {
+  const { page } = await open();
+  await page.click('[data-look=sand]');
+  assert.match(await cmd(page), /battery=sand/);
+  await page.click('[data-look=juice]');
+  assert.doesNotMatch(await cmd(page), /battery=sand/);
+  assert.equal(await page.getAttribute('[data-key=battery][data-v=glossy]', 'aria-pressed'), 'true');
+  await page.click('[data-key=battery][data-v=pie]');
+  await page.click('[data-look=juice]');
+  assert.match(await cmd(page), /battery=pie/, 'a style the person picked stays');
+});
+
+test('with nothing switched on the page says the status line would be empty', async () => {
+  const { page } = await open();
+  for (const k of ['model', 'effort', 'budget', ...(await page.$$eval('[data-bat]', (r) => r.map((x) => x.dataset.bat)))]) {
+    if ((await page.getAttribute(`[data-show=${k}]`, 'aria-checked')) === 'true') await page.click(`[data-show=${k}]`);
+  }
+  assert.match(await page.textContent('#fitnote'), /Nothing is switched on/);
+});
+
+test('a switch the plan does not offer stays put when clicked, and Sand lights up its colour card', async () => {
+  const { page } = await open();
+  await page.click('#popts summary');
+  await page.click('[data-view=plan] [data-v=payg]');
+  const state = () => page.evaluate(() => [document.querySelector('[data-show=fable]').getAttribute('aria-checked'), document.getElementById('cmd').textContent]);
+  const before = await state();
+  await page.click('[data-show=fable]', { force: true });
+  assert.deepEqual(await state(), before);
+  await page.click('[data-look=sand]');
+  assert.equal(await page.getAttribute('[data-preset=bold]', 'aria-pressed'), 'true');
+});
+
+test('the sticky preview stays small: the options start folded away', async () => {
+  const { page } = await open(1024);
+  const h = await page.evaluate(() => document.querySelector('.stage').getBoundingClientRect().height);
+  assert.ok(h < 330, `the sticky preview is ${h}px tall`);
 });

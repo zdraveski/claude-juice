@@ -82,11 +82,19 @@ test('applySet', () => {
 
 const LOOK_KEYS = ['layout', 'show', 'order', 'colors', 'cost', 'refills', 'ends'];
 
-test('looks: fourteen, each sets exactly the seven look keys to valid values', () => {
-  assert.deepEqual(LOOKS.map((l) => l.id), ['juice', 'basics', 'spotlight', 'everything', 'retro', 'quiet', 'nightowl', 'easy', 'colorblind', 'anywhere', 'costwatch', 'fablefirst', 'capsule', 'roadtrip']);
+test('Sand sets the sand battery and any other look undoes it, but a hand-picked battery stays', () => {
+  assert.equal(LOOKS.find((l) => l.id === 'sand').set.battery, 'sand');
+  const sand = applySet(DEFAULTS, ['look=sand']).settings;
+  assert.equal(sand.battery, 'sand');
+  assert.equal(applySet(sand, ['look=juice']).settings.battery, DEFAULTS.battery);
+  assert.equal(applySet({ ...DEFAULTS, battery: 'outline' }, ['look=juice']).settings.battery, 'outline');
+});
+
+test('looks: fifteen, each sets the seven look keys (Sand adds battery) to valid values', () => {
+  assert.deepEqual(LOOKS.map((l) => l.id), ['juice', 'basics', 'spotlight', 'everything', 'retro', 'quiet', 'nightowl', 'easy', 'colorblind', 'anywhere', 'costwatch', 'fablefirst', 'capsule', 'roadtrip', 'sand']);
   for (const l of LOOKS) {
     assert.ok(l.name && l.note, l.id);
-    assert.deepEqual(Object.keys(l.set).sort(), [...LOOK_KEYS].sort(), l.id);
+    assert.deepEqual(Object.keys(l.set).sort(), [...LOOK_KEYS, ...(l.id === 'sand' ? ['battery'] : [])].sort(), l.id);
     const r = sanitize(l.set, { allowBadges: false });
     assert.deepEqual(r.warnings, [], l.id);
     for (const k of LOOK_KEYS) assert.deepEqual(r.settings[k], l.set[k], `${l.id}.${k}`);

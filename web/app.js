@@ -24,19 +24,19 @@ const SHOW = {
   session: ['Session', 'Your 5-hour limit'],
   week: ['Weekly', 'Your weekly limit'],
   fable: ['Fable weekly', 'The separate weekly limit for Fable'],
-  budget: ['Budget', 'A spending limit set by your company. It shows only if you have one, so the preview never draws it'],
+  budget: ['Budget', "Your company's spending limit. Shows only if you have one, so the preview can't show it."],
 };
 const NOT_ON = { session: { payg: 'API keys have no session limit' }, week: { payg: 'API keys have no weekly limit' }, fable: { payg: 'API keys have no Fable limit', pro: 'The preview hides it on Pro' } };
 const DETAILS = [
   ['order', 'Battery order', 'Keep the order above, or let the batteries move as things change', [['yours', 'As above'], ['urgent', 'Needs you first'], ['fullest', 'Fullest first']]],
   // The preview shows Automatic as rounded, so say plainly where it really is rounded.
-  ['ends', 'Battery ends', 'Automatic is rounded in VS Code and plain in other terminals. Rounded needs a terminal that can draw them. Plain works everywhere', [['auto', 'Automatic'], ['round', 'Rounded'], ['plain', 'Plain']]],
+  ['ends', 'Battery ends', 'Rounded ends need a terminal that can draw them. Automatic picks Rounded in VS Code and Plain elsewhere.', [['auto', 'Automatic'], ['round', 'Rounded'], ['plain', 'Plain']]],
   ['battery', 'Battery style', 'How the batteries are drawn, or a shape instead. Classic is the old flat look', [['glossy', 'Glossy'], ['classic', 'Classic'], ['outline', 'Outline'], ['hot', 'Hot tip'], ['liquid', 'Liquid edge'], ['pace', 'Pace glow'],
     ['pie', 'Pie'], ['sand', 'Sand'], ['slider', 'Slider'], ['race', 'Pace race'], ['lives', 'Lives'], ['dots', 'Dots'], ['chevrons', 'Chevrons'], ['ruler', 'Ruler']]],
   ['refills', 'Reset times', 'Always show them, or only when something needs attention', [['always', 'Always'], ['warnings', 'Only when needed']]],
-  ['motion', 'Motion', 'Still is free. Climbing redraws every second, about a sixth of a CPU core per open window', [['off', 'Still'], ['on', 'Climbing']]],
+  ['motion', 'Motion', 'Still draws once. Animated redraws every second and uses about one sixth of a CPU core per open window.', [['off', 'Still'], ['on', 'Animated']]],
   // Without this the copied command can't fix dark colours on a light terminal: the Dark/Light switch above only changes the preview.
-  ['terminal', 'Terminal colour', 'Automatic follows Claude Code’s theme. Pick Light if the text is hard to read on a light background', [['auto', 'Automatic'], ['dark', 'Dark'], ['light', 'Light']]],
+  ['terminal', "Your terminal's theme", 'Automatic follows Claude Code’s theme. Pick Light if the text is hard to read on a light background', [['auto', 'Automatic'], ['dark', 'Dark'], ['light', 'Light']]],
 ];
 
 const phone = matchMedia('(max-width:700px)');
@@ -120,9 +120,9 @@ const segHtml = (key, opts, label) => `<div class="seg" role="group" aria-label=
 
 function buildShow() {
   const fixedRow = (k) => `<div class="row"><span class="grip none"></span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}</div></div><button class="sw" type="button" role="switch" data-show="${k}" aria-labelledby="lbl-${k}"></button></div>`;
-  const batRow = (k, i) => `<div class="row" draggable="true" data-bat="${k}"><span class="grip" aria-hidden="true">⋮⋮</span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d">${SHOW[k][1]}<em data-noton="${k}"></em>${k === 'fable' ? '<span id="fabletail"></span>' : ''}</div></div>`
+  const batRow = (k, i) => `<div class="row" draggable="true" data-bat="${k}"><span class="grip" aria-hidden="true">⋮⋮</span><div class="txt"><div class="t" id="lbl-${k}">${SHOW[k][0]}</div><div class="d" id="d-${k}">${SHOW[k][1]}<em data-noton="${k}"></em>${k === 'fable' ? '<span id="fabletail"></span>' : ''}</div></div>`
     + `<button class="mv" type="button" data-move="${k}" data-dir="-1" aria-label="Move ${SHOW[k][0]} up" ${i === 0 ? 'disabled' : ''}>▲</button><button class="mv" type="button" data-move="${k}" data-dir="1" aria-label="Move ${SHOW[k][0]} down" ${i === BATTERIES.length - 1 ? 'disabled' : ''}>▼</button>`
-    + `<button class="sw" type="button" role="switch" data-show="${k}" aria-labelledby="lbl-${k}"></button></div>`;
+    + `<button class="sw" type="button" role="switch" data-show="${k}" aria-labelledby="lbl-${k}" aria-describedby="d-${k}"></button></div>`;
   $('show').innerHTML = fixedRow('model') + fixedRow('effort') + order.map(batRow).join('') + fixedRow('budget')
     + `<div class="row"><span class="grip none"></span><div class="txt"><div class="t">Cost</div><div class="d">Auto shows it only on an API key, where you really pay it. On Pro and Max it's only what the chat would have cost.</div></div>${segHtml('cost', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], 'Cost')}</div>`;
 }
@@ -148,7 +148,8 @@ function preview() {
   $('win').classList.toggle('light', view.term === 'light');
   $('win').style.maxWidth = view.width === 'wide' ? '100%' : `calc(${cols}ch * 13.5 / 15 + 40px)`;
   $('cols').textContent = view.width === 'wide' ? '' : `${cols} columns`;
-  $('fitnote').innerHTML = (p ? `Previewing <b>${p.name}</b>. ${view.hoverBy === 'focus' ? 'Press Enter' : 'Click it'} to use it. ` : '')
+  const blank = !text.replace(/\x1b\[[0-9;]*m/g, '').trim();
+  $('fitnote').innerHTML = (blank ? 'Nothing is switched on, so the status line would be <b>empty</b>. ' : '') + (p ? `Previewing <b>${p.name}</b>. ${view.hoverBy === 'focus' ? 'Press Enter' : 'Click it'} to use it. ` : '')
     + (dropped.length ? `Too narrow for everything, so it drops or shrinks <b>${dropped.join(', ')}</b>.` : view.width === 'wide' ? '' : 'Everything fits at this width.');
   edge();
 }
@@ -167,8 +168,8 @@ function update() {
 
   // Layout cards show just the batteries; look cards show the whole look, because what shows is part of it.
   const thumb = (el, over, whole) => {
-    const t = whole ? { ...s, ...over } : { ...s, ...over, cost: 'off', show: s.show.filter((id) => id !== 'model' && id !== 'effort') };
-    el.innerHTML = `<div>${ansiToHtml(render(whole ? sample() : { ...sample(), model: null }, t, terminal(999, t)).text, NEUTRAL[view.term].fg)}</div>`;
+    const m = { ...s, ...over }, full = whole && !phone.matches, t = full ? m : { ...m, cost: 'off', show: m.show.filter((id) => id !== 'model' && id !== 'effort') };
+    el.innerHTML = `<div>${ansiToHtml(render(full ? sample() : { ...sample(), model: null }, t, terminal(999, t)).text, NEUTRAL[view.term].fg)}</div>`;
     el.classList.toggle('light', view.term === 'light');
   };
   document.querySelectorAll('[data-thumb]').forEach((el) => thumb(el, { layout: el.dataset.thumb }));
@@ -177,18 +178,19 @@ function update() {
   document.querySelectorAll('[data-layout]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.layout === s.layout));
   document.querySelectorAll('[data-show]').forEach((b) => {
     const k = b.dataset.show;
-    b.setAttribute('aria-checked', s.show.includes(k)); b.disabled = BATTERIES.includes(k) && !offered(k);
+    b.setAttribute('aria-checked', s.show.includes(k)); b.setAttribute('aria-disabled', BATTERIES.includes(k) && !offered(k));
   });
   document.querySelectorAll('[data-noton]').forEach((el) => { const why = (NOT_ON[el.dataset.noton] || {})[view.plan]; el.textContent = why ? ` · ${why}` : ''; });
   // Pro may have Fable, which the preview only hides; API keys have no Fable limit, so there is nothing to turn on.
   const tail = $('fabletail');
-  if (tail) tail.textContent = view.plan === 'payg' ? '' : ". This page can't turn on reading your login: type /juice set fable=on.";
+  if (tail) tail.textContent = view.plan === 'payg' ? '' : ". Shows only after you run /juice set fable=on in Claude Code.";
   document.querySelectorAll('[data-preset]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.preset === (typeof s.colors === 'string' ? s.colors : 'custom')));
   document.querySelectorAll('[data-chips]').forEach((el) => { const set = el.dataset.chips === 'custom' ? customs[view.term] : PRESETS[el.dataset.chips][view.term]; el.innerHTML = set.map((c) => `<i style="background:${c}"></i>`).join(''); });
   document.querySelectorAll('[data-key]').forEach((b) => b.setAttribute('aria-pressed', s[b.dataset.key] === b.dataset.v));
   // Only Status bar and Tightest first draw the style; say so in the others once one is picked, as /juice set does.
   $('details').querySelector('[data-hint=battery]').textContent = DETAILS.find(([k]) => k === 'battery')[2]
     + (STYLE_LAYOUTS.includes(s.layout) || s.battery === DEFAULTS.battery ? '' : `. ${LAYOUTS[s.layout][0]} keeps its own shapes: styles show in Status bar and Tightest first`);
+  $('details').querySelector('[data-key=battery]').closest('.seg').classList.toggle('dim', !STYLE_LAYOUTS.includes(s.layout));
   document.querySelectorAll('[data-view]').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', view[seg.dataset.view] === b.dataset.v)));
   $('model').value = view.model;
   // Custom colours: one set per terminal colour, each checked against that terminal's background.
@@ -198,7 +200,8 @@ function update() {
   document.querySelectorAll('[data-ratio]').forEach((el) => {
     const r = contrast(set[el.dataset.ratio], NEUTRAL[view.term].bg);
     // The same bar juice holds its own colours to, and /juice set warns below.
-    el.textContent = r < 3 ? `Hard to read here (${r.toFixed(1)}:1)` : r < 4.5 ? `A little faint (${r.toFixed(1)}:1)` : `Easy to read (${r.toFixed(1)}:1)`;
+    el.textContent = r < 3 ? `Hard to read here` : r < 4.5 ? `A little faint` : `Easy to read`;
+    el.title = r.toFixed(1) + ':1';
     el.classList.toggle('bad', r < 3);
     el.classList.toggle('faint', r >= 3 && r < 4.5);
   });
@@ -223,7 +226,8 @@ const flush = () => { if (pending) { clearTimeout(pending); write(); } };
 addEventListener('pagehide', flush);
 let toastTimer;
 const toast = (t) => { $('toast').textContent = t; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').textContent = ''; }, 4000); };
-const say = (t) => { $('say').textContent = t; };
+let sayTimer;
+const say = (t) => { $('say').textContent = ''; clearTimeout(sayTimer); sayTimer = setTimeout(() => { $('say').textContent = t; }, 60); }; // cleared first so a repeat is read again
 // The button itself says Copied for a moment, where the eye already is. It keeps its width meanwhile, so a second
 // tap lands on it again and not on the button that slid in beside it (Reset, next to Copy link).
 const done = (b) => {
@@ -231,7 +235,7 @@ const done = (b) => {
   b.dataset.label ??= b.textContent; b.textContent = 'Copied'; b.dataset.done = '';
   clearTimeout(b.timer); b.timer = setTimeout(() => { b.textContent = b.dataset.label; delete b.dataset.done; b.style.minWidth = ''; }, 1600);
 };
-const copy = (t, ok, b) => (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { toast(ok); done(b); }, () => toast('Couldn’t copy automatically. Select the text and copy it.'));
+const copy = (t, ok, b) => (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { toast(ok); done(b); }, () => toast('Could not copy. Select the command and copy it by hand.'));
 function move(k, dir) {
   const i = order.indexOf(k), j = i + dir;
   if (j < 0 || j >= order.length) return;
@@ -244,25 +248,28 @@ const customColors = () => ({ dark: obj(customs.dark), light: obj(customs.light)
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
-  if (t.dataset.look) { adopt(applySet(s, [`look=${t.dataset.look}`]).settings); buildShow(); view.hover = null; say(`${LOOK[t.dataset.look].name} chosen`); }
+  if (t.dataset.look) {
+    adopt(applySet(s, [`look=${t.dataset.look}`]).settings); buildShow(); view.hover = null;
+    say(`${LOOK[t.dataset.look].name} chosen`); }
   else if (t.dataset.layout) { s = { ...s, layout: t.dataset.layout }; view.hover = null; say(`${LAYOUTS[t.dataset.layout][0]} chosen`); }
-  else if (t.dataset.show) setShow(t.dataset.show, !s.show.includes(t.dataset.show));
+  else if (t.dataset.show) { if (t.getAttribute('aria-disabled') !== 'true') setShow(t.dataset.show, !s.show.includes(t.dataset.show)); }
   else if (t.dataset.move) return move(t.dataset.move, Number(t.dataset.dir));
   else if (t.dataset.preset) {
+    say(`${t.querySelector('strong').textContent.trim()} chosen`);
     if (t.dataset.preset === 'custom') s = { ...s, colors: customColors() };
     else { customs = presetArrs(t.dataset.preset); s = { ...s, colors: t.dataset.preset }; }
   } else if (t.dataset.key) {
-    s = { ...s, [t.dataset.key]: t.dataset.v };
+    s = { ...s, [t.dataset.key]: t.dataset.v }; say(`${t.textContent.trim()} chosen`);
     if (t.dataset.key === 'motion') view.motionChosen = true; // from now on the command says motion=, even Still
     if (t.dataset.key === 'terminal') {
       view.terminalChosen = true; // from now on the command says terminal=, even Automatic
       if (t.dataset.v !== 'auto') view.term = t.dataset.v; // preview what was just chosen
     }
   }
-  else if (t.closest('[data-view]')) view[t.closest('[data-view]').dataset.view] = t.dataset.v;
-  else if (t.dataset.copy) return copy($(t.dataset.copy).textContent, 'Copied. Paste it into Claude Code.', t);
+  else if (t.closest('[data-view]')) { view[t.closest('[data-view]').dataset.view] = t.dataset.v; say(`${t.textContent.trim()} chosen`); }
+  else if (t.dataset.copy) return copy($(t.dataset.copy).textContent, 'Copied. Paste it into Claude Code and press Enter.', t);
   else if (t.id === 'link') { flush(); return copy(location.href, 'Link copied. Anyone who opens it gets these settings.', t); }
-  else if (t.id === 'reset') { adopt(sanitize({}, { allowBadges: false }).settings); buildShow(); toast('Back to the default.'); }
+  else if (t.id === 'reset') { adopt(sanitize({}, { allowBadges: false }).settings); buildShow(); view.terminalChosen = view.motionChosen = false; view.term = 'dark'; view.hover = null; toast('Back to the default look.'); say('Back to the default look'); }
   else return;
   update();
 });
@@ -310,14 +317,13 @@ $('show').addEventListener('drop', (e) => {
 });
 $('show').addEventListener('dragend', () => { dragged = null; document.querySelectorAll('.row.dragging,.row.over').forEach((x) => x.classList.remove('dragging', 'over', 'below')); });
 
-// On a computer the preview options are always out; on a phone they start folded under one button.
-const popts = $('popts');
-const fold = () => { popts.open = !phone.matches; };
-phone.addEventListener('change', fold); fold();
+// The cards' pictures show fewer things on a phone, so they redraw when the window crosses that width.
+phone.addEventListener('change', update);
 
 // The skip link moves focus itself: following its #opts would change the address, and a new address re-reads the
 // settings from it, throwing away what the person just picked.
 document.querySelector('.skip').addEventListener('click', (e) => { e.preventDefault(); $('opts').focus(); });
+document.querySelector('.skip2').addEventListener('click', (e) => { e.preventDefault(); document.querySelector('.c-apply .cmd.big .btn').focus(); });
 
 // The sticky preview would hide whatever a link or the skip link scrolls to, so scrolling leaves room for it.
 new ResizeObserver(() => {

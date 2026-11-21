@@ -10,7 +10,7 @@ Type `/juice` in Claude Code, then a command or plain words. `/juice` is a Claud
 |:---|:---|:---|
 | `/juice` | Shows what is set and offers a look, the customizer or setup. | `/juice` |
 | `/juice get` | Shows your current settings. | `/juice get` |
-| `/juice looks` | Lists the 14 looks, numbered, with a preview of each. | `/juice looks` |
+| `/juice looks` | Lists the 15 looks, numbered, with a preview of each. | `/juice looks` |
 | `/juice look <number>` | Switches to that look. | `/juice look 7` |
 | `/juice set key=value` | Changes one or more settings (see the next table). | `/juice set layout=panel colors=ocean` |
 | `/juice customize` | Opens the live customizer with your current settings. | `/juice customize` |
@@ -33,7 +33,7 @@ Each row is one `key=value` for `/juice set`. The default is first.
 | `show` | A comma list, in order, from `model`, `effort`, `memory`, `session`, `fable`, `week`, `budget` | `/juice set show=model,session,week` |
 | `order` | `yours` (default), `urgent`, `fullest` | `/juice set order=urgent` |
 | `cost` | `auto` (default), `on`, `off` | `/juice set cost=off` |
-| `look` | ([pictures and notes](guide.md#ready-made-looks)) `juice`, `basics`, `spotlight`, `everything`, `retro`, `quiet`, `nightowl`, `easy`, `colorblind`, `anywhere`, `costwatch`, `fablefirst`, `capsule`, `roadtrip` | `/juice set look=quiet` |
+| `look` | ([pictures and notes](guide.md#ready-made-looks)) `juice`, `basics`, `spotlight`, `everything`, `retro`, `quiet`, `nightowl`, `easy`, `colorblind`, `anywhere`, `costwatch`, `fablefirst`, `capsule`, `roadtrip`, `sand` | `/juice set look=quiet` |
 | `colors` | ([colour sets](guide.md#colour-sets)) `claude` (default), `frost`, `calm`, `safe`, `bold`, `ocean`, `midnight`, `vampire`, `candy`, `forest`, `sunset`, `solar`, `rose`, `terminal`, or your own | `/juice set colors=ocean` |
 | `ends` | `auto` (default), `round`, `plain` | `/juice set ends=plain` |
 | `battery` | `glossy` (default), `classic`, `outline`, `hot`, `liquid`, `pace`, `pie`, `sand`, `slider`, `race`, `lives`, `dots`, `chevrons`, `ruler` | `/juice set battery=outline` |

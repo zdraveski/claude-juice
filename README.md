@@ -72,17 +72,17 @@ Session, Weekly and Memory come from Claude Code. Fable comes from one extra req
 
 ## Make it yours
 
-Pick one of 14 ready-made looks, then change the layout, colours or battery style. Each card shows its look in its own style, so the reset wording differs.
+Pick one of 15 ready-made looks, then change the layout, colours or battery style. Each card shows its look in its own style, so the reset wording differs.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/looks-grid-dark.png">
-  <img src="docs/images/looks-grid-light.png" alt="Six of the 14 ready-made looks as cards: Juice, Spotlight, Everything, Retro phone, Capsule and Colour-blind friendly. Each shows Session 47% and Weekly 52% in its own style.">
+  <img src="docs/images/looks-grid-light.png" alt="Six of the 15 ready-made looks as cards: Juice, Spotlight, Everything, Retro phone, Capsule and Colour-blind friendly. Each shows Session 47% and Weekly 52% in its own style.">
 </picture>
 
 Type `/juice` and say what you want in your own words:
 
 ```
-/juice looks                       # list all 14 looks, numbered
+/juice looks                       # list all 15 looks, numbered
 /juice look 7                      # switch to number 7
 /juice use the quiet look
 /juice my terminal is light        # if the text is hard to read

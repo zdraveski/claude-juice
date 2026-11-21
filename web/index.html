@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
-<title>juice customizer: a Claude Code status line for your usage limits</title>
+<title>Juice status line customizer</title>
 <meta name="description" content="Try every look, layout and colour of juice, a Claude Code status line that shows your 5-hour, weekly and Fable usage limits as batteries, then copy one line into Claude Code.">
 <link rel="canonical" href="https://zdraveski.github.io/claude-juice/web/">
 <meta property="og:type" content="website">
@@ -26,10 +26,10 @@ body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 'Segoe UI',s
 button,select{font:inherit;color:inherit}
 .wrap{max-width:1280px;margin:0 auto;padding:0 32px}
 /* hero */
-.hero{padding:44px 0 18px}
+.hero{padding:28px 0 8px}
 .kicker{display:inline-flex;gap:8px;align-items:center;color:var(--clay);font-weight:600;font-size:13px;letter-spacing:.04em;text-transform:uppercase}
 .kicker i{width:8px;height:8px;border-radius:2px;background:var(--clay);transform:rotate(45deg)}
-h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:10px 0;font-weight:650}
+h1{font-size:34px;line-height:1.1;letter-spacing:-.02em;margin:10px 0;font-weight:650}
 .lede{color:var(--sub);font-size:17px;max-width:720px;margin:0}
 /* sticky preview */
 .stage{position:sticky;top:0;z-index:5;background:linear-gradient(var(--page) calc(100% - 14px),transparent);padding:12px 0 24px}
@@ -39,11 +39,12 @@ h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:10px 0;font-weigh
 .tools .lab{color:var(--sub);font-size:12.5px}
 .fld{display:flex;align-items:center;gap:8px}
 .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg.dim{opacity:.55}
 .seg button{all:unset;cursor:pointer;padding:5px 12px;border-radius:999px;color:var(--sub);font-size:13px;font-weight:500;white-space:nowrap;transition:transform 160ms cubic-bezier(.23,1,.32,1),background-color 150ms,color 150ms}
 /* The chosen one is outlined in the accent, as the chosen look and layout cards are: 6:1 against the pill, not a faint grey. */
 .seg button[aria-pressed=true]{background:var(--clay-bg);color:var(--clay);box-shadow:inset 0 0 0 1.5px var(--clay)}
 select{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;color:var(--ink)}
-:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 .win{border-radius:12px;overflow:hidden;border:1px solid var(--line);box-shadow:0 18px 50px rgba(0,0,0,.45);transition:max-width .25s cubic-bezier(.3,.7,.4,1)}
 .titlebar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#232120;color:#9e998f;font-size:12.5px;white-space:nowrap;overflow:hidden}
 .win.light .titlebar{background:#ecebe8;color:#6b665f}
@@ -65,14 +66,20 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:999px;
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .skip{position:absolute;left:16px;top:-80px;z-index:10;background:var(--clay);color:#1a0f0a;padding:10px 14px;border-radius:10px;font-weight:650;text-decoration:none}
 .skip:focus{top:8px}
+.skip2:focus{left:200px}
 #opts:focus{outline:none}
 .linknote{color:var(--warn);font-size:14px;margin:12px 0 0}
-/* On a computer the preview's options are always out; on a phone they fold away under one button. */
+/* The preview's options fold away under one button, so the sticky preview stays small. */
 #popts{margin:0}
-#popts > summary{display:none;list-style:none}
+#popts > summary{display:flex;align-items:center;gap:6px;min-height:36px;padding:0 16px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--sub);font-size:13.5px;width:max-content;list-style:none}
 #popts > summary::-webkit-details-marker{display:none}
+#popts > summary::after{content:"\25BE"}
+#popts[open] > summary{margin-bottom:10px}
+#popts[open] > summary::after{content:"\25B4"}
+/* With the options open the preview scrolls away with them, so they never cover the page. */
+.stage:has(#popts[open]){position:static}
 /* controls */
-.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:18px;padding:6px 0 70px}
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));align-items:start;gap:18px;padding:6px 32px 70px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;min-width:0}
 .c-looks,.c-layout{grid-column:span 12}.c-show{grid-column:span 5}.c-color{grid-column:span 7}.c-details{grid-column:span 5}.c-apply{grid-column:span 7}
 .card h3{margin:0 0 4px;font-size:17px;font-weight:600;display:flex;gap:10px;align-items:center}
@@ -80,12 +87,16 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:999px;
 .card > p{margin:0 0 16px;color:var(--sub);font-size:14px}
 .layouts,.looks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .looks{grid-template-columns:repeat(2,minmax(0,1fr))}
-.opt{all:unset;cursor:pointer;display:flex;flex-direction:column;min-width:0;background:var(--panel2);border:1.5px solid #4a4642;border-radius:12px;padding:12px 14px;transition:border-color .15s,background .15s,transform 160ms cubic-bezier(.23,1,.32,1)}
+@media (min-width:1100px){.looks{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.opt{all:unset;cursor:pointer;display:flex;flex-direction:column;min-width:0;background:var(--panel2);border:1.5px solid #75706a;border-radius:12px;padding:12px 14px;transition:border-color .15s,background .15s,transform 160ms cubic-bezier(.23,1,.32,1)}
 .opt:active,.seg button:active,.btn:active{transform:scale(.97)}
-.opt[aria-pressed=true]{border-color:var(--clay);background:#26201c}
+.opt[aria-pressed=true]{border-color:var(--clay);background:#26201c;position:relative}
+.opt[aria-pressed=true]::after{content:"\2713";position:absolute;top:8px;right:12px;color:var(--clay);font-weight:700}
 .opt > strong{display:block;font-size:14.5px;font-weight:600}
 .opt > span{display:block;color:var(--sub);font-size:13px;margin-top:2px}
-.thumb{margin:0 0 10px;border-radius:8px;background:#181818;padding:8px 10px;height:74px;overflow:hidden;display:flex;align-items:center;-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent)}
+.thumb{margin:0 0 10px;border-radius:8px;background:#181818;padding:8px 10px;height:74px;overflow:hidden;position:relative;display:flex;align-items:center}
+.thumb::after{content:"";position:absolute;top:0;right:0;bottom:0;width:24%;background:linear-gradient(90deg,transparent,#181818)}
+.thumb.light::after{background:linear-gradient(90deg,transparent,#fff)}
 .thumb.light{background:#fff}
 .thumb > div{font:10.5px/1.28 Consolas,monospace;color:#ccc;width:max-content}
 .badge{display:inline-block;margin-left:6px;font-size:11px;font-weight:600;color:var(--clay);background:var(--clay-bg);padding:1px 7px;border-radius:999px;vertical-align:2px}
@@ -100,19 +111,21 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:999px;
 .row.over.below{box-shadow:0 2px 0 var(--clay)}
 .grip{cursor:grab;color:var(--mute);font-size:15px;letter-spacing:-2px;user-select:none;width:14px;flex:0 0 auto}
 .grip.none{cursor:default;visibility:hidden}
-.mv{all:unset;cursor:pointer;color:var(--mute);width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:12px}
+.mv{all:unset;cursor:pointer;color:var(--mute);width:28px;height:28px;border-radius:6px;display:grid;place-items:center;font-size:12px}
+.mv + .mv{margin-left:2px}
 /* Hover looks only where there is a mouse: on a touch screen they stick after a tap. */
-@media (hover:hover) and (pointer:fine){.opt:hover{border-color:#6b665f}.mv:hover{background:#2a2825;color:var(--ink)}}
-.mv[disabled]{opacity:.25;cursor:default;background:none}
+@media (hover:hover) and (pointer:fine){.opt:hover{border-color:#6b665f;background:#2a2623}.mv:hover{background:#2a2825;color:var(--ink)}}
+.mv[disabled]{opacity:.4;cursor:default;background:none}
 .sw{all:unset;cursor:pointer;flex:0 0 auto;width:42px;height:24px;border-radius:999px;background:#6b665f;position:relative;transition:background .15s}
 .sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#cfcac3;transition:transform .18s cubic-bezier(.3,.7,.4,1)}
 .sw[aria-checked=true]{background:var(--clay)}
 .sw[aria-checked=true]::after{transform:translateX(18px);background:#fff}
-.sw[disabled]{opacity:.35;cursor:not-allowed}
+.sw[aria-disabled=true]{opacity:.35;cursor:not-allowed}
 /* colours */
 .presets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 16px}
 .preset .chips{display:flex;gap:5px;margin:0 0 8px}
-.preset .chips i{width:18px;height:18px;border-radius:5px}
+.preset .chips i{width:22px;height:22px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.preset[data-preset=custom]{border-style:dashed}
 .customhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 8px;font-size:13.5px;color:var(--sub);flex-wrap:wrap}
 .custom{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
 .custom label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--sub)}
@@ -133,44 +146,47 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:999px;
 .sub .body{flex:1;min-width:0}
 .sub .t{font-weight:600;margin:0 0 6px}
 .cmd{display:flex;gap:8px;align-items:stretch;margin:0 0 8px}
-.cmd code{flex:1;min-width:0;background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:10px 13px;font:13px/1.5 Consolas,monospace;color:#e8e3dc;overflow-wrap:anywhere}
+.cmd code{flex:1;min-width:0;background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:10px 13px;font:13px/1.5 Consolas,monospace;color:#e8e3dc;overflow-wrap:break-word}
 .btn{all:unset;cursor:pointer;background:var(--clay);color:#1a0f0a;font-weight:650;border-radius:10px;padding:0 16px;display:flex;align-items:center;justify-content:center;font-size:13.5px;white-space:nowrap;transition:transform 160ms cubic-bezier(.23,1,.32,1)}
-.btn.ghost{background:none;border:1px solid #4a4642;color:var(--ink);padding:7px 14px;font-weight:500;font-size:13px}
+.btn.ghost{background:none;border:1px solid #75706a;color:var(--ink);padding:7px 14px;font-weight:500;font-size:13px}
 /* "Copied" shows on the button itself, as wide as "Copy" so nothing jumps. */
 .btn[data-copy]{min-width:64px}
 .btn.ghost[data-done]{color:var(--clay);border-color:var(--clay)}
 .note{color:var(--mute);font-size:12.5px;margin:0}
 .tell{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--sub);font-size:14px;margin:0 0 4px}
-.tell code{color:var(--ink);font:13px Consolas,monospace;background:#0d0d0c;padding:2px 7px;border-radius:6px}
+.tell code{color:var(--ink);font:13px Consolas,monospace;background:#0d0d0c;padding:2px 7px;border-radius:6px;white-space:nowrap}
+.tell code.ex{display:inline-block;white-space:normal;margin:4px 0}
 details{margin-top:12px}
 summary{cursor:pointer;color:var(--sub);font-size:13.5px}
 pre{background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font:12.5px/1.5 Consolas,monospace;color:#d6d1ca;overflow:auto;margin:10px 0 0}
 .foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+#stagecopy{padding:8px 16px;min-height:36px}
+@media (min-width:701px){#stagecopy{order:2;margin-left:auto}#popts{order:3;flex-basis:100%}.stagehead{align-items:center}}
 .toast{color:var(--sub);font-size:13px;order:1;flex-basis:100%} /* its own row under the buttons: text there never moves them */
 @media (max-width:1000px){.c-show,.c-color,.c-details,.c-apply{grid-column:span 12}.layouts,.looks{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:700px){
   .wrap{padding:0 16px}
+  .grid{padding:6px 16px 70px}
   .hero{padding:28px 0 10px}
   h1{font-size:30px}.lede{font-size:15.5px}
   /* The preview stays at the top while you scroll to the looks, cut down to the status line itself. */
   .stage{padding:8px 0 12px}
   .stagehead{margin:0 0 8px}
   .stagehead h2,.titlebar,.chat,.rule,.prompt{display:none}
-  #popts > summary{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--sub);font-size:13.5px;width:max-content}
-  #popts > summary::after{content:"▾"}
-  #popts[open] > summary{margin-bottom:10px}
-  #popts[open] > summary::after{content:"▴"}
-  /* With the options open the preview scrolls away with them, so they never cover the page. */
-  .stage:has(#popts[open]){position:static}
   .term{font-size:11.5px;padding:8px 12px}
   .fitnote{font-size:12.5px;margin-top:6px}
-  .layouts,.looks,.presets{grid-template-columns:minmax(0,1fr)}
+  /* Two cards a row: one a row made the page three screens longer. */
+  .presets{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .opt{padding:10px 11px}.opt > strong{font-size:14px}.thumb{height:64px}
   .custom{grid-template-columns:repeat(2,minmax(0,1fr))}
   .card{padding:16px}
   .cmd.big{flex-direction:column}.btn{padding:10px 16px}
   /* On a phone every row of choices wraps. */
   .drow .seg{flex-wrap:wrap;border-radius:16px}
-  .row{gap:8px}
+  /* The name takes what is left and the controls stay in a column on the right, never wrapped under the text. */
+  .row{gap:6px}.row .grip{width:10px}.mv + .mv{margin-left:0}
+  .seg button,.btn.ghost,.lab,.ratio,.step,.cmd code,.tell code{font-size:14px}
+  #stagecopy{min-height:44px}
   /* Help text a phone can read: nothing under 14 px. */
   .card > p{font-size:15px}
   .row .d,.drow .d,.opt > span,.note,.hint{font-size:14px}
@@ -178,7 +194,7 @@ pre{background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:1
 }
 /* Fingers need 44 px: every control grows on a touch screen or a phone. */
 @media (pointer:coarse),(max-width:700px){
-  .seg button,select,.btn,.btn.ghost{min-height:44px;box-sizing:border-box}
+  .seg button,select,.btn,.btn.ghost,#popts > summary{min-height:44px;box-sizing:border-box}
   .seg button{display:inline-flex;align-items:center;justify-content:center;min-width:44px}
   .mv{width:44px;height:44px;font-size:14px}
   .sw{width:52px;height:30px}
@@ -190,6 +206,12 @@ pre{background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:1
 }
 /* A short window keeps the preview at the top but drops the pretend chat around it. */
 @media (min-width:701px) and (max-height:760px){.titlebar,.chat,.rule,.prompt{display:none}.stage{padding-top:8px}}
+/* A short or zoomed window cannot spare the room: the preview scrolls with the page and the pretend chat goes. */
+@media (max-height:520px){.stage{position:static}.titlebar,.chat,.rule,.prompt{display:none}}
+/* A finger cannot drag a row, so the handle goes; the arrows do the job. */
+@media (pointer:coarse){.grip{display:none}.row[draggable]{-webkit-user-drag:none}}
+html{-webkit-tap-highlight-color:transparent}
+button,summary,.opt,.seg button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 /* Windows High Contrast and other forced colours: keep the switches, the chosen buttons and the solid preview visible. */
 @media (forced-colors:active){
   .stage{background:Canvas}
@@ -197,21 +219,24 @@ pre{background:#0d0d0c;border:1px solid var(--line);border-radius:10px;padding:1
   .sw::after{background:CanvasText}
   .sw[aria-checked=true]{background:Highlight}
   .sw[aria-checked=true]::after{background:HighlightText}
-  [aria-pressed=true],.seg button[aria-pressed=true]{outline:2px solid Highlight;outline-offset:1px} /* .seg button unsets all */
+  .term,.thumb,.chips i{forced-color-adjust:none}
+  .mv[disabled],.sw[aria-disabled=true]{opacity:1;color:GrayText}
+  [aria-pressed=true],.seg button[aria-pressed=true]{outline:3px solid Highlight;outline-offset:1px} /* .seg button unsets all */
   [aria-pressed=false]:focus-visible,.seg button[aria-pressed=false]:focus-visible{outline:2px dashed CanvasText;outline-offset:2px} /* solid means chosen */
   [aria-pressed=true]:focus-visible,.seg button[aria-pressed=true]:focus-visible{outline:4px double Highlight;outline-offset:3px} /* its outline means chosen */
 }
-button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
+button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.opt:active,.seg button:active,.btn:active{transform:none}}
 </style>
 </head>
 <body>
 <a class="skip" href="#opts">Skip to the options</a>
+<a class="skip skip2" href="#cmd">Skip to the command</a>
 <div class="wrap">
   <header class="hero">
     <span class="kicker"><i></i>Juice</span>
     <h1>Make the status line yours</h1>
-    <p class="lede">Start from a ready-made look or build your own, then paste one line into Claude Code. The preview is drawn by the same code the status line uses, so what you see is what you get.</p>
+    <p class="lede">Juice is a status line for Claude Code. It shows how much of your usage limits and chat memory you have left. Pick a look, change what you like, then paste one command into Claude Code.</p>
     <p class="linknote" id="linknote" role="alert" hidden></p>
   </header>
 </div>
@@ -220,15 +245,16 @@ button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visi
 <section class="stage" aria-labelledby="pvh"><div class="wrap">
   <div class="stagehead">
     <h2 id="pvh">Live preview</h2>
-    <details id="popts" open><summary>Preview options</summary>
-    <div class="tools" role="group" aria-label="Preview as">
-      <div class="fld"><span class="lab">Plan</span><div class="seg" role="group" aria-label="Plan" data-view="plan"><button data-v="pro">Pro</button><button data-v="max">Max</button><button data-v="payg">API key</button></div></div>
+    <details id="popts"><summary>Change the preview</summary>
+    <div class="tools" role="group" aria-label="Preview options">
+      <div class="fld"><span class="lab">Your plan</span><div class="seg" role="group" aria-label="Plan" data-view="plan"><button data-v="pro">Pro</button><button data-v="max">Max</button><button data-v="payg">API key</button></div></div>
       <div class="fld"><label class="lab" for="model">Model</label><select id="model"><option value="Opus 5.5">Opus 5.5</option><option value="Sonnet 5.5">Sonnet 5.5</option><option value="Fable 5.1">Fable 5.1</option><option value="Haiku 5.5">Haiku 5.5</option></select></div>
-      <div class="fld"><span class="lab">Window</span><div class="seg" role="group" aria-label="Window width" data-view="width"><button data-v="small">Small</button><button data-v="medium">Medium</button><button data-v="wide">Wide</button></div></div>
-      <div class="fld"><span class="lab">Terminal</span><div class="seg" role="group" aria-label="Terminal colour" data-view="term"><button data-v="dark">Dark</button><button data-v="light">Light</button></div></div>
-      <div class="fld"><span class="lab">Situation</span><div class="seg" role="group" aria-label="Situation" data-view="state"><button data-v="quiet">Quiet</button><button data-v="busy">Busy</button><button data-v="trouble">About to run out</button></div></div>
+      <div class="fld"><span class="lab">Window width</span><div class="seg" role="group" aria-label="Window width" data-view="width"><button data-v="small">Small</button><button data-v="medium">Medium</button><button data-v="wide">Wide</button></div></div>
+      <div class="fld"><span class="lab">Preview on</span><div class="seg" role="group" aria-label="Preview on" data-view="term"><button data-v="dark">Dark</button><button data-v="light">Light</button></div></div>
+      <div class="fld"><span class="lab">Preview with</span><div class="seg" role="group" aria-label="Preview with" data-view="state"><button data-v="quiet">Plenty left</button><button data-v="busy">Busy</button><button data-v="trouble">About to run out</button></div></div>
     </div>
     </details>
+    <button class="btn" type="button" data-copy="cmd" id="stagecopy" aria-label="Copy command with your settings">Copy command</button>
   </div>
   <div class="win" id="win">
     <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span id="wintitle">Claude Code: ~/my-project</span><span class="cols" id="cols"></span></div>
@@ -245,19 +271,19 @@ button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visi
 <div class="wrap grid" id="opts" tabindex="-1">
   <section class="card c-looks">
     <h3><span class="step">1</span>Start from a look</h3>
-    <p>One click sets the layout, the colours, what shows and in what order, the cost, the reset times and the battery ends. With a mouse, hover over one to preview it first. Then change anything you like below.</p>
+    <p>Pick one to set the layout, colours, what shows and more. You can change anything after.</p>
     <div class="looks" id="looks"></div>
   </section>
 
   <section class="card c-layout">
     <h3><span class="step">2</span>Layout</h3>
-    <p>How the batteries are arranged. Click one to use it; with a mouse, hover to preview it first.</p>
+    <p>How the batteries are arranged.</p>
     <div class="layouts" id="layouts"></div>
   </section>
 
   <section class="card c-show">
     <h3><span class="step">3</span>What to show</h3>
-    <p>Turn off what you don't need, and drag the batteries into the order you like.</p>
+    <p>Switch off what you don't need. Use the arrows to reorder.</p>
     <div id="show"></div>
   </section>
 
@@ -265,7 +291,7 @@ button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visi
     <h3><span class="step">4</span>Colours</h3>
     <p>Green means plenty left, amber means going a bit fast, red means almost empty. Pick a set, or make your own.</p>
     <div class="presets" id="presets"></div>
-    <div class="customhead"><span id="customfor"></span><span class="note">Each terminal colour keeps its own picks.</span></div>
+    <div class="customhead"><span id="customfor"></span><span class="note">Dark and Light each keep their own colours.</span></div>
     <div class="custom" id="custom"></div>
   </section>
 
@@ -276,22 +302,23 @@ button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visi
   </section>
 
   <section class="card c-apply">
-    <h3><span class="step">6</span>Use it</h3>
-    <p>Two steps in Claude Code. Install juice once (it needs Node 24 or newer), then apply your settings. The status line changes as soon as you press Enter.</p>
+    <h3><span class="step">6</span>Copy it into Claude Code</h3>
+    <p>First time? Run the four install commands once. Needs Node 24 or newer. After that, you only paste your settings command.</p>
     <div class="sub"><span class="num">1</span><div class="body">
       <div class="t">First time? Install it</div>
       <div class="cmd"><code id="install1">/plugin marketplace add zdraveski/claude-juice</code><button class="btn ghost" type="button" data-copy="install1" aria-label="Copy the marketplace command">Copy</button></div>
       <div class="cmd"><code id="install2">/plugin install juice@juice</code><button class="btn ghost" type="button" data-copy="install2" aria-label="Copy the install command">Copy</button></div>
       <div class="cmd"><code id="install3">/reload-plugins</code><button class="btn ghost" type="button" data-copy="install3" aria-label="Copy the reload command">Copy</button></div>
       <div class="cmd"><code id="install4">/juice setup</code><button class="btn ghost" type="button" data-copy="install4" aria-label="Copy the setup command">Copy</button></div>
-      <p class="hint">If Claude Code still doesn't know <code>/juice</code>, restart it and type <code>/juice setup</code> again.</p>
+      <p class="hint">If Claude Code still doesn't know <code>/juice</code>, restart it and type <code>/juice setup</code> again. <code>/juice setup</code> saves a copy of your current status line first, so you can go back.</p>
     </div></div>
     <div class="sub"><span class="num">2</span><div class="body">
-      <div class="t">Apply your settings</div>
+      <div class="t">Paste your settings</div>
       <div class="cmd big"><code id="cmd"></code><button class="btn" type="button" data-copy="cmd" aria-label="Copy the command with your settings">Copy</button></div>
+      <p class="hint">Paste it into the Claude Code prompt and press Enter. Your status line changes straight away.</p>
     </div></div>
-    <div class="tell">Prefer to just say it? Type <code>/juice</code> and ask in your own words, like <code>/juice hide the cost and make it a panel</code>. <code>/juice customize</code> opens this page with your current settings.</div>
-    <details><summary>Show the settings file (for the technical folks)</summary><pre id="json"></pre></details>
+    <div class="tell">Or skip all this: type <code>/juice</code> in Claude Code and say what you want, for example <code class="ex">/juice hide the cost and make it a panel</code>. <code>/juice customize</code> opens this page with your current settings.</div>
+    <details><summary>Show the settings this command saves</summary><pre id="json"></pre></details>
     <div class="foot"><span class="toast" id="toast" aria-live="polite"></span><span style="display:flex;flex-wrap:wrap;gap:8px;margin-left:auto"><button class="btn ghost" id="link" type="button">Copy link to these settings</button><button class="btn ghost" id="reset" type="button">Reset to default</button></span></div>
   </section>
 </div>

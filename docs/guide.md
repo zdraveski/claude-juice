@@ -67,13 +67,13 @@ If you chose round or plain ends yourself, type `/juice use round ends` or `/jui
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/looks-dark.png">
-  <img src="images/looks-light.png" alt="All 14 ready-made looks, numbered as /juice look takes them, each showing the same Session and Weekly numbers.">
+  <img src="images/looks-light.png" alt="All 15 ready-made looks, numbered as /juice look takes them, each showing the same Session and Weekly numbers.">
 </picture>
 
-Type `/juice look 7` to switch to number 7. `/juice looks` prints all 14.
+Type `/juice look 7` to switch to number 7. `/juice looks` prints all 15.
 
 <details>
-<summary>The 14 looks in words</summary>
+<summary>The 15 looks in words</summary>
 
 | # | Look | What it is |
 |:---|:---|:---|
@@ -91,6 +91,7 @@ Type `/juice look 7` to switch to number 7. `/juice looks` prints all 14.
 | 12 | Fable first | The Fable battery leads, and lights up while you use Fable. |
 | 13 | Capsule | Rounded capsules in Candy colours that fill with colour when they need you. |
 | 14 | Road trip | A fuel gauge in Forest colours: shows what is left, not what is used. |
+| 15 | Sand | Batteries that fill like an hourglass, in bold colours. |
 
 </details>
 
@@ -159,7 +160,7 @@ Pick one in the customizer, or type `/juice set battery=outline` (or glossy, cla
 Or type `/juice` and say what you want in your own words. Claude reads what follows, turns it into the matching command, runs it and tells you what changed. A few examples:
 
 ```
-/juice looks                  # show all 14 looks, numbered
+/juice looks                  # show all 15 looks, numbered
 /juice use the quiet look
 /juice hide the cost
 /juice use the calm colours

@@ -29,7 +29,7 @@ export const DEFAULTS = Object.freeze({
   motion: 'off',
 });
 
-// A look sets these seven in one go; battery, terminal, fable and badges stay the person's own.
+// A look sets these seven in one go; terminal, fable and badges stay the person's own, and so does battery, except that Sand sets it and any other look then undoes it (see applySet).
 const LOOK_BASE = { layout: 'bar', show: SHOW_IDS, order: 'yours', colors: 'claude', cost: 'auto', refills: 'always', ends: 'auto' };
 const look = (id, name, note, o = {}) => Object.freeze({ id, name, note, set: Object.freeze({ ...LOOK_BASE, ...o }) });
 export const LOOKS = Object.freeze([
@@ -47,6 +47,7 @@ export const LOOKS = Object.freeze([
   look('fablefirst', 'Fable first', 'The Fable battery leads and lights up while you use Fable', { show: ['model', 'effort', 'fable', 'memory', 'session', 'week', 'budget'], colors: 'candy' }),
   look('capsule', 'Capsule', 'Each battery a rounded capsule that fills with colour when it needs you', { layout: 'pills', colors: 'candy' }),
   look('roadtrip', 'Road trip', 'A fuel gauge: shows what is left, not what is used', { layout: 'tank', colors: 'forest' }),
+  look('sand', 'Sand', 'Batteries that fill like an hourglass, in bold colours', { colors: 'bold', battery: 'sand' }),
 ]);
 
 export const COLOR_KEYS = ['plentyLeft', 'goingFast', 'almostEmpty', 'accent'];
@@ -151,7 +152,11 @@ export function applySet(settings, pairs) {
     if (key === 'badges') throw new Error('Badges can only be added with /juice badges add');
     if (key === 'look') {
       const l = LOOKS.find((x) => x.id === text);
-      if (l) Object.entries(l.set).forEach(([k, v]) => put(k, v));
+      if (l) {
+        Object.entries(l.set).forEach(([k, v]) => put(k, v));
+        // A look without a battery undoes the one a look set (Sand), so the style never outlives its look; a style picked by hand otherwise stays.
+        if (!('battery' in l.set) && LOOKS.some((x) => x.set.battery === next.battery)) put('battery', DEFAULTS.battery);
+      }
       else warnings.push(`look: '${typed}' isn't a look. Use one of: ${LOOKS.map((x) => x.id).join(', ')}.`);
       continue;
     }

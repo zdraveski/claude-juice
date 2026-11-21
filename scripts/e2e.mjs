@@ -231,14 +231,14 @@ const first = install('first');
   const x = first;
   const looks = juiceIn(x, ['looks']).stdout;
   const ids = [...looks.matchAll(/^(\d+)\. .+ \((\w+)\): /gm)];
-  assert.ok(ids.length >= 14 && ids.every((m, i) => m[1] === String(i + 1)), looks);
+  assert.ok(ids.length >= 15 && ids.every((m, i) => m[1] === String(i + 1)), looks);
   assert.doesNotMatch(looks, /\x1b/, 'looks printed colour codes');
   const before = readFileSync(x.settings, 'utf8');
   for (const [, , id] of ids) {
     assert.doesNotMatch(juiceIn(x, ['set', `look=${id}`]).stdout, /Warning/, id);
     lineOk(x, `look ${id}`, [/Session/, /\d+%/]); // Just the basics shows two batteries
   }
-  juiceIn(x, ['set', 'look=juice']);
+  juiceIn(x, ['set', 'look=juice']); // Sand (the last look) set its own battery; any other look undoes it
   for (const kv of ['layout=panel', 'colors=ocean', 'ends=plain', 'battery=outline', 'terminal=light', 'refills=warnings', 'cost=off', 'show=model,session,week', 'order=urgent']) {
     const said = lines(juiceIn(x, ['set', kv]));
     assert.equal(said[0], `Changed: ${kv.split('=')[0]}`, kv);
