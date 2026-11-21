@@ -263,9 +263,9 @@ test('a badge runs in the folder Claude Code is in, not the refresher\'s own', a
 
 // A badge sees only what a shell and common tools need, so a pasted command can't read keys and tokens it was never meant to see.
 test('a badge gets only basic environment variables, plus the ones it was added with', () => {
-  const env = { Path: '/bin', SystemRoot: 'C:\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm', ANTHROPIC_API_KEY: 'k', GITHUB_TOKEN: 't', CLAUDE_CODE_OAUTH_TOKEN: 'o', GH_TOKEN: 'g', AWS_PROFILE: 'dev' };
-  assert.deepEqual(badgeEnv(env), { Path: '/bin', SystemRoot: 'C:\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm' });
-  assert.deepEqual(badgeEnv(env, ['GH_TOKEN', 'AWS_PROFILE']), { Path: '/bin', SystemRoot: 'C:\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm', GH_TOKEN: 'g', AWS_PROFILE: 'dev' });
+  const env = { Path: '/bin', SystemRoot: 'C:\\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm', ANTHROPIC_API_KEY: 'k', GITHUB_TOKEN: 't', CLAUDE_CODE_OAUTH_TOKEN: 'o', GH_TOKEN: 'g', AWS_PROFILE: 'dev' };
+  assert.deepEqual(badgeEnv(env), { Path: '/bin', SystemRoot: 'C:\\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm' });
+  assert.deepEqual(badgeEnv(env, ['GH_TOKEN', 'AWS_PROFILE']), { Path: '/bin', SystemRoot: 'C:\\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm', GH_TOKEN: 'g', AWS_PROFILE: 'dev' });
 });
 
 test('refreshBadges gives each badge only its own extra variables', async () => {

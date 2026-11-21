@@ -4,12 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { paths, hideHome } from './paths.js';
 import { readJson } from './cache.js';
 import { loadSettings, saveSettings } from './settings.js';
-import { applySet, encodeLink, fableEnabled, CUSTOMIZER_URL, LOOKS, NOTHING_SHOWN, ENV_NAME, MAX_ENV } from './schema.js';
+import { applySet, encodeLink, fableEnabled, CUSTOMIZER_URL, LOOKS, NOTHING_SHOWN } from './schema.js';
 import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
 import { refreshFable } from './fable.js';
-import { refreshBadges, addBadge, listBadges, removeBadge, unapprovedBadges } from './badges.js';
+import { refreshBadges, addBadge, checkEnv, listBadges, removeBadge, unapprovedBadges } from './badges.js';
 import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm, Unreadable } from './setup.js';
 
 const ROOT = new URL('..', import.meta.url);
@@ -107,9 +107,7 @@ export async function main(argv, io) {
           if (!command) { io.err('Give the command to add, for example: badges add "git branch --show-current" --yes'); return 1; }
           // A --env anywhere else (no names after it, or names split by a space) would end up inside the command.
           if (rest.slice(0, at).includes('--env')) { io.err('Put the names right after --env, joined by commas with no spaces, for example: --env HTTPS_PROXY,NO_PROXY'); return 1; }
-          const bad = env.find((n) => !ENV_NAME.test(n));
-          if (bad !== undefined) { io.err(`${strip(bad)} isn't a variable name: use letters, digits and _.`); return 1; }
-          if (env.length > MAX_ENV) { io.err(`A badge can see at most ${MAX_ENV} extra variables.`); return 1; }
+          try { checkEnv(env); } catch (e) { io.err(e.message); return 1; }
           const saved = loadSettings(p).settings.badges, l = saved.map((b) => b.command), off = unapprovedBadges(p);
           const mine = l.findIndex((c, i) => c === command && !off.includes(i + 1));
           const was = saved[mine]?.env ?? [];
@@ -171,7 +169,7 @@ export async function main(argv, io) {
         const stash = join(p.cacheDir, 'badges', `${key}.stdin.json`);
         try { stdinText = readFileSync(stash, 'utf8'); } catch { stdinText = ''; }
         try { rmSync(stash, { force: true }); } catch {} // a week-old one goes with the badge caches
-        await refreshBadges({ p, settings: loadSettings(p).settings, key, stdinText });
+        await refreshBadges({ p, settings: loadSettings(p).settings, key, stdinText, env: io.env });
         return 0;
       }
       default: io.err(USAGE); return 1;

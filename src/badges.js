@@ -3,7 +3,7 @@ import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, renameSync, statSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { cut, ESCAPES } from './render/ansi.js';
+import { cut, strip, ESCAPES } from './render/ansi.js';
 import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { sanitize, ENV_NAME, MAX_ENV } from './schema.js';
@@ -149,12 +149,17 @@ function sweep(p) {
 
 // env: names of extra environment variables the command may see. They aren't signed: only someone who can already
 // write juice.json could change them, and they could as well change anything else in it.
+// Throws with a message for the person when the names can't be used.
+export function checkEnv(env) {
+  const bad = env.find((n) => !ENV_NAME.test(n));
+  if (bad !== undefined) throw new Error(`${strip(bad)} isn't a variable name: use letters, digits and _.`);
+  if (env.length > MAX_ENV) throw new Error(`A badge can see at most ${MAX_ENV} extra variables.`);
+}
+
 export function addBadge(p, command, env = []) {
   const { settings } = loadSettings(p);
   if (typeof command !== 'string' || command.length < 1 || command.length > 500) throw new Error('A badge command must be 1 to 500 characters.');
-  const bad = env.find((n) => !ENV_NAME.test(n));
-  if (bad !== undefined) throw new Error(`${bad} isn't a variable name: use letters, digits and _.`);
-  if (env.length > MAX_ENV) throw new Error(`A badge can see at most ${MAX_ENV} extra variables.`);
+  checkEnv(env);
   const badge = { ...approve(p, command), ...(env.length ? { env } : {}) };
   // The same command again takes its new variables in place. A copy this computer never approved (from a copied
   // juice.json) is approved where it stands, so it keeps its place.
