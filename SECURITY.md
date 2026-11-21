@@ -1,14 +1,21 @@
 # Security
 
-juice reads your Claude login token only while the Fable battery is on (you are asked first, unless it already showed before 1.4.0 on Windows or Linux), sends it only to `api.anthropic.com`, never stores it, and skips one that has expired. It runs only badge commands approved on this computer: each is signed with a secret that never leaves your Claude folder. If you find a security problem in it, please report it privately:
+To report a security problem privately:
 
 - [Report a vulnerability](https://github.com/zdraveski/claude-juice/security/advisories/new) on GitHub. Only you and the maintainer can see it.
 - Please don't open a public issue for it.
 
-These count as security problems: your Claude login token being stored, logged or sent anywhere except `api.anthropic.com`, or read while the Fable battery is off; a badge command running without your approval; or juice changing settings it didn't tell you about. Claude Code itself is Anthropic's: please report problems in it to Anthropic.
+These count as security problems:
 
-Say what you found, which juice version (`/juice doctor` prints it) and how to reproduce it. A fix ships as a new version, with your report credited unless you'd rather not be named.
+- Your Claude login token is stored, logged, or sent anywhere except `api.anthropic.com`.
+- The token is read while the Fable battery is off.
+- A badge command runs without your approval.
+- juice changes settings it didn't tell you about.
 
-Only the newest version gets fixes. To update, open `/plugin` in Claude Code, update juice, then restart Claude Code.
+Claude Code itself is Anthropic's. Please report problems in it to Anthropic.
 
-What juice does with your data is in [Privacy](docs/privacy.md).
+Say what you found, which juice version (`/juice doctor` prints it) and how to reproduce it. A fix ships as a new version. Your report is credited unless you'd rather not be named.
+
+Only the newest version gets fixes. To update, see [Troubleshooting](docs/troubleshooting.md#update).
+
+What juice reads, sends and keeps is in [Privacy](docs/privacy.md).

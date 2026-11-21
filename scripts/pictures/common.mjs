@@ -55,3 +55,20 @@ export const brand = (size) => `<div class="brand"${size ? ` style="font-size:${
 // A box header like a GitHub file path: juice / title, with an optional hint on the right.
 export const head = (title, hint = '') => `<div class="head">${brand()}<i>/</i><span>${title}</span>${hint ? `<span class="hint">${hint}</span>` : ''}</div>`;
 export const page = (theme, w, h, css, body) => `<!DOCTYPE html><html><head><meta charset="utf-8">${FONTS}<style>${base(theme)}:root{--w:${w}px;--h:${h}px}${css}</style></head><body>${body}</body></html>`;
+
+// One fixed scenario for the new README pictures: Memory 64%, Session 47% (2h 10m left), Weekly 52% (amber !), Fable 41%.
+export const demo = { ...busy, limits: { ...busy.limits, week: { ...busy.limits.week, used: 52 } } };
+// The picture shows VS Code's rounded ends (line() draws ends: 'round'). Other terminals draw plain ends until
+// /juice use round ends turns them on; the README says so in a sentence, not in the picture.
+// A Claude Code window: title bar, optional chat lines, a prompt box and the juice line under it.
+export const WINDOW_CSS = `.win{display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;gap:10px;padding:16px 26px;background:var(--box);border-bottom:1.5px solid var(--line);font-size:22px;font-weight:600;color:var(--sub)}
+.bar i{width:14px;height:14px;border-radius:50%;background:var(--line)}.bar span{margin-left:14px}
+.bar em{font-style:normal;margin-left:auto;font-weight:400;font-size:20px}
+.chat{padding:22px 32px 6px;display:grid;gap:12px;font-size:24px;line-height:1.4}
+.chat .me{color:var(--sub)}.chat .me b{color:var(--accent);margin-right:12px}.chat .ai b{color:var(--accent);margin-right:12px}
+.prompt{margin:18px 32px 12px;border:1.5px solid var(--line);border-radius:10px;padding:14px 20px;font-size:24px;color:var(--sub)}
+.prompt b{color:var(--accent);margin-right:12px}
+.under{padding:2px 32px 22px}.under .term{font-size:22px}`;
+export const winBar = (title, hint = '') => `<div class="bar"><i></i><i></i><i></i><span>${title}</span>${hint ? `<em>${hint}</em>` : ''}</div>`;
+export const prompt = (text = '') => `<div class="prompt"><b>&gt;</b>${text}</div>`;

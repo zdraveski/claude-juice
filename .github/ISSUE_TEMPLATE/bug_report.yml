@@ -13,7 +13,7 @@ body:
     id: doctor
     attributes:
       label: What does /juice doctor say?
-      description: Type `/juice doctor` in Claude Code and paste everything it prints. It never shows your user name or your badge commands.
+      description: Type `/juice doctor` in Claude Code and paste everything it prints. It never shows your user name or your badge commands. If it says something is wrong, say what you did next.
       render: text
     validations:
       required: true

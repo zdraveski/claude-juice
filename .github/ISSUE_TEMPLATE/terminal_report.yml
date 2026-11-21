@@ -1,0 +1,53 @@
+name: Tested on my system
+description: Tell us juice works (or does not) in your terminal. Short reports like this help most.
+title: "Tested on: "
+labels: []
+body:
+  - type: dropdown
+    id: result
+    attributes:
+      label: Does it work?
+      options: [Works, Works with problems, Does not work]
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Computer
+      options: [Windows, Mac, Linux, Other]
+    validations:
+      required: true
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal
+      description: The program you run Claude Code in.
+      placeholder: e.g. Windows Terminal, macOS Terminal, iTerm2, GNOME Terminal, VS Code, Cursor
+    validations:
+      required: true
+  - type: input
+    id: shell
+    attributes:
+      label: Shell
+      placeholder: e.g. PowerShell, cmd, bash, zsh, fish
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Type `node --version` and `claude --version` in a terminal and paste both.
+      placeholder: e.g. Node v24.1.0, Claude Code 2.1.316
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: What does /juice doctor say?
+      description: Type `/juice doctor` in Claude Code and paste everything it prints. It never shows your user name or your badge commands.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: A screenshot of the status line helps. Say if colours or battery ends look wrong.

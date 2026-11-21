@@ -1,22 +1,58 @@
 # Privacy
 
-[← Back to juice](../README.md)
+[juice](../README.md) · [Guide](guide.md) · [Commands](commands.md) · [FAQ](faq.md) · [Badges](badges.md) · [Troubleshooting](troubleshooting.md) · [Privacy](privacy.md)
 
-juice reads your Claude login only for the Fable battery and sends it only to Anthropic. You are asked first, unless you already had the Fable battery before 1.4.0 on Windows or Linux. The details:
+- Read: your Claude login token, only for the Fable battery, and only after you say yes, unless you already had the Fable battery before 1.4.0 on Windows or Linux.
+- Sent: that token goes to `api.anthropic.com` and nowhere else.
+- Stored: your usage numbers. Never the token.
+- Analytics: none. juice sends nothing to its maker.
 
-- The Fable battery needs your Claude login token, the key Claude Code keeps on your computer to sign you in. juice reads it from `.credentials.json` in your Claude folder (`~/.claude`, or your `CLAUDE_CONFIG_DIR` folder), or on a Mac from the Keychain (the Mac's password store).
-- juice asks before it reads the token, on every system. `/juice setup` asks once, and `/juice set fable=on` or `/juice set fable=off` changes your answer later. If you used juice before 1.4.0 on Windows or Linux and already have a Fable battery, it stays on.
-- On a Mac, macOS also asks once for permission to read the token from the Keychain. If macOS asks more than once, or the battery doesn't appear within a few minutes, please [tell us](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) what `/juice doctor` says.
-- Share links and the customizer's command never turn the Fable battery on or off; only you do.
-- juice sends that token only to `api.anthropic.com`, to read your usage, about every 5 minutes. It never stores or logs it. juice keeps only your usage numbers, in `juice-cache/fable.json`.
-- If your login has expired, juice sends nothing and looks again in 5 minutes. If a check fails, it waits 15 minutes before the next one.
-- If `HTTPS_PROXY` (or `https_proxy`) is set, the proxy it names carries juice's connection to Anthropic, as it does for Claude Code.
-- Anthropic doesn't publish the usage address juice reads (`api.anthropic.com/api/oauth/usage`) for others to use, so it may stop working.
-- The same usage reading also keeps Session and Weekly up to date in every window, including idle ones and brand-new chats. With the Fable battery off, those two come only from Claude Code itself, so an idle window can show older numbers.
-- To switch the Fable battery off, run `/juice set fable=off`.
-- [Badges](badges.md) only run commands you added yourself with `/juice badges add`, after juice shows you the command. They see only basic environment variables, not your keys or tokens, unless you name one for a badge with `--env`.
-- juice keeps its files only in your Claude folder: your choices in `juice.json`, copies of your old status line in `juice-backup.json` (and any older `juice-backup-*.json`), its launcher in `juice-statusline.mjs`, and recent readings, badge results, the badge signing secret and the last error in `juice-cache`. While you have badges, `juice-cache` also keeps a copy of the details Claude Code gives the status line (folder, chat and cost), which badge commands read. juice deletes copies older than a week, and deletes them all when you remove your last badge. Besides that, `/juice setup` sets the status line in your `settings.json`. juice sends nothing to its maker and has no analytics.
-- To remove everything: run `/juice restore` to bring back your old status line, uninstall the plugin, then delete those files and the `juice-cache` folder.
-- Check it yourself: the token is read and sent in [src/fable.js](../src/fable.js); badges run in [src/badges.js](../src/badges.js).
+## The Fable battery and your login
 
-Questions about privacy: [open an issue](https://github.com/zdraveski/claude-juice/issues). To report a security problem privately, see [SECURITY.md](../SECURITY.md).
+The Fable battery needs your Claude login token, the key Claude Code keeps on your computer to sign you in. juice reads it from `.credentials.json` in your Claude folder (`~/.claude`, or your `CLAUDE_CONFIG_DIR` folder). On a Mac it reads it from the Keychain, the Mac's password store.
+
+- juice asks before it reads the token, on every system. `/juice setup` asks once. `/juice set fable=on` or `/juice set fable=off` changes your answer later.
+- Before 1.4.0, on Windows and Linux, juice read the token without asking. If you already had a Fable battery then, it stays on. Type `/juice set fable=off` to turn it off.
+- On a Mac, macOS also asks once for permission to read the token from the Keychain.
+- Share links and the customizer's command never turn the Fable battery on or off. Only you do.
+- juice sends the token only to `api.anthropic.com`, about every 5 minutes, to read your usage. It never stores or logs it. It keeps only your usage numbers, in `juice-cache/fable.json`.
+- If your login has expired, juice sends nothing and looks again in 5 minutes. If a check fails, it waits 15 minutes.
+- If `HTTPS_PROXY` (or `https_proxy`) is set, the proxy carries juice's connection to Anthropic, as it does for Claude Code.
+
+### If the Fable address changes
+
+Anthropic does not publish the usage address juice reads (`api.anthropic.com/api/oauth/usage`) for others to use, so it may stop working. Then the Fable battery disappears. Session and Weekly keep working, because Claude Code hands those to juice itself. `/juice doctor` reports it.
+
+With the Fable battery on, the same reading also keeps Session and Weekly current in every window, including idle ones and brand-new chats. With it off, an idle window can show older numbers.
+
+## Badges
+
+[Badges](badges.md) only run commands you added yourself with `/juice badges add`, after juice shows you the command. They see only basic environment variables, not your keys or tokens, unless you name one with `--env`.
+
+## Files juice keeps
+
+All of them live in your Claude folder.
+
+| File | What is in it |
+|---|---|
+| `juice.json` | Your choices and badge commands |
+| `juice-backup.json` | A copy of your old status line (and any older `juice-backup-....json`) |
+| `juice-statusline.mjs` | The launcher that runs juice |
+| `juice-cache` | Recent usage readings, badge results, the badge approval secret and the last error |
+
+While you have badges, `juice-cache` also keeps a copy of the details Claude Code gives the status line (folder, chat and cost), which badge commands read. juice deletes copies older than a week, and all of them when you remove your last badge.
+
+`/juice setup` also sets the status line in your `settings.json`.
+
+## Remove everything
+
+1. Run `/juice restore` to bring back your old status line.
+2. Uninstall the plugin.
+3. Delete the files above and the `juice-cache` folder.
+
+## Check it yourself
+
+- The token is read in `readToken` and sent in `fetchFable`, both in [src/fable.js](../src/fable.js).
+- Badges run in `run` in [src/badges.js](../src/badges.js).
+
+Questions or problems: [open an issue](https://github.com/zdraveski/claude-juice/issues). To report a security problem privately, see [SECURITY.md](../SECURITY.md).
