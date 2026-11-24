@@ -59,8 +59,9 @@ test('concurrent writers never expose a partial file', async () => {
   let finished = false, reads = 0;
   done.then(() => { finished = true; }, () => { finished = true; });
   while (!finished) {
-    const v = readJson(f);
-    if (v !== null) assert.equal(v.pad.length, 5000);
+    let text;
+    try { text = readFileSync(f, 'utf8'); } catch (e) { if (!/^(ENOENT|EPERM|EBUSY)$/.test(e.code)) throw e; } // not there yet, or mid-rename on Windows
+    if (text !== undefined) assert.equal(JSON.parse(text).pad.length, 5000); // a torn file is a SyntaxError here, not a skipped read
     reads++;
     await new Promise((r) => setTimeout(r, 1));
   }
@@ -160,7 +161,7 @@ test('a target that can never be replaced fails at once, even with the long wait
   const d = tmp(), target = join(d, 'dir.json');
   mkdirSync(target);
   const t0 = Date.now();
-  assert.throws(() => writeJsonAtomic(target, { a: 1 }));
+  assert.throws(() => writeJsonAtomic(target, { a: 1 }), { code: /^(EPERM|EACCES|EISDIR|EBUSY)$/ });
   assert.ok(Date.now() - t0 < 1500, `took ${Date.now() - t0} ms: it waited for the long retry (2.5 s) instead of failing at once`);
   assert.deepEqual(readdirSync(d).filter((n) => n.endsWith('.tmp')), []);
 });
@@ -207,7 +208,7 @@ test('hot-path writes fail fast and takeLock returns false instead of throwing',
   const d = tmp(), target = join(d, 'dir.json');
   mkdirSync(target); // renaming a file over a directory always fails
   const t0 = Date.now();
-  assert.throws(() => writeJsonAtomic(target, { a: 1 }, HOT_WRITE));
+  assert.throws(() => writeJsonAtomic(target, { a: 1 }, HOT_WRITE), { code: /^(EPERM|EACCES|EISDIR|EBUSY)$/ });
   assert.ok(Date.now() - t0 < 1500, `took ${Date.now() - t0} ms: a hot-path write must not wait for the long retry`);
   assert.deepEqual(readdirSync(d).filter((n) => n.endsWith('.tmp')), []);
   const p = paths({ CLAUDE_CONFIG_DIR: d });

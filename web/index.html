@@ -66,7 +66,7 @@ select{background:var(--panel);border:1px solid var(--line);border-radius:999px;
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .skip{position:absolute;left:16px;top:-80px;z-index:10;background:var(--clay);color:#1a0f0a;padding:10px 14px;border-radius:10px;font-weight:650;text-decoration:none}
 .skip:focus{top:8px}
-.skip2:focus{left:200px}
+.skip2:focus{left:16px;top:56px}
 #opts:focus{outline:none}
 .linknote{color:var(--warn);font-size:14px;margin:12px 0 0}
 /* The preview's options fold away under one button, so the sticky preview stays small. */
@@ -250,7 +250,7 @@ button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visi
       <div class="fld"><span class="lab">Your plan</span><div class="seg" role="group" aria-label="Plan" data-view="plan"><button data-v="pro">Pro</button><button data-v="max">Max</button><button data-v="payg">API key</button></div></div>
       <div class="fld"><label class="lab" for="model">Model</label><select id="model"><option value="Opus 5.5">Opus 5.5</option><option value="Sonnet 5.5">Sonnet 5.5</option><option value="Fable 5.1">Fable 5.1</option><option value="Haiku 5.5">Haiku 5.5</option></select></div>
       <div class="fld"><span class="lab">Window width</span><div class="seg" role="group" aria-label="Window width" data-view="width"><button data-v="small">Small</button><button data-v="medium">Medium</button><button data-v="wide">Wide</button></div></div>
-      <div class="fld"><span class="lab">Preview on</span><div class="seg" role="group" aria-label="Preview on" data-view="term"><button data-v="dark">Dark</button><button data-v="light">Light</button></div></div>
+      <div class="fld"><span class="lab">Preview on</span><div class="seg" role="group" aria-label="Preview on" data-view="term"><button data-v="dark">Dark</button><button data-v="light">Light</button></div><span class="hint" id="termfixed"></span></div>
       <div class="fld"><span class="lab">Preview with</span><div class="seg" role="group" aria-label="Preview with" data-view="state"><button data-v="quiet">Plenty left</button><button data-v="busy">Busy</button><button data-v="trouble">About to run out</button></div></div>
     </div>
     </details>
@@ -318,7 +318,7 @@ button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visi
       <p class="hint">Paste it into the Claude Code prompt and press Enter. Your status line changes straight away.</p>
     </div></div>
     <div class="tell">Or skip all this: type <code>/juice</code> in Claude Code and say what you want, for example <code class="ex">/juice hide the cost and make it a panel</code>. <code>/juice customize</code> opens this page with your current settings.</div>
-    <details><summary>Show the settings this command saves</summary><pre id="json"></pre></details>
+    <details><summary>Show all the settings</summary><pre id="json"></pre></details>
     <div class="foot"><span class="toast" id="toast" aria-live="polite"></span><span style="display:flex;flex-wrap:wrap;gap:8px;margin-left:auto"><button class="btn ghost" id="link" type="button">Copy link to these settings</button><button class="btn ghost" id="reset" type="button">Reset to default</button></span></div>
   </section>
 </div>

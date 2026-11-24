@@ -59,6 +59,8 @@ Badge commands run in the Windows command prompt (cmd), not Git Bash, so write t
 
 cmd's own commands, like `echo`, turn letters such as e with an accent into plain ones. Programs like `git` show them as they are.
 
+Windows no longer searches the project folder for commands, so a program in your project folder is not found unless you write its full path. cmd also cannot start in a UNC folder, such as `\\wsl.localhost\...` or a network share, so badges there start in `C:\Windows` and a command like `git branch --show-current` does not see your project. UNC project folders are not supported.
+
 ## Badges only run where you added them
 
 Badges run only on the computer where you added them. If you copy `juice.json` somewhere else, add each badge again there.

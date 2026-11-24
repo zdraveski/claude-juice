@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { paths } from '../src/paths.js';
 import { runStatusLine } from '../src/statusline.js';
 import { fixture } from './helpers.js';
-import { writeJsonAtomic, takeLock } from '../src/cache.js';
+import { writeJsonAtomic, takeLock, readJson } from '../src/cache.js';
 import { loadSettings, saveSettings } from '../src/settings.js';
 
 const busyText = JSON.stringify(fixture('busy'));
@@ -118,7 +118,7 @@ test('add, list and remove badges', () => {
   addBadge(p, 'echo hi');
   addBadge(p, 'echo yo');
   assert.deepEqual(listBadges(p), ['echo hi', 'echo yo']);
-  assert.throws(() => addBadge(p, ''), Error);
+  assert.throws(() => addBadge(p, ''), /1 to 500 characters/);
   assert.throws(() => addBadge(p, 'x'.repeat(501)), Error);
   removeBadge(p, 1);
   assert.deepEqual(listBadges(p), ['echo yo']);
@@ -134,7 +134,6 @@ test('removing the last badge deletes its saved outputs and session details', as
   await refreshBadges({ p, settings: loadSettings(p).settings, key: 'k', stdinText: '', runImpl: ok('HI') });
   writeFileSync(join(p.cacheDir, 'badges', 'k.stdin.json'), '{"session_id":"s"}');
   removeBadge(p, 1);
-  assert.ok(existsSync(join(p.cacheDir, 'badges', 'k.stdin.json')), 'one badge left, so its session details stay');
   removeBadge(p, 1);
   assert.equal(existsSync(join(p.cacheDir, 'badges')), false);
 });
@@ -199,7 +198,7 @@ test('timeout kills a hung grandchild and resolves promptly', async () => {
   assert.ok(Date.now() - t0 < 10000, `took ${Date.now() - t0}ms: it waited for the grandchild (20 s)`);
 });
 
-test('badges refresh again after 2.5 s, not after 1 s', async () => {
+test('badges refresh again after 6 s, not after 1 s', async () => {
   const dir = tmp().config;
   const calls = [];
   const go = (s) => runStatusLine({ stdinText: busyText, env: { CLAUDE_CONFIG_DIR: dir }, now: at(s), platform: 'darwin', spawnDetached: (a) => calls.push(a) });
@@ -207,7 +206,9 @@ test('badges refresh again after 2.5 s, not after 1 s', async () => {
   await go(0);
   await go(1);
   assert.equal(calls.length, 1);
-  await go(3);
+  await go(5);
+  assert.equal(calls.length, 1);
+  await go(7);
   assert.equal(calls.length, 2);
 });
 
@@ -244,7 +245,7 @@ test('a helper a badge starts in the background is stopped once the badge has pr
   const pid = Number(r.stdout.trim());
   assert.ok(pid > 0, r.stdout);
   const alive = () => { try { process.kill(pid, 0); return true; } catch { return false; } };
-  for (let i = 0; i < 20 && alive(); i++) await new Promise((res) => setTimeout(res, 50));
+  for (let i = 0; i < 100 && alive(); i++) await new Promise((res) => setTimeout(res, 50));
   assert.equal(alive(), false, 'the background sleep is gone');
 });
 
@@ -264,8 +265,16 @@ test('a badge runs in the folder Claude Code is in, not the refresher\'s own', a
 // A badge sees only what a shell and common tools need, so a pasted command can't read keys and tokens it was never meant to see.
 test('a badge gets only basic environment variables, plus the ones it was added with', () => {
   const env = { Path: '/bin', SystemRoot: 'C:\\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm', ANTHROPIC_API_KEY: 'k', GITHUB_TOKEN: 't', CLAUDE_CODE_OAUTH_TOKEN: 'o', GH_TOKEN: 'g', AWS_PROFILE: 'dev' };
-  assert.deepEqual(badgeEnv(env), { Path: '/bin', SystemRoot: 'C:\\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm' });
-  assert.deepEqual(badgeEnv(env, ['GH_TOKEN', 'AWS_PROFILE']), { Path: '/bin', SystemRoot: 'C:\\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm', GH_TOKEN: 'g', AWS_PROFILE: 'dev' });
+  assert.deepEqual(badgeEnv(env, [], 'linux'), { Path: '/bin', SystemRoot: 'C:\\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm' });
+  assert.deepEqual(badgeEnv(env, ['GH_TOKEN', 'AWS_PROFILE'], 'linux'), { Path: '/bin', SystemRoot: 'C:\\Windows', HOME: '/h', LC_ALL: 'C', TERM: 'xterm', GH_TOKEN: 'g', AWS_PROFILE: 'dev' });
+});
+
+// cmd.exe looks in the current folder before PATH, and a badge runs in the project folder: a git.bat planted in a cloned repo would run.
+test('on Windows a badge never runs a program from the folder it is in', () => {
+  const env = { PATH: 'p', GH_TOKEN: 'g', NoDefaultCurrentDirectoryInExePath: '0' };
+  assert.equal(badgeEnv(env, [], 'win32').NoDefaultCurrentDirectoryInExePath, '1');
+  assert.equal(badgeEnv(env, ['GH_TOKEN'], 'win32').NoDefaultCurrentDirectoryInExePath, '1');
+  assert.equal('NoDefaultCurrentDirectoryInExePath' in badgeEnv({ PATH: 'p' }, [], 'linux'), false);
 });
 
 test('refreshBadges gives each badge only its own extra variables', async () => {
@@ -273,7 +282,8 @@ test('refreshBadges gives each badge only its own extra variables', async () => 
   const settings = { badges: [approve(p, 'a'), { ...approve(p, 'b'), env: ['GH_TOKEN'] }] };
   const runImpl = async (command, { env }) => { seen[command] = env; return { ok: true, stdout: command }; };
   await refreshBadges({ p, settings, key: 'k', stdinText: '{}', runImpl, env: { PATH: '/bin', GH_TOKEN: 'g', GITHUB_TOKEN: 't' } });
-  assert.deepEqual(seen, { a: { PATH: '/bin' }, b: { PATH: '/bin', GH_TOKEN: 'g' } });
+  const win = process.platform === 'win32' ? { NoDefaultCurrentDirectoryInExePath: '1' } : {};
+  assert.deepEqual(seen, { a: { PATH: '/bin', ...win }, b: { PATH: '/bin', GH_TOKEN: 'g', ...win } });
 });
 
 test('the environment a badge is given is the one its command sees', async () => {
@@ -293,4 +303,39 @@ test('addBadge keeps valid extra variable names and updates them when the same c
   assert.deepEqual(loadSettings(p).settings.badges.map((b) => b.env), [undefined]);
   assert.equal(approved(p, loadSettings(p).settings.badges).length, 1);
   assert.throws(() => addBadge(p, 'x', ['BAD NAME']), /variable name/);
+});
+
+test('adding and removing a badge leaves entries this version cannot read, and their extra fields, as they are', () => {
+  const p = tmp();
+  const odd = { command: 5, x: 1 }, newer = { command: 'echo n', future: true };
+  saveSettings(p, { badges: [{ command: 'echo a' }, odd, newer] });
+  addBadge(p, 'echo b');
+  let raw = readJson(p.settingsFile).badges;
+  assert.deepEqual(raw.map((b) => b.command), ['echo a', 5, 'echo n', 'echo b']);
+  assert.deepEqual(raw[1], odd);
+  assert.equal(raw[2].future, true);
+  addBadge(p, 'echo n'); // approved where it stands; its other fields stay
+  raw = readJson(p.settingsFile).badges;
+  assert.equal(raw[2].future, true);
+  assert.ok(raw[2].sig);
+  removeBadge(p, 3); // the third badge juice can read, which is echo b
+  raw = readJson(p.settingsFile).badges;
+  assert.deepEqual(raw.map((b) => b.command), ['echo a', 5, 'echo n']);
+  assert.deepEqual(raw[1], odd);
+});
+
+test('removing a badge deletes the saved outputs even when another badge stays, since they hold the command text', async () => {
+  const p = tmp();
+  addBadge(p, 'echo hi');
+  addBadge(p, 'echo yo');
+  await refreshBadges({ p, settings: loadSettings(p).settings, key: 'k', stdinText: '', runImpl: ok('HI') });
+  removeBadge(p, 1);
+  assert.equal(existsSync(join(p.cacheDir, 'badges')), false);
+});
+
+test('killTree runs taskkill from System32, never found by bare name in the project folder', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/badges.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /spawn\('taskkill'/);
+  assert.match(src, /System32', 'taskkill\.exe'/);
 });

@@ -281,3 +281,11 @@ test('a reset time sent in milliseconds is not stretched a thousand times', () =
   s.rate_limits.five_hour.resets_at = (nowS + 7800) * 1000;
   assert.equal(normalize(s, {}, NOW).limits.session.resetsAt.getTime(), (nowS + 7800) * 1000);
 });
+
+test('a reset time of zero or below is unknown, not a window that already ended', () => {
+  const lim = (resets_at) => normalize({ rate_limits: { five_hour: { used_percentage: 95, resets_at } } }, {}, NOW).limits.session;
+  for (const r of [0, -5, '1970-01-01T00:00:00Z', '1969-06-01T00:00:00Z']) {
+    assert.equal(lim(r).resetsAt, null, String(r));
+    assert.equal(lim(r).used, 95, String(r));
+  }
+});

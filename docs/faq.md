@@ -44,7 +44,7 @@ juice runs in the terminal where you type `claude`, on Windows, macOS and Linux.
 
 ## Which Node and Claude Code versions do I need?
 
-Node 24 or newer. This is separate from Claude Code. Type `node --version` to check yours. Claude Code: juice was last tested by hand with 2.1.316 on Windows (juice 1.0.0). No older minimum is known.
+Node 24 or newer. This is separate from Claude Code. Type `node --version` to check yours. Claude Code: juice was tested by hand when 1.0.0 shipped, with 2.1.316 on Windows; CI tests every release on Windows, macOS and Linux. No older minimum is known.
 
 ## How do I update or remove it?
 

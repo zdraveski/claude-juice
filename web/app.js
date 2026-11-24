@@ -34,7 +34,7 @@ const DETAILS = [
   ['battery', 'Battery style', 'How the batteries are drawn, or a shape instead. Classic is the old flat look', [['glossy', 'Glossy'], ['classic', 'Classic'], ['outline', 'Outline'], ['hot', 'Hot tip'], ['liquid', 'Liquid edge'], ['pace', 'Pace glow'],
     ['pie', 'Pie'], ['sand', 'Sand'], ['slider', 'Slider'], ['race', 'Pace race'], ['lives', 'Lives'], ['dots', 'Dots'], ['chevrons', 'Chevrons'], ['ruler', 'Ruler']]],
   ['refills', 'Reset times', 'Always show them, or only when something needs attention', [['always', 'Always'], ['warnings', 'Only when needed']]],
-  ['motion', 'Motion', 'Still draws once. Animated redraws every second and uses about one sixth of a CPU core per open window.', [['off', 'Still'], ['on', 'Animated']]],
+  ['motion', 'Motion', 'Still draws once. Animated redraws every second and uses about one sixth of a CPU core per open window. The preview stays still; the real line climbs.', [['off', 'Still'], ['on', 'Animated']]],
   // Without this the copied command can't fix dark colours on a light terminal: the Dark/Light switch above only changes the preview.
   ['terminal', "Your terminal's theme", 'Automatic follows Claude Code’s theme. Pick Light if the text is hard to read on a light background', [['auto', 'Automatic'], ['dark', 'Dark'], ['light', 'Light']]],
 ];
@@ -140,6 +140,9 @@ $('details').innerHTML = DETAILS.map(([k, t, d, opts]) => `<div class="drow"><di
 function preview() {
   // A chosen terminal colour wins, as in the real line (terminal.js): the preview's Dark/Light only stands in for Automatic.
   if (s.terminal !== 'auto') view.term = s.terminal;
+  const fixed = s.terminal !== 'auto'; // so the Dark/Light switch says why it does nothing
+  document.querySelectorAll('[data-view=term] button').forEach((b) => { b.disabled = fixed; b.setAttribute('aria-disabled', fixed); });
+  $('termfixed').textContent = fixed ? "Fixed by Your terminal's theme below" : '';
   const cols = WIDTHS[view.width], p = peek(view.hover);
   const { text, dropped } = drawn(p?.id && LOOK[p.id] === p ? applySet(s, [`look=${p.id}`]).settings : { ...s, ...p?.set }, cols);
   $('out').innerHTML = ansiToHtml(text, NEUTRAL[view.term].fg);
@@ -235,7 +238,7 @@ const done = (b) => {
   b.dataset.label ??= b.textContent; b.textContent = 'Copied'; b.dataset.done = '';
   clearTimeout(b.timer); b.timer = setTimeout(() => { b.textContent = b.dataset.label; delete b.dataset.done; b.style.minWidth = ''; }, 1600);
 };
-const copy = (t, ok, b) => (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { toast(ok); done(b); }, () => toast('Could not copy. Select the command and copy it by hand.'));
+const copy = (t, ok, b, fail = 'Could not copy. Select the command and copy it by hand.') => (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { toast(ok); done(b); }, () => toast(fail));
 function move(k, dir) {
   const i = order.indexOf(k), j = i + dir;
   if (j < 0 || j >= order.length) return;
@@ -268,7 +271,7 @@ document.addEventListener('click', (e) => {
   }
   else if (t.closest('[data-view]')) { view[t.closest('[data-view]').dataset.view] = t.dataset.v; say(`${t.textContent.trim()} chosen`); }
   else if (t.dataset.copy) return copy($(t.dataset.copy).textContent, 'Copied. Paste it into Claude Code and press Enter.', t);
-  else if (t.id === 'link') { flush(); return copy(location.href, 'Link copied. Anyone who opens it gets these settings.', t); }
+  else if (t.id === 'link') { flush(); return copy(location.href, 'Link copied. Anyone who opens it gets these settings.', t, 'Could not copy. Copy the address from the address bar.'); }
   else if (t.id === 'reset') { adopt(sanitize({}, { allowBadges: false }).settings); buildShow(); view.terminalChosen = view.motionChosen = false; view.term = 'dark'; view.hover = null; toast('Back to the default look.'); say('Back to the default look'); }
   else return;
   update();

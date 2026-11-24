@@ -119,7 +119,7 @@ export function batterySeg(ctx, pct, level, n = 5) {
   pct = climb(ctx, pct, level);
   const lit = pct > 0 ? Math.max(1, Math.round(pct / (100 / n))) : 0;
   let s = '';
-  for (let i = 0; i < n; i++) s += bg(ctx.P.casing, i < lit ? fg(tone(ctx, level), '▊') : fg(ctx.P.segOff, ctx.mono ? OFF : '▊'));
+  for (let i = 0; i < n; i++) s += bg(ctx.P.casing, i < lit ? fg(tone(ctx, level), '▊') : fg(ctx.P.segOff, ctx.mono || ctx.settings.colors === 'terminal' ? OFF : '▊')); // the terminal's 16 colours put segOff and casing in one slot (mute too), so the shape tells
   return (ctx.round ? fg(ctx.P.casing, CAP_L) : '') + bg(ctx.P.casing, ' ') + s + (ctx.round ? fg(ctx.P.casing, CAP_R) : '') + fg(ctx.P.nub, '■');
 }
 

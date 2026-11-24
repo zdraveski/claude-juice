@@ -2,6 +2,25 @@
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.5.1 (2026-11-24)
+
+[Changes since 1.5.0](https://github.com/zdraveski/claude-juice/compare/v1.5.0...v1.5.1)
+
+Fixed:
+- On Windows, a badge no longer runs a program of the same name from the project folder, so a `git.bat` in a cloned repo cannot take the place of git. Stopping a stuck badge runs Windows' own `taskkill`, never one from the project folder.
+- Adding or removing a badge keeps entries juice cannot read and any extra fields in `juice.json`, instead of dropping them.
+- Removing a badge now deletes the saved badge outputs at once, even when other badges stay, since they hold the command text.
+- Badges refresh again after 6 seconds, and a lock file that cannot be read no longer loses the drawn line. A badge that fails to load costs only the badges.
+- On a Mac, a refused Keychain read is told apart from a missing login. juice backs off for about 12 hours instead of asking again, and `/juice doctor` says access was denied and how to retry sooner.
+- An empty `juice.json` is treated as missing, so `/juice set` works and Fable is not switched off. Settings written through a symlink keep the link.
+- A saved status line backup that is damaged is never written into `settings.json`.
+- `juice help`, `--help` and `-h` print the usage.
+- A reset time of zero or below is unknown, not a window that already ended.
+- Warnings that quote a value from a file are cut to one short line, so a hostile `juice.json` cannot push text into Claude's context.
+- The saved error hides whole paths, even folders with spaces, and a run that works clears the error an earlier run left.
+- With `colors=terminal`, an unlit battery segment differs from the casing by shape, so it shows without colour.
+- Docs: the colour set count is 14, the "last tested" line says when it was tested, and the notes on `show`, `--env`, Windows badges, Keychain denial and quotes in badge commands are corrected.
+
 ## 1.5.0 (2026-11-22)
 
 [Changes since 1.4.3](https://github.com/zdraveski/claude-juice/compare/v1.4.3...v1.5.0)

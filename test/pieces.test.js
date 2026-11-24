@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { strip } from './helpers.js';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { fg, vis, inkOn, contrast, mix, to256 } from '../src/render/ansi.js';
+import { fg, vis, inkOn, contrast, mix, to256, to16 } from '../src/render/ansi.js';
 import { DEFAULTS, PRESET_IDS, BATTERY_IDS, FORM_IDS } from '../src/schema.js';
 import { PRESETS, NEUTRAL, palette, makeCtx } from '../src/render/palette.js';
 import { battery, batteryPct, batterySeg, batteryLow, ramp, chip, form, CLIMB_MS } from '../src/render/pieces.js';
@@ -535,4 +535,12 @@ test('forms: an empty or full run sends no empty colour codes', () => {
 
 test('forms: the unused part stands out from the background in every theme', () => {
   for (const theme of ['dark', 'light']) assert.ok(contrast(sk('dots', theme).P.mute, NEUTRAL[theme].bg) >= 3, theme);
+});
+
+test('batterySeg: with the terminal colour set, an unlit segment differs from the casing by shape', () => {
+  for (const theme of ['dark', 'light']) {
+    const ctx = makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'segments', colors: 'terminal' }, { theme, ends: 'plain' });
+    // 16 colours put the unlit colour and the casing in one slot, so only the glyph can tell lit from unlit.
+    assert.equal(strip(to16(batterySeg(ctx, 20, 'ok'), theme === 'dark')).replace(/[ ■]/g, ''), '▊░░░░', theme);
+  }
 });

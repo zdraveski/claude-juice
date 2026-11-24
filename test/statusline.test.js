@@ -177,3 +177,26 @@ test('launcher picks the highest version, or the pinned one', async () => {
   assert.equal(turnedOff(dir, 'other'), false);
   assert.equal(turnedOff(dir, null), false, 'a pinned dev install has no marketplace to check');
 });
+
+const failWith = async (message) => {
+  const { dir } = setup();
+  await runStatusLine({ stdinText: busy, env: { CLAUDE_CONFIG_DIR: dir }, now: { getTime() { throw new Error(message); } }, platform: 'linux', spawnDetached() {} });
+  return { dir, saved: JSON.parse(readFileSync(join(dir, 'juice-cache', 'last-error.json'), 'utf8')) };
+};
+
+test('the saved error hides whole paths, even folders with spaces in their names', async () => {
+  const win = (await failWith(String.raw`ENOENT: open 'D:\My Stuff\Jane Doe\.claude\x.json'`)).saved.message;
+  assert.doesNotMatch(win, /Jane|Stuff/);
+  const posix = (await failWith('ENOENT: open "/mnt/jane doe/proj dir/.claude/x.json"')).saved.message;
+  assert.doesNotMatch(posix, /jane|proj/);
+  assert.equal((await failWith('Unexpected token / in JSON at position 4')).saved.message, 'Unexpected token / in JSON at position 4');
+});
+
+test('a run that works clears the error an earlier run left', async () => {
+  const { dir, run } = setup();
+  const file = join(dir, 'juice-cache', 'last-error.json');
+  mkdirSync(join(dir, 'juice-cache'), { recursive: true });
+  writeFileSync(file, JSON.stringify({ at: Date.now(), message: 'old' }));
+  await run(busy);
+  assert.equal(existsSync(file), false);
+});

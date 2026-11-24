@@ -18,7 +18,7 @@ Type `/juice` in Claude Code, then a command or plain words. `/juice` is a Claud
 | `/juice restore` | Puts your old status line back. | `/juice restore` |
 | `/juice doctor` | Checks Node, your settings and what could hide the line, and says what to fix. | `/juice doctor` |
 | `/juice badges list` | Lists your badges. `--show` prints the full commands. | `/juice badges list` |
-| `/juice badges add` | Adds a badge. It shows the command and asks first. | `/juice badges add 'git branch --show-current'` |
+| `/juice badges add` | Adds a badge. It shows the command and asks first. Add `--env NAME,NAME` after the command to let it see those variables (see [Badges](badges.md)). | `/juice badges add 'git branch --show-current'` |
 | `/juice badges remove <number>` | Removes a badge. It asks first. | `/juice badges remove 1` |
 
 In plain words, the same things work: `/juice use the quiet look`, `/juice hide the cost`, `/juice my terminal is light`. Badges are covered in [Badges](badges.md).
@@ -53,4 +53,4 @@ Notes:
 - `fable=on` reads your Claude login. See [Privacy](privacy.md). Only you can turn it on, with `/juice set`. A shared customizer link never does.
 - Battery styles draw only in the `bar` and `focus` layouts.
 - `truecolor` forces full colour on or off for terminals that report it wrongly.
-- `/juice set` with a value juice cannot use changes nothing and says why.
+- `/juice set` with a value juice cannot use changes nothing and says why. A `show` list with one wrong name keeps the right names and says which one it left out.

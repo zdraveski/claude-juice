@@ -22,7 +22,7 @@ once and under whatever version number `main` says. So:
 
 - [ ] `node --test` passes, and GitHub's run for the release commit is green on all 7.
 - [ ] `node scripts/e2e.mjs` passes (GitHub runs it after the tests; it uses a fake home and never touches yours). A changed default, message or step it checks needs it changed too.
-- [ ] `node scripts/check-customizer.js` passes every browser check (needs Playwright: `npm i -g playwright`; GitHub runs it too, as `customizer`).
+- [ ] `node scripts/check-customizer.js` passes every browser check and does not print SKIPPED (needs Playwright: `npm i -g playwright`; GitHub runs it too, as `customizer`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
 - [ ] The pinned Playwright in `.github/workflows/test.yml` (`npm i -g playwright@...`) is bumped when it ages (dependabot can't see it): bump it, and check the customizer job is still green.
 - [ ] If a look, layout, colour set, the drawing in `src/render`, the sample numbers in `src/samples.js` or the customizer page in `web/` changed since the last release, rebuild the pictures in `docs/images` (`node scripts/pictures/readme.mjs`, plus `hero-features.mjs` and `customizer.mjs` there for the hero, features, button and customizer; they need Playwright, ffmpeg and the network, for Google Fonts) so the README and `docs/guide.md` show what juice draws now. Their alt texts spell out those numbers (64%, 47%, 50%, Road trip's 36% and 53%, Sat 7:20 PM, ~2:33 PM): check they still match the new pictures. If the hero changed, upload `docs/images/hero.png` as the repo's social preview too (Settings, General).

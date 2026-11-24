@@ -83,7 +83,9 @@ const CHECK = {
   },
 };
 
-const show = (v) => (typeof v === 'string' ? `'${v}'` : isObj(v) ? 'your own colours' : JSON.stringify(v)); // only colours is an object
+// A warning reaches Claude's context: a value from a file can't carry a sentence in, so it is one short line.
+const short = (s) => { const t = String(s).replace(/[\u0000-\u001f\u007f-\u009f\s]+/g, ' ').trim(); return t.length > 30 ? `${t.slice(0, 30)}...` : t; };
+const show = (v) => (typeof v === 'string' ? `'${short(v)}'` : isObj(v) ? 'your own colours' : short(JSON.stringify(v))); // only colours is an object
 // The right values, from the same table that checks them (show has its own, longer warning).
 const valid = (key) => key === 'colors' ? `Use one of: ${PRESET_IDS.join(', ')}. Or your own: dark:a,b,c,d/light:a,b,c,d, each a 6-digit hex colour like #22c55e (${COLOR_KEYS.join(', ')} in that order).`
   : CHECK[key].ids ? `Use one of: ${CHECK[key].ids.join(', ')}.` : '';
@@ -157,7 +159,7 @@ export function applySet(settings, pairs) {
         // A look without a battery undoes any battery a look can set (sand), even one picked by hand; every other battery style stays.
         if (!('battery' in l.set) && LOOKS.some((x) => x.set.battery === next.battery)) put('battery', DEFAULTS.battery);
       }
-      else warnings.push(`look: '${typed}' isn't a look. Use one of: ${LOOKS.map((x) => x.id).join(', ')}.`);
+      else warnings.push(`look: ${show(typed)} isn't a look. Use one of: ${LOOKS.map((x) => x.id).join(', ')}.`);
       continue;
     }
     if (!Object.hasOwn(CHECK, key)) { warnings.push(`${pair}: not a setting`); continue; }
@@ -165,7 +167,7 @@ export function applySet(settings, pairs) {
     const v = CHECK[key](parsed);
     if (v === undefined) {
       // Plain words, not JSON: "sesion,weekly" gets the list of right names (Weekly is "week").
-      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: '${typed}' isn't valid, keeping ${show(next[key])}. ${valid(key)}${key === 'colors' && text.includes(':') ? '' : NEWER}`);
+      warnings.push(key === 'show' ? showWarning(unknownShow(parsed), 'so nothing changed') : `${key}: ${show(typed)} isn't valid, keeping ${show(next[key])}. ${valid(key)}${key === 'colors' && text.includes(':') ? '' : NEWER}`);
       continue;
     }
     if (key === 'show' && unknownShow(parsed).length) warnings.push(showWarning(unknownShow(parsed)));

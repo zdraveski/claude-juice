@@ -340,3 +340,9 @@ test('unknown values mention updating juice; junk settings never print "undefine
     assert.doesNotMatch(w, /undefined/);
   }
 });
+
+test('a value in a warning is one short line', () => {
+  const w = sanitize({ layout: `a\nb\u001b[31m${'z'.repeat(100)}` }, { allowBadges: false }).warnings[0];
+  assert.doesNotMatch(w, /[\u0000-\u001f]|z{30}/);
+  assert.match(w, /^layout: 'a b \[31mz+\.\.\.' isn't valid/);
+});
