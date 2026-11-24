@@ -5,7 +5,8 @@ import { render } from '../src/render/index.js';
 import { DEFAULTS, SHOW_IDS, LOOKS } from '../src/schema.js';
 import { SAMPLES } from '../src/samples.js';
 
-const text = (html) => html.replace(/<[^>]*>/g, '');
+// The visible text: what sits between the tags.
+const text = (html) => [...html.matchAll(/>([^<]*)</g)].map((m) => m[1]).join('');
 // Block cells, the pace tick and the round ends: the customizer draws these itself, never with the browser's font.
 const DRAWN = /[▁-▏│]/;
 
