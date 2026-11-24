@@ -9,7 +9,7 @@ import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
 import { refreshFable } from './fable.js';
-import { refreshBadges, addBadge, checkEnv, listBadges, removeBadge, unapprovedBadges } from './badges.js';
+import { refreshBadges, addBadge, checkEnv, listBadges, badgeList, removeBadge } from './badges.js';
 import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm, Unreadable } from './setup.js';
 
 const ROOT = new URL('..', import.meta.url);
@@ -109,9 +109,8 @@ export async function main(argv, io) {
           // A --env anywhere else (no names after it, or names split by a space) would end up inside the command.
           if (rest.slice(0, at).includes('--env')) { io.err('Put the names right after --env, joined by commas with no spaces, for example: --env HTTPS_PROXY,NO_PROXY'); return 1; }
           try { checkEnv(env); } catch (e) { io.err(e.message); return 1; }
-          const saved = loadSettings(p).settings.badges, l = saved.map((b) => b.command), off = unapprovedBadges(p);
-          const mine = l.findIndex((c, i) => c === command && !off.includes(i + 1));
-          const was = saved[mine]?.env ?? [];
+          const list = badgeList(p), mine = (list.find((b) => b.command === command)?.first ?? 0) - 1;
+          const was = list[mine]?.env ?? [];
           if (mine >= 0 && was.join(',') === env.join(',')) { io.out(`That badge is already there, as badge ${mine + 1}.`); return 0; }
           const sees = env.length ? `also see ${env.join(', ')}` : 'see only the basic environment variables';
           if (!yes) {
@@ -123,23 +122,18 @@ export async function main(argv, io) {
           }
           addBadge(p, command, env);
           io.out(mine >= 0 ? `Updated badge ${mine + 1}: it will now ${sees}.`
-            : off.some((n) => l[n - 1] === command) ? `Approved badge: ${command}` : `Added badge: ${command}`);
+            : list.some((b) => b.command === command) ? `Approved badge: ${command}` : `Added badge: ${command}`);
           return 0;
         }
         if (sub === 'list') {
-          const l = listBadges(p), off = unapprovedBadges(p);
+          const list = badgeList(p);
           const name = (c) => (all.includes('--show') ? strip(c) : hidden(c));
-          const why = (c, i) => {
-            if (!off.includes(i + 1)) {
-              const first = l.findIndex((d, j) => d === c && !off.includes(j + 1)) + 1; // 1.4.0 could approve the same badge twice
-              return first !== i + 1 ? ` (a second copy of badge ${first}: remove it)` : '';
-            }
-            const twin = l.findIndex((d, j) => d === c && !off.includes(j + 1)) + 1; // 1.4.0 added a second copy instead of approving
-            return twin ? ` (a copy of badge ${twin} that never runs: remove it)` : ' (not approved on this computer, so it never runs: add the same command again to approve it)';
-          };
+          const why = (b, n) => (b.approved ? (b.first !== n ? ` (a second copy of badge ${b.first}: remove it)` : '')
+            : b.first ? ` (a copy of badge ${b.first} that never runs: remove it)`
+              : ' (not approved on this computer, so it never runs: add the same command again to approve it)');
           // Names only, never values, so this is safe in the chat.
-          const env = loadSettings(p).settings.badges.map((b) => (b.env ? ` (also sees ${b.env.join(', ')})` : ''));
-          io.out(l.length ? l.map((c, i) => `${i + 1}. ${name(c)}${env[i] ?? ''}${why(c, i)}`).join('\n') : 'No badges.');
+          const env = (b) => (b.env.length ? ` (also sees ${b.env.join(', ')})` : '');
+          io.out(list.length ? list.map((b, i) => `${i + 1}. ${name(b.command)}${env(b)}${why(b, i + 1)}`).join('\n') : 'No badges.');
           loadSettings(p).warnings.forEach((w) => io.out(`Warning: ${w}`));
           return 0;
         }
