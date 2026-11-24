@@ -1,14 +1,15 @@
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paths, hideHome } from './paths.js';
 import { readJson } from './cache.js';
 import { loadSettings, saveSettings } from './settings.js';
-import { applySet, encodeLink, fableEnabled, CUSTOMIZER_URL, LOOKS, NOTHING_SHOWN } from './schema.js';
+import { applySet, encodeLink, CUSTOMIZER_URL, LOOKS, NOTHING_SHOWN } from './schema.js';
 import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
 import { refreshFable } from './fable.js';
+import { readFetched } from './fetched.js';
 import { refreshBadges, addBadge, checkEnv, listBadges, badgeList, removeBadge } from './badges.js';
 import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm, Unreadable } from './setup.js';
 
@@ -66,7 +67,7 @@ export async function main(argv, io) {
         const { settings: { badges, ...rest }, warnings } = loadSettings(p);
         // The /juice skill runs get before every change, so badge commands (which can hold keys) never go in here.
         // fableOn tells the skill whether to ask before setup reads the login.
-        const fableOn = fableEnabled(rest.fable, io.platform, existsSync(p.fableFile));
+        const fableOn = readFetched(p, rest.fable, io.platform, io.now).on;
         io.out(JSON.stringify({ ...rest, fableOn, badges: badges.length }, null, 2));
         warnings.forEach((w) => io.out(`Warning: ${w}`)); // an unreadable juice.json must not pass for the defaults
         return 0;
@@ -151,7 +152,7 @@ export async function main(argv, io) {
       }
       case 'refresh-fable': {
         const { settings } = loadSettings(p);
-        if (fableEnabled(settings.fable, io.platform, existsSync(p.fableFile))) {
+        if (readFetched(p, settings.fable, io.platform, io.now).on) {
           await refreshFable({ p, platform: io.platform, env: io.env, now: io.now, version: version() });
         }
         return 0;

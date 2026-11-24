@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
 import { BACKOFF_MS, DENIED_MS, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS } from './readings.js';
+import { FRESH_MS } from './fetched.js';
 
 // Claude Code's own name for the Keychain entry: with CLAUDE_CONFIG_DIR (or its storage override) set, each
 // config folder has its own login, named after a hash of the folder. The plain name would be another account's.
@@ -76,8 +77,8 @@ export async function fetchFable(token, fetchImpl, version, timeoutMs = FETCH_TI
 }
 
 // Claude Code renews an expired login on its next request, so look again soon rather than in 15 minutes. Not sooner
-// than a working login is asked (5 minutes): an idle window's login stays expired, and each look starts a process.
-const EXPIRED_MS = 300000;
+// than a working login is asked (FRESH_MS): an idle window's login stays expired, and each look starts a process.
+const EXPIRED_MS = FRESH_MS;
 
 export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fetch, execFileSync = realExec, now, version }) {
   const t = +now; // accepts a Date or epoch ms

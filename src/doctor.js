@@ -6,14 +6,14 @@ import { existsSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { readJson } from './cache.js';
 import { loadSettings } from './settings.js';
-import { fableEnabled, NOTHING_SHOWN } from './schema.js';
+import { NOTHING_SHOWN } from './schema.js';
 import { detectTerminal, readClaudeTheme } from './terminal.js';
 import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 import { LABELS } from './render/words.js';
 import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
-import { fableCacheState, fetchedCounts } from './readings.js';
+import { readFetched } from './fetched.js';
 import { recall } from './lastseen.js';
 import { isJuice, runsLauncher, overrides, readClaudeSettings, Unreadable, refreshes, refreshFor, refreshWords, constant, readText, fwd } from './setup.js';
 import { hideHome } from './paths.js';
@@ -117,25 +117,26 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
   const seen = recall(p)?.subscriberSeenAt;
   out.push(info(!Number.isFinite(seen) ? "Hasn't seen plan limits yet: they show after Claude's first reply. With an API key there are none."
     : t - seen < 3600000 ? "Saw your plan's limits within the last hour" : `Last saw your plan's limits ${ago(t - seen)}`));
-  if (!fableEnabled(mine.fable, platform, existsSync(p.fableFile))) {
+  const fetched = readFetched(p, mine.fable, platform, now);
+  if (!fetched.on) {
     out.push(info(mine.fable === 'off' ? 'Fable battery: turned off.'
       : platform === 'darwin' ? 'Fable battery: off on a Mac until you type /juice set fable=on, because macOS asks permission to read your sign-in.'
       : 'Fable battery: off until you turn it on with /juice set fable=on, which lets juice read your Claude login.'));
   } else {
-    const f = readJson(p.fableFile);
-    if (fableCacheState(f, t).backedOff) {
+    const { failed, checkedAt } = fetched;
+    if (failed) {
       // Behind a company proxy (HTTPS_PROXY), Node's fetch reaches Anthropic only from Node 24 on.
-      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && Number(node.split('.')[0]) < 24 && [undefined, 'offline'].includes(f.why);
+      const proxyBlocks = (env.HTTPS_PROXY || env.https_proxy) && Number(node.split('.')[0]) < 24 && [undefined, 'offline'].includes(failed.why);
       const advice = proxyBlocks ? `You're behind a company proxy, which juice can only get through with Node 24 or newer (this is ${node}): install the newest from nodejs.org.`
-        : f.why === 'expired' ? 'Your Claude sign-in was due for renewal; Claude Code renews it on your next message, and juice picks it up after that.'
-        : f.why === 'busy' ? "Anthropic's server was busy; nothing to do."
-        : f.why === 'denied' ? 'macOS Keychain access was denied; run /juice set fable=off or allow it. juice asks again after about 12 hours; to retry at once, delete fable-cache.json in the juice cache folder.'
-        : f.why === 'changed' ? "Anthropic's answer wasn't what juice expects. If it lasts a day, tell us at https://github.com/zdraveski/claude-juice/issues."
-        : f.why === 'offline' ? "juice couldn't reach Anthropic: check you're online. Behind a company proxy, set HTTPS_PROXY (and NODE_EXTRA_CA_CERTS if it checks secure connections)."
+        : failed.why === 'expired' ? 'Your Claude sign-in was due for renewal; Claude Code renews it on your next message, and juice picks it up after that.'
+        : failed.why === 'busy' ? "Anthropic's server was busy; nothing to do."
+        : failed.why === 'denied' ? 'macOS Keychain access was denied; run /juice set fable=off or allow it. juice asks again after about 12 hours; to retry at once, delete fable-cache.json in the juice cache folder.'
+        : failed.why === 'changed' ? "Anthropic's answer wasn't what juice expects. If it lasts a day, tell us at https://github.com/zdraveski/claude-juice/issues."
+        : failed.why === 'offline' ? "juice couldn't reach Anthropic: check you're online. Behind a company proxy, set HTTPS_PROXY (and NODE_EXTRA_CA_CERTS if it checks secure connections)."
         : 'If it keeps failing, type /login to sign in to Claude Code again.';
-      out.push(bad(`Fable battery: the last check failed; juice tries again in ${Math.ceil((f.backoffUntil - t) / 60000)} min. ${advice}`));
-    } else out.push(info(fetchedCounts(f?.fetchedAt, now) ? `Fable battery: last checked ${ago(t - f.fetchedAt)}`
-      : f?.fetchedAt ? 'Fable battery: not checked in the last hour; juice asks again soon.'
+      out.push(bad(`Fable battery: the last check failed; juice tries again in ${Math.ceil((failed.retryAt.getTime() - t) / 60000)} min. ${advice}`));
+    } else out.push(info(fetched.reading ? `Fable battery: last checked ${ago(t - checkedAt.getTime())}`
+      : checkedAt ? 'Fable battery: not checked in the last hour; juice asks again soon.'
       : 'Fable battery: not checked yet. juice asks in the background for plan subscribers.'));
   }
 

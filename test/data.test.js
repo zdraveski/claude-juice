@@ -118,22 +118,22 @@ test('spend_limit without used_percentage omits budget', () => {
   assert.equal(normalize(s, {}, NOW).limits.budget, undefined);
 });
 
-test('fable only when fresh', () => {
+// How old a fetched reading may be is readFetched's rule (test/fetched.test.js): here it arrives already counting.
+test('fable only from a fetched reading', () => {
   const iso = new Date(NOW.getTime() + 86400000).toISOString();
-  const f = (ago) => ({ used: 41, resetsAt: iso, fetchedAt: NOW.getTime() - ago });
-  const d = normalize(fixture('busy'), { fable: f(30 * 60000) }, NOW);
+  const d = normalize(fixture('busy'), { fetched: { fable: { used: 41, resetsAt: iso } } }, NOW);
   assert.equal(d.limits.fable.used, 41);
   assert.equal(d.limits.fable.windowSec, 604800);
   assert.equal(d.limits.fable.resetsAt.toISOString(), iso);
-  assert.equal(normalize(fixture('busy'), { fable: f(2 * 3600000) }, NOW).limits.fable, undefined);
+  assert.equal(normalize(fixture('busy'), {}, NOW).limits.fable, undefined);
 });
 
-// Live usage from Anthropic (cached next to the Fable number) keeps idle and brand-new windows current.
+// Live usage from Anthropic (fetched next to the Fable number) keeps idle and brand-new windows current.
 const iso = (s) => new Date((nowS + s) * 1000 + 300).toISOString(); // a few hundred ms off, like the real service
-const live = (session, week, ago = 60000) => ({ fetchedAt: NOW.getTime() - ago, session, week });
+const live = (session, week) => ({ session, week });
 
 test('live usage: in the same window the higher reading wins', () => {
-  const d = normalize(fixture('busy'), { fable: live({ used: 60, resetsAt: iso(7800) }, { used: 40, resetsAt: iso(277200) }) }, NOW);
+  const d = normalize(fixture('busy'), { fetched: live({ used: 60, resetsAt: iso(7800) }, { used: 40, resetsAt: iso(277200) }) }, NOW);
   assert.equal(d.limits.session.used, 60);
   assert.equal(d.limits.week.used, 50);
 });
@@ -141,7 +141,7 @@ test('live usage: in the same window the higher reading wins', () => {
 test('live usage: a newer window wins even with a lower number, once ours has ended', () => {
   const s = fixture('busy');
   s.rate_limits.five_hour.resets_at = nowS - 60; // an idle window still showing the window that just ended
-  const d = normalize(s, { fable: live({ used: 3, resetsAt: iso(18000 - 60) }) }, NOW);
+  const d = normalize(s, { fetched: live({ used: 3, resetsAt: iso(18000 - 60) }) }, NOW);
   assert.equal(d.limits.session.used, 3);
   assert.equal(d.limits.session.windowSec, 18000);
 });
@@ -149,38 +149,34 @@ test('live usage: a newer window wins even with a lower number, once ours has en
 test('live usage: at the reset, a window one source says still runs is not shown as reset', () => {
   const s = fixture('busy');
   s.rate_limits.five_hour = { used_percentage: 28, resets_at: nowS }; // this window says it resets right now
-  const d = normalize(s, { fable: live({ used: 28, resetsAt: iso(6) }) }, NOW); // the service: 6 seconds more
+  const d = normalize(s, { fetched: live({ used: 28, resetsAt: iso(6) }) }, NOW); // the service: 6 seconds more
   assert.equal(d.limits.session.used, 28);
   assert.ok(d.limits.session.resetsAt > NOW, 'not drawn as refilled while the service still counts it');
 });
 
 test('live usage from another window while ours is still running is another account, so ours stays', () => {
-  const d = normalize(fixture('busy'), { fable: live({ used: 80, resetsAt: iso(7800 + 9000) }, { used: 70, resetsAt: iso(500000) }) }, NOW);
+  const d = normalize(fixture('busy'), { fetched: live({ used: 80, resetsAt: iso(7800 + 9000) }, { used: 70, resetsAt: iso(500000) }) }, NOW);
   assert.equal(d.limits.session.used, 47);
   assert.equal(d.limits.week.used, 50);
 });
 
 test('a new chat with no numbers yet shows live usage', () => {
-  const d = normalize(newChat(), { lastSeen: seen(), fable: live({ used: 33, resetsAt: iso(3600) }, { used: 25, resetsAt: iso(86400) }) }, NOW);
+  const d = normalize(newChat(), { lastSeen: seen(), fetched: live({ used: 33, resetsAt: iso(3600) }, { used: 25, resetsAt: iso(86400) }) }, NOW);
   assert.equal(d.account, 'subscriber');
   assert.equal(d.limits.session.used, 33);
   assert.equal(d.limits.week.used, 25);
 });
 
-test('live usage never makes an API-key user a subscriber, and readings over an hour old are ignored', () => {
-  const d = normalize(fixture('payg'), { fable: live({ used: 33, resetsAt: iso(3600) }) }, NOW);
+test('live usage never makes an API-key user a subscriber', () => {
+  const d = normalize(fixture('payg'), { fetched: live({ used: 33, resetsAt: iso(3600) }) }, NOW);
   assert.equal(d.account, 'payg');
   assert.equal(d.limits.session, undefined);
-  const old = live({ used: 99, resetsAt: iso(7800) }, undefined, 2 * 3600000);
-  assert.equal(normalize(fixture('busy'), { fable: old }, NOW).limits.session.used, 47);
 });
 
 test('API-key and gateway users never get a Fable battery, even with a fresh Fable reading', () => {
-  const fable = { used: 41, resetsAt: new Date(NOW.getTime() + 86400000).toISOString(), fetchedAt: NOW.getTime() - 60000 };
-  for (const name of ['payg', 'gateway']) assert.equal(normalize(fixture(name), { fable }, NOW).limits.fable, undefined, name);
-  assert.equal(normalize(fixture('busy'), { fable }, NOW).limits.fable.used, 41, 'subscribers still get it');
-  const ahead = { ...fable, fetchedAt: NOW.getTime() + 600000 };
-  assert.equal(normalize(fixture('busy'), { fable: ahead }, NOW).limits.fable, undefined, 'a reading stamped in the future is not trusted');
+  const fetched = { fable: { used: 41, resetsAt: new Date(NOW.getTime() + 86400000).toISOString() } };
+  for (const name of ['payg', 'gateway']) assert.equal(normalize(fixture(name), { fetched }, NOW).limits.fable, undefined, name);
+  assert.equal(normalize(fixture('busy'), { fetched }, NOW).limits.fable.used, 41, 'subscribers still get it');
 });
 
 test('model name is stripped; fable detected by id then name', () => {
@@ -236,7 +232,7 @@ test('unusable reset times become null, not Invalid Date', () => {
   const s = fixture('busy');
   s.rate_limits.five_hour.resets_at = 1e20;
   assert.equal(normalize(s, {}, NOW).limits.session.resetsAt, null);
-  const f = normalize(fixture('busy'), { fable: { used: 5, resetsAt: 'garbage', fetchedAt: NOW.getTime() } }, NOW);
+  const f = normalize(fixture('busy'), { fetched: { fable: { used: 5, resetsAt: 'garbage' } } }, NOW);
   assert.equal(f.limits.fable.resetsAt, null);
   const l = normalize(newChat(), { lastSeen: { ...seen(), fiveHour: { used: 30, resetsAt: 1e20 } } }, NOW);
   assert.equal(l.limits.session.resetsAt, null);

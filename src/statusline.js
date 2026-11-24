@@ -3,13 +3,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, chmodSync, unlinkSync } from 'node:fs';
 import { paths, hideHome } from './paths.js';
-import { readJson, takeLock, writeAtomic, writeJsonAtomic, removeOld, HOT_WRITE } from './cache.js';
+import { takeLock, writeAtomic, writeJsonAtomic, removeOld, HOT_WRITE } from './cache.js';
 import { loadSettings } from './settings.js';
-import { fableEnabled } from './schema.js';
+import { readFetched } from './fetched.js';
 import { detectTerminal, readClaudeTheme, columnsOf } from './terminal.js';
 import { remember } from './lastseen.js';
 import { normalize } from './data.js';
-import { fableCacheState, FABLE_LOCK_MS } from './readings.js';
+import { FABLE_LOCK_MS } from './readings.js';
 import { render } from './render/index.js';
 import { strip, dim, vis, cut } from './render/ansi.js';
 import { upgradeLauncher } from './launcher-file.js';
@@ -28,10 +28,9 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     // Saved first, so this refresh already counts what it just saw against what other sessions saw.
     const extras = { lastSeen: remember(stdin, p, now) };
 
-    // fable.js (child_process, crypto) only runs in the background refresher; here the cache is enough.
-    const fableOn = fableEnabled(settings.fable, platform, existsSync(p.fableFile));
-    const fableCache = fableOn ? readJson(p.fableFile) : null;
-    if (fableOn) extras.fable = fableCache;
+    // fable.js (child_process, crypto) only runs in the background refresher; here its saved reading is enough.
+    const fetched = readFetched(p, settings.fable, platform, now);
+    if (fetched.reading) extras.fetched = fetched.reading;
 
     // A badge that fails to load costs the badges, never the line.
     let key = null, badges = null;
@@ -49,7 +48,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     const { text } = render(data, settings, { ...terminal, animate: settings.motion === 'on' });
 
     // Only subscribers have these limits, so nobody else's login is sent to Anthropic for nothing.
-    if (fableOn && data.account === 'subscriber' && fableCacheState(fableCache, now).stale && takeLock(p, 'fable', now, FABLE_LOCK_MS)) {
+    if (data.account === 'subscriber' && fetched.due && takeLock(p, 'fable', now, FABLE_LOCK_MS)) {
       quiet(() => spawnDetached(['refresh-fable']));
     }
     if (badges?.stale && takeLock(p, `badges-${key}`, now, 6000)) {

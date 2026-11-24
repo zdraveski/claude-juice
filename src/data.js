@@ -1,5 +1,5 @@
 import { strip } from './render/ansi.js';
-import { toShow, fetchedCounts, accountOf, toMs } from './readings.js';
+import { toShow, accountOf, toMs } from './readings.js';
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 // Whole percents, but 100 only when really used up: 99.6% rounds to 99, not to a "used up" that would block nothing.
@@ -18,7 +18,8 @@ function limit(used, resetsAt, windowSec) {
 
 export function normalize(stdin, extras, now) {
   const input = obj(stdin);
-  const { lastSeen, fable, badges } = obj(extras);
+  // fetched: readFetched's reading, present only while it counts.
+  const { lastSeen, fetched, badges } = obj(extras);
   const rl = obj(input.rate_limits);
   const seen = obj(lastSeen);
   const m = obj(input.model);
@@ -33,8 +34,8 @@ export function normalize(stdin, extras, now) {
   const account = accountOf({ input, hasLimits: !!(fresh.session || fresh.week), subscriberSeenAt: num(seen.subscriberSeenAt), spendLimit: rl.spend_limit }, now);
 
   const limits = {};
-  const f = obj(fable);
-  const live = fetchedCounts(f.fetchedAt, now);
+  const live = !!fetched;
+  const f = obj(fetched);
   // Fetched readings only refine a known subscriber, so an API-key user who is also logged in never gets limits.
   const reading = (r, sec) => limit(obj(r).used, obj(r).resetsAt, sec);
   if (account === 'subscriber') {
@@ -45,7 +46,7 @@ export function normalize(stdin, extras, now) {
     const week = toShow({ own: fresh.week, saved: reading(seen.sevenDay, 604800), fetched: live ? reading(f.week, 604800) : undefined, sent: sentOf(1, 604800) }, now);
     if (session) limits.session = session;
     if (week) limits.week = week;
-    const fableLimit = live ? limit(f.used, f.resetsAt, 604800) : undefined;
+    const fableLimit = live ? limit(obj(f.fable).used, obj(f.fable).resetsAt, 604800) : undefined;
     if (fableLimit) limits.fable = fableLimit;
   }
   if (budget) limits.budget = budget;

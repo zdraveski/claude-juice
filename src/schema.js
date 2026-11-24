@@ -27,11 +27,6 @@ export const SHOW_IDS = Object.freeze(['model', 'effort', 'memory', 'session', '
 // Said by set, setup and the doctor alike, with the one fix the /juice skill knows.
 export const NOTHING_SHOWN = 'Your juice settings choose nothing to show, so the line stays empty. Type /juice show all the batteries to bring them back.';
 export const CUSTOMIZER_URL = 'https://zdraveski.github.io/claude-juice/web/';
-// Lives here, not in fable.js, so the status line can check it without loading child_process.
-// auto reads the login only for someone who already has a reading (fable.json exists, even damaged): 1.3.x turned it on
-// without asking, and taking the battery away on update would look broken. Everyone else is asked first by /juice setup.
-export const fableEnabled = (setting, platform, hasReading) =>
-  setting === 'on' || (setting === 'auto' && platform !== 'darwin' && hasReading);
 
 export const DEFAULTS = Object.freeze({
   layout: 'bar', show: SHOW_IDS, order: 'yours', cost: 'auto', colors: 'claude',
