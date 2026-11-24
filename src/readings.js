@@ -57,16 +57,18 @@ export const fetchedCounts = (fetchedAt, now) => Number.isFinite(fetchedAt) && n
 
 // After a failed fetch, wait this long before asking again.
 export const BACKOFF_MS = 900000;
+// After macOS refused the Keychain read: asking again would show its dialog again.
+export const DENIED_MS = 12 * 3600000;
 // The Fable refresher may wait on a macOS Keychain dialog, then fetch; its lock must outlast both, with margin.
 export const KEYCHAIN_TIMEOUT_MS = 25000, FETCH_TIMEOUT_MS = 5000, FABLE_LOCK_MS = 60000;
 
 // Whether to fetch again: the last reading is over 5 minutes old, and no wait after a failure is running.
 // now is a Date or epoch ms. A fetch time in the future (clock skew) is never trusted, and a wait longer than
-// BACKOFF_MS can only come from a clock that was ahead, so it is ignored.
+// BACKOFF_MS (DENIED_MS after a refusal) can only come from a clock that was ahead, so it is ignored.
 export function fableCacheState(cache, now) {
   const t = +now;
   const age = Number.isFinite(cache?.fetchedAt) && cache.fetchedAt <= t ? t - cache.fetchedAt : Infinity;
-  const backedOff = cache?.backoffUntil > t && cache.backoffUntil - t <= BACKOFF_MS;
+  const backedOff = cache?.backoffUntil > t && cache.backoffUntil - t <= (cache.why === 'denied' ? DENIED_MS : BACKOFF_MS);
   return { stale: (!cache || age > 300000) && !backedOff, backedOff };
 }
 

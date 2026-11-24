@@ -20,9 +20,12 @@ const KEEP_MS = 7 * 86400000;
 // them. Certificate paths are in, so HTTPS works on networks that inspect it; proxy URLs can hold a password, so they
 // are opt-in. Case-blind: Windows spells them Path, SystemRoot and so on.
 const BASIC_ENV = /^(PATH|PATHEXT|HOME|USERPROFILE|HOMEDRIVE|HOMEPATH|APPDATA|LOCALAPPDATA|PROGRAMDATA|ALLUSERSPROFILE|PROGRAMFILES|PROGRAMFILES\(X86\)|PROGRAMW6432|COMMONPROGRAMFILES|SYSTEMROOT|SYSTEMDRIVE|WINDIR|COMSPEC|OS|COMPUTERNAME|USERDOMAIN|PROCESSOR_ARCHITECTURE|NUMBER_OF_PROCESSORS|TEMP|TMP|TMPDIR|USER|USERNAME|LOGNAME|SHELL|LANG|LANGUAGE|LC_[A-Z]+|TZ|TERM|COLORTERM|NO_COLOR|COLUMNS|XDG_[A-Z_]+|CLAUDE_CONFIG_DIR|NODE_EXTRA_CA_CERTS|SSL_CERT_FILE|SSL_CERT_DIR|NO_PROXY)$/i;
-export function badgeEnv(env, extra = []) {
+export function badgeEnv(env, extra = [], platform = process.platform) {
   const more = new Set(extra.map((n) => n.toUpperCase()));
-  return Object.fromEntries(Object.entries(env).filter(([k]) => BASIC_ENV.test(k) || more.has(k.toUpperCase())));
+  const kept = Object.fromEntries(Object.entries(env).filter(([k]) => BASIC_ENV.test(k) || more.has(k.toUpperCase())));
+  // cmd.exe looks in the current folder before PATH, and a badge runs in the project folder: without this, a git.bat
+  // planted in a cloned repo would run in place of git.
+  return platform === 'win32' ? { ...kept, NoDefaultCurrentDirectoryInExePath: '1' } : kept;
 }
 export function cleanBadge(raw) {
   const line = String(raw).split(/\r?\n/)[0];
@@ -56,7 +59,7 @@ const spawn = (...a) => (process.getBuiltinModule?.('node:child_process') ?? cre
 // Kills the shell and anything it started, and frees the pipe so it can't keep us alive.
 function killTree(child) {
   try {
-    if (process.platform === 'win32') spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).on('error', () => {});
+    if (process.platform === 'win32') spawn(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'), ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).on('error', () => {});
     else process.kill(-child.pid, 'SIGKILL');
   } catch { try { child.kill(); } catch {} }
   try { child.stdout.destroy(); } catch {}
@@ -147,13 +150,20 @@ function sweep(p) {
   removeOld(p.cacheDir, (f) => /^badges-.*\.(lock|steal)$|\.tmp$/.test(f), KEEP_MS);
 }
 
-// env: names of extra environment variables the command may see. They aren't signed: only someone who can already
-// write juice.json could change them, and they could as well change anything else in it.
+// env: names of extra environment variables the command may see. They aren't signed: someone who can write juice.json
+// can add names, which the approved command then sees, but cannot make a new command run.
 // Throws with a message for the person when the names can't be used.
 export function checkEnv(env) {
   const bad = env.find((n) => !ENV_NAME.test(n));
   if (bad !== undefined) throw new Error(`${strip(bad)} isn't a variable name: use letters, digits and _.`);
   if (env.length > MAX_ENV) throw new Error(`A badge can see at most ${MAX_ENV} extra variables.`);
+}
+
+// The badges as juice.json holds them, and where each one this version can read sits: add and remove edit these, so an
+// entry it can't read (a newer juice's, or one gone wrong) and any field it doesn't know stay as they are.
+function rawBadges(p) {
+  const raw = readJson(p.settingsFile)?.badges, all = Array.isArray(raw) ? raw : [];
+  return { all, valid: all.flatMap((b, i) => (sanitize({ badges: [b] }, { allowBadges: true }).settings.badges.length ? [i] : [])) };
 }
 
 export function addBadge(p, command, env = []) {
@@ -165,8 +175,11 @@ export function addBadge(p, command, env = []) {
   // juice.json) is approved where it stands, so it keeps its place.
   const ok = new Set(approved(p, settings.badges)), same = (b) => b.command === command;
   const i = [settings.badges.findIndex((b) => same(b) && ok.has(b)), settings.badges.findIndex(same)].find((n) => n >= 0) ?? -1;
-  const badges = i < 0 ? [...settings.badges, badge] : settings.badges.map((b, j) => (j === i ? badge : b));
-  saveSettings(p, { badges: sanitize({ ...settings, badges }, { allowBadges: true }).settings.badges });
+  const { all, valid } = rawBadges(p);
+  const badges = [...all];
+  if (i < 0) badges.push(badge);
+  else { badges[valid[i]] = { ...all[valid[i]], ...badge }; if (!env.length) delete badges[valid[i]].env; }
+  saveSettings(p, { badges });
 }
 
 export const listBadges = (p) => loadSettings(p).settings.badges.map((b) => b.command);
@@ -178,11 +191,10 @@ export function unapprovedBadges(p) {
 }
 
 export function removeBadge(p, n) {
-  const { settings } = loadSettings(p);
-  const badges = settings.badges.filter((_, i) => i !== n - 1);
-  saveSettings(p, { badges });
-  // Only approved badges refresh, and only a refresh runs the sweep: with none left, the saved outputs and session
-  // details would stay forever. Unapproved copies (from a copied juice.json) never run, so they don't count.
+  const { all, valid } = rawBadges(p);
+  saveSettings(p, { badges: all.filter((_, i) => i !== valid[n - 1]) });
+  // Only approved badges refresh, and only a refresh runs the sweep: the saved outputs hold the command text (a key
+  // typed into it too) and session details, so they go at once, not when the last badge goes. The next refresh makes them anew.
   // Best effort: the badge is already removed, and a file a refresher still holds open on Windows must not fail that.
-  if (!approved(p, badges).length) try { rmSync(join(p.cacheDir, 'badges'), { recursive: true, force: true }); } catch {}
+  try { rmSync(join(p.cacheDir, 'badges'), { recursive: true, force: true }); } catch {}
 }

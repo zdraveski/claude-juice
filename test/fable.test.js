@@ -29,6 +29,9 @@ const body = (percent = 41, resets_at = '2026-11-01T00:00:00Z') => ({
 const okFetch = (b = body()) => async () => ({ ok: true, json: async () => b });
 const cacheFile = (p) => join(p.cacheDir, 'fable.json');
 const noExec = () => { throw new Error('should not run'); };
+// What `security` does when the Keychain holds no such item (status 44), and when the person denies or cancels the dialog.
+const notFound = () => { throw Object.assign(new Error('not found'), { status: 44 }); };
+const refused = () => { throw Object.assign(new Error('denied'), { status: 1 }); };
 
 test('fableEnabled', () => {
   // auto stays on only for someone who already has a reading (1.3.x turned it on without asking); a new install asks first.
@@ -65,8 +68,8 @@ test('readToken darwin uses security with exact args', () => {
   const calls = [];
   const execFileSync = (...a) => { calls.push(a); return creds(); };
   assert.equal(readToken({ platform: 'darwin', p: setup(), execFileSync }), TOKEN);
-  assert.deepEqual(calls[0], ['security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], { timeout: 25000, encoding: 'utf8' }]);
-  assert.equal(readToken({ platform: 'darwin', p: paths({ CLAUDE_CONFIG_DIR: join(setup().config, 'nope') }), execFileSync: noExec }), null);
+  assert.deepEqual(calls[0], ['/usr/bin/security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], { timeout: 25000, encoding: 'utf8' }]);
+  assert.equal(readToken({ platform: 'darwin', p: paths({ CLAUDE_CONFIG_DIR: join(setup().config, 'nope') }), execFileSync: notFound }), null);
 });
 
 test('fetchFable sends the exact request and picks the Fable entry', async () => {
@@ -240,11 +243,25 @@ test('a Keychain item that security prints as hex is read too', () => {
 
 test('on a Mac whose Keychain holds no login, juice reads .credentials.json, where Claude Code keeps it then', () => {
   const p = setup();
-  assert.equal(readToken({ platform: 'darwin', p, env: {}, execFileSync: () => { throw new Error('not found'); } }), TOKEN);
+  assert.equal(readToken({ platform: 'darwin', p, env: {}, execFileSync: notFound }), TOKEN);
   assert.equal(readToken({ platform: 'darwin', p, env: {}, execFileSync: () => '{}' }), TOKEN);
   // An expired login in the Keychain is the answer: the file is not asked to overrule it.
   const old = JSON.stringify({ claudeAiOauth: { accessToken: 'old', expiresAt: NOW - 1 } });
   assert.equal(readToken({ platform: 'darwin', p, env: {}, now: NOW, execFileSync: () => old }), false);
+});
+
+// A denied or cancelled Keychain dialog is not a lost login: asking again every 15 minutes would show the dialog all day.
+test('on a Mac, a refused Keychain read is told apart from a missing item, and backs off for half a day', async () => {
+  const p = setup(); // .credentials.json is there too, and must not overrule a refusal
+  assert.equal(readToken({ platform: 'darwin', p, env: {}, execFileSync: refused }), 'denied');
+  assert.equal(readToken({ platform: 'darwin', p, env: {}, execFileSync: () => { throw new Error('timed out'); } }), 'denied');
+  let called = false;
+  assert.equal(await refreshFable({ p, platform: 'darwin', env: {}, execFileSync: refused, fetchImpl: async () => { called = true; }, now: NOW, version: 'v' }), false);
+  assert.equal(called, false);
+  const c = readJson(cacheFile(p));
+  assert.deepEqual(c, { backoffUntil: NOW + 12 * 3600000, why: 'denied' });
+  assert.equal(fableCacheState(c, NOW + 3600000).backedOff, true);
+  assert.equal(fableCacheState(c, NOW + 12 * 3600000 + 1).backedOff, false);
 });
 
 test('the fable lock outlasts the Keychain wait plus the fetch, so a second refresher never starts meanwhile', () => {

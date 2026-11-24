@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
-import { BACKOFF_MS, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS } from './readings.js';
+import { BACKOFF_MS, DENIED_MS, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS } from './readings.js';
 
 // Claude Code's own name for the Keychain entry: with CLAUDE_CONFIG_DIR (or its storage override) set, each
 // config folder has its own login, named after a hash of the folder. The plain name would be another account's.
@@ -16,6 +16,7 @@ export function keychainService(env = {}) {
 
 // The token lives only in this call's return value; callers must not store or log it.
 // false: the login has expired (given now), so sending it would only earn a refusal.
+// 'denied': macOS refused the Keychain read (the dialog was denied or cancelled), so the login itself is fine.
 export function readToken({ platform, p, env, now, execFileSync = realExec }) {
   const file = () => tokenIn(() => readFileSync(join(p.config, '.credentials.json'), 'utf8'), now);
   if (platform !== 'darwin') return file();
@@ -23,10 +24,15 @@ export function readToken({ platform, p, env, now, execFileSync = realExec }) {
   // so no second refresher (and second dialog) starts meanwhile. This runs only in the detached refresher.
   // security prints an item holding bytes it can't show as text in hex. With no Keychain login, Claude Code keeps it
   // in the file, as elsewhere.
-  return tokenIn(() => {
-    const out = execFileSync('security', ['find-generic-password', '-s', keychainService(env), '-w'], { timeout: KEYCHAIN_TIMEOUT_MS, encoding: 'utf8' }).trim();
+  // Status 44 is "no such item": that Mac keeps the login in the file. Any other failure is a refusal, and the file must not overrule it.
+  // The full path: the PATH juice runs with starts with the node folder, which may be writable by others.
+  let denied = false;
+  const t = tokenIn(() => {
+    let out;
+    try { out = execFileSync('/usr/bin/security', ['find-generic-password', '-s', keychainService(env), '-w'], { timeout: KEYCHAIN_TIMEOUT_MS, encoding: 'utf8' }).trim(); } catch (e) { denied = e?.status !== 44; throw e; }
     return /^(?:[0-9a-f]{2})+$/i.test(out) ? Buffer.from(out, 'hex').toString('utf8') : out;
-  }, now) ?? file();
+  }, now);
+  return t ?? (denied ? 'denied' : file());
 }
 
 function tokenIn(read, now) {
@@ -78,14 +84,14 @@ export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fe
   const file = p.fableFile;
   try {
     const token = readToken({ platform, p, env, now: t, execFileSync });
-    const fresh = token === false ? 'expired' : token ? await fetchFable(token, fetchImpl, version) : 'login';
+    const fresh = token === false ? 'expired' : token === 'denied' ? 'denied' : token ? await fetchFable(token, fetchImpl, version) : 'login';
     if (typeof fresh === 'object') {
       writeJsonAtomic(file, { ...fresh, fetchedAt: t });
       return true;
     }
     const { used, resetsAt, session, week, fetchedAt } = readJson(file) ?? {};
     const keep = fetchedAt === undefined ? {} : { used, resetsAt, session, week, fetchedAt };
-    writeJsonAtomic(file, { ...keep, backoffUntil: t + (fresh === 'expired' ? EXPIRED_MS : BACKOFF_MS), why: fresh });
+    writeJsonAtomic(file, { ...keep, backoffUntil: t + (fresh === 'expired' ? EXPIRED_MS : fresh === 'denied' ? DENIED_MS : BACKOFF_MS), why: fresh });
   } catch {
     holdLock(p, 'fable', now, BACKOFF_MS); // the backoff could not be saved, so the lock carries it
   } finally {

@@ -45,7 +45,7 @@ Type these into Claude Code, one at a time:
 /juice setup
 ```
 
-Setup saves a copy of your current status line, then switches to juice. `/juice restore` puts it back. The batteries fill in after Claude's first reply. Last tested by hand with Claude Code 2.1.316 on Windows (juice 1.0.0). Older versions are untested.
+Setup saves a copy of your current status line, then switches to juice. `/juice restore` puts it back. The batteries fill in after Claude's first reply. Tested by hand when juice 1.0.0 shipped, with Claude Code 2.1.316 on Windows; CI tests every release on Windows, macOS and Linux. Older versions are untested.
 
 To undo it, `/juice restore` puts your old status line back. Then remove juice in `/plugin`.
 

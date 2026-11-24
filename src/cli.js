@@ -19,7 +19,8 @@ const SET = /^([A-Za-z_]\w*)=(?:"(?:[^"\\]|\\.)*"|'[^']*'|\$'(?:[^'\\]|\\.)*'|\$
 function hidden(c) {
   let rest = c.trim(), shown = '';
   for (let m; (m = SET.exec(rest));) { shown += `${m[1]}=… `; rest = rest.slice(m[0].length); }
-  const [first, ...more] = rest.split(/\s+/).filter(Boolean);
+  const [word, ...more] = rest.split(/\s+/).filter(Boolean);
+  const first = word && word.length > 40 ? `${word.slice(0, 40)}...` : word;
   return `${shown}${first ?? ''}${more.length ? ' …' : ''}`.trim();
 }
 const USAGE ='Usage: juice set <key=value>... | get | looks | setup | restore | customize | doctor | badges add|list|remove | refresh-fable | refresh-badges <key>';
@@ -172,6 +173,7 @@ export async function main(argv, io) {
         await refreshBadges({ p, settings: loadSettings(p).settings, key, stdinText, env: io.env });
         return 0;
       }
+      case 'help': case '--help': case '-h': io.out(USAGE); return 0;
       default: io.err(USAGE); return 1;
     }
   } catch (e) {

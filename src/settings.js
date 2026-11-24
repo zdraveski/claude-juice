@@ -1,11 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { sanitize } from './schema.js';
 import { readJson, writeJsonAtomic } from './cache.js';
 
 // Why juice.json gave nothing. Not existsSync: it is false for a file in a folder juice can't enter, too, and that
 // one may be there. "locked" is never told to delete the file: that would lose settings and badges.
 const CODES = { ENOENT: 'missing', ENOTDIR: 'missing', EACCES: 'locked', EPERM: 'locked' };
-const why = (f) => { try { readFileSync(f); return 'broken'; } catch (e) { return CODES[e.code] ?? 'broken'; } };
+// A file with nothing in it (a crash, a full disk) is as good as missing, as it is for settings.json.
+const why = (f) => { try { return readFileSync(f, 'utf8').replace(/^\uFEFF/, '').trim() ? 'broken' : 'missing'; } catch (e) { return CODES[e.code] ?? 'broken'; } };
 // JSON that is no settings object ([] or 42) is broken too: else set would replace it without a word.
 const state = (raw, f) => (raw === null ? why(f) : (typeof raw !== 'object' || Array.isArray(raw)) && 'broken');
 
@@ -31,5 +32,6 @@ export function saveSettings(p, changes) {
   if (w === 'broken') {
     throw new Error("Your juice settings file (juice.json in your Claude folder) can't be read, so juice changed nothing. Fix or delete it (Claude can do it for you), then try again.");
   }
-  writeJsonAtomic(p.settingsFile, { ...raw, ...changes });
+  // Through a symlink (a dotfiles repo), so the link stays a link.
+  writeJsonAtomic(existsSync(p.settingsFile) ? realpathSync(p.settingsFile) : p.settingsFile, { ...raw, ...changes });
 }

@@ -11,7 +11,9 @@ export { fwd, constant };
 const sorted = (_, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort()) : v);
 const same = (a, b) => JSON.stringify(a ?? null, sorted) === JSON.stringify(b ?? null, sorted);
 // A saved copy of the old status line is usable when it is an object with a statusLine (valid JSON may still be "x" or 5).
-const usableBackup = (b) => !!b && typeof b === 'object' && 'statusLine' in b;
+// statusLine is null (no line before) or an object: a string or number written back would break settings.json.
+const usableBackup = (b) => !!b && typeof b === 'object' && 'statusLine' in b
+  && (b.statusLine === null || (typeof b.statusLine === 'object' && !Array.isArray(b.statusLine)));
 export const readText = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
 // Claude Code only redraws on events, so without a timer the countdowns freeze while it is idle.
 // With motion on, every second moves the climb: two redraws per step (CLIMB_MS in render/pieces.js), so a step is never skipped.
@@ -204,7 +206,7 @@ export function restore(p) {
   // An older juice could save its own line as "the old one"; putting that back would undo nothing.
   const old = saved && !isJuice(backup.statusLine) ? backup.statusLine ?? null : null;
   writeSettings(p, old === null ? rest : { ...rest, statusLine: old });
-  if (saved) unlinkSync(p.backupFile);
+  if (saved) try { unlinkSync(p.backupFile); } catch {} // the old line is back already: a stuck copy must not stop the rest
   try { unlinkSync(p.launcherFile); } catch {} // nothing runs it now; /juice setup writes it again
   return [old !== null ? 'Your old status line is back.'
     : saved && backup.statusLine === null ? 'Removed juice. You had no status line before, so none is set now.'

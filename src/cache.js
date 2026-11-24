@@ -40,7 +40,8 @@ export function writeAtomic(file, text, { maxWaitMs = 2500, modeFrom } = {}) {
   for (;;) {
     try { return renameSync(tmp, file); } catch (e) {
       // Windows refuses a rename while another process has the target open. A folder or read-only target never clears.
-      const st = statSync(file, { throwIfNoEntry: false });
+      let st;
+      try { st = statSync(file, { throwIfNoEntry: false }); } catch {} // a target mid-delete can fail the stat too
       const transient = process.platform === 'win32' && /^(EPERM|EACCES|EBUSY)$/.test(e.code) && !(st && (st.isDirectory() || !(st.mode & 0o200)));
       if (!transient || Date.now() - start >= maxWaitMs) { try { unlinkSync(tmp); } catch {} throw e; }
       pause(5 + Math.random() * 20);
@@ -56,6 +57,10 @@ export function holdLock(p, name, now, holdMs) {
 // Taken by creating the file, which only one window can do. A stale lock is first claimed with a marker named
 // after its timestamp, so of the windows that find the same stale lock only one removes it and takes it again.
 export function takeLock(p, name, now, maxAgeMs = 30000) {
+  try { return claimLock(p, name, now, maxAgeMs); } catch { return false; } // a stat that fails (EPERM on Windows) must not lose the drawn line
+}
+
+function claimLock(p, name, now, maxAgeMs) {
   const file = join(p.cacheDir, `${name}.lock`);
   try { mkdirSync(p.cacheDir, { recursive: true, mode: 0o700 }); } catch { return false; }
   for (let i = 0; i < 2; i++) {

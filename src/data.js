@@ -12,7 +12,7 @@ function limit(used, resetsAt, windowSec) {
   used = pct(used);
   if (used === null) return undefined;
   const t = typeof resetsAt === 'string' ? Date.parse(resetsAt) : num(resetsAt) === null ? NaN : resetsAt > 1e11 ? resetsAt : resetsAt * 1000; // above 1e11 it is already milliseconds
-  const d = new Date(t); // out-of-range values (1e20) give an Invalid Date
+  const d = new Date(t > 0 ? t : NaN); // out-of-range values (1e20) give an Invalid Date; zero or below is "unknown", not "long ago"
   return { used, resetsAt: Number.isNaN(d.getTime()) ? null : d, windowSec };
 }
 

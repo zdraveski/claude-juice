@@ -23,8 +23,8 @@ function playwright() {
 }
 const pw = playwright();
 if (!pw) {
-  console.log(`${process.env.CI_REQUIRE_PLAYWRIGHT ? 'Missing Playwright' : 'Skipped'}: these checks need Playwright. Install it with: npm i -g playwright`);
-  process.exit(process.env.CI_REQUIRE_PLAYWRIGHT ? 1 : 0); // CI must fail, not skip
+  console.error(`${process.env.CI_REQUIRE_PLAYWRIGHT ? 'Missing Playwright' : 'SKIPPED, NOT PASSED'}: these checks need Playwright. Install it with: npm i -g playwright`);
+  process.exit(process.env.CI_REQUIRE_PLAYWRIGHT ? 1 : 2); // neither CI nor a release run may mistake a skip for a pass
 }
 
 // Serves only files inside this repo.
@@ -158,7 +158,7 @@ test('light terminal, and no sideways scrolling on a phone', async () => {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   // "My terminal is light" wins over the preview's Dark, as it does in the real line.
   await page.click('[data-key=terminal][data-v=light]');
-  await page.click('[data-view=term] [data-v=dark]');
+  assert.ok(await page.isDisabled('[data-view=term] [data-v=dark]'), 'the switch says it does nothing');
   assert.ok(await page.locator('#win.light').count(), 'still light: the real line would be');
   assert.equal(await page.getAttribute('[data-view=term] [data-v=light]', 'aria-pressed'), 'true');
 });

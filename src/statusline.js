@@ -1,7 +1,7 @@
 // The per-refresh pipeline: stdin text in, status line text out. Never throws, never waits on a refresher.
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync, chmodSync } from 'node:fs';
+import { existsSync, chmodSync, unlinkSync } from 'node:fs';
 import { paths, hideHome } from './paths.js';
 import { readJson, takeLock, writeAtomic, writeJsonAtomic, removeOld, HOT_WRITE } from './cache.js';
 import { loadSettings } from './settings.js';
@@ -33,10 +33,14 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     const fableCache = fableOn ? readJson(p.fableFile) : null;
     if (fableOn) extras.fable = fableCache;
 
-    const bd = stdin && settings.badges.length > 0 ? await import('./badges.js') : null;
-    const mine = bd ? bd.approved(p, settings.badges) : []; // only badges this computer approved ever run
-    const key = mine.length ? bd.badgeKey(stdin) : null;
-    const badges = mine.length ? bd.readBadges(p, key, now, mine.map((b) => b.command)) : null;
+    // A badge that fails to load costs the badges, never the line.
+    let key = null, badges = null;
+    try {
+      const bd = stdin && settings.badges.length > 0 ? await import('./badges.js') : null;
+      const mine = bd ? bd.approved(p, settings.badges) : []; // only badges this computer approved ever run
+      key = mine.length ? bd.badgeKey(stdin) : null;
+      badges = mine.length ? bd.readBadges(p, key, now, mine.map((b) => b.command)) : null;
+    } catch { key = badges = null; }
     if (badges) extras.badges = badges.texts;
 
     const data = normalize(stdin, extras, now);
@@ -48,7 +52,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     if (fableOn && data.account === 'subscriber' && fableCacheState(fableCache, now).stale && takeLock(p, 'fable', now, FABLE_LOCK_MS)) {
       quiet(() => spawnDetached(['refresh-fable']));
     }
-    if (badges?.stale && takeLock(p, `badges-${key}`, now, 2500)) {
+    if (badges?.stale && takeLock(p, `badges-${key}`, now, 6000)) {
       quiet(() => {
         writeAtomic(join(p.cacheDir, 'badges', `${key}.stdin.json`), stdinText, HOT_WRITE); // raw text: the refresher pipes it to each command
         spawnDetached(['refresh-badges', key]);
@@ -63,13 +67,14 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
       quiet(() => removeOld(p.cacheDir, (f) => f.endsWith('.tmp'), 3600000));
       try { (await import('./setup.js')).matchRefresh(p, { platform, write: HOT_WRITE }); } catch {}
     }
+    if (existsSync(p.lastErrorFile)) quiet(() => unlinkSync(p.lastErrorFile)); // this run worked, so an earlier glitch is no longer news for /juice doctor
     return text;
   } catch (e) {
     // Kept for /juice doctor: the message and juice's own file and line, with every folder taken out of paths
     // (they hold the person's name), so the doctor's report can be pasted into a bug report.
     if (p) quiet(() => writeJsonAtomic(p.lastErrorFile, {
       at: Date.now(),
-      message: hideHome(String(e?.message ?? e), env, platform).replace(/(?:file:\/*)?(?:[A-Za-z]:|~)?[\\/](?:[^\\/\s'"`]+[\\/])+/g, '').slice(0, 300),
+      message: hideHome(String(e?.message ?? e), env, platform).replace(/(?:file:\/*)?(?:[A-Za-z]:|~)?[\\/](?:[^\\/'"`]+[\\/])+/g, '').slice(0, 300),
       where: /([\w.-]+\.js):(\d+)/.exec(String(e?.stack).split('\n').slice(1).join('\n'))?.slice(1).join(':') ?? null,
     }, HOT_WRITE));
     // A bare model name looks like "no data yet", so say where to look; the next run that works drops it.

@@ -254,6 +254,9 @@ test('doctor: Fable off, failing, and checked', () => {
   assert.match(failed('expired'), /sign-in was due for renewal/);
   for (const why of ['expired', 'busy', 'changed', 'offline']) assert.doesNotMatch(failed(why), /\/login/, why);
   assert.match(failed('busy'), /Anthropic's server was busy/);
+  assert.match(failed('denied'), /macOS Keychain access was denied; run \/juice set fable=off or allow it/);
+  assert.doesNotMatch(failed('denied'), /\/login/);
+  assert.match(failed('denied'), /12 hours.*delete fable-cache\.json/);
   assert.match(failed('changed'), /github\.com\/zdraveski\/claude-juice\/issues/);
   assert.match(failed('offline'), /couldn't reach Anthropic/);
   // Stamped by a clock that was ahead: juice ignores these, and so does the doctor.
