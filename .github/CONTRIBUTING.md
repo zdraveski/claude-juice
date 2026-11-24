@@ -8,7 +8,7 @@ Thanks for helping.
 - `main` is what everyone installs: the plugin store serves it straight away. Work on a branch and open a pull request. Changes reach `main` only through a pull request whose checks pass.
 - Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 - Tests: `node --test`, then `node scripts/e2e.mjs` (end to end, in a throwaway home). GitHub runs both on Windows, macOS and Linux with Node 24 and 26 for every branch, and a pull request needs them green.
-- Before a release, also run `node scripts/bench.js` (speed: juice may add at most 75 ms) and `node scripts/check-customizer.js` (the web customizer, needs Playwright). The full list is in [docs/release/checklist.md](docs/release/checklist.md).
+- Before a release, also run `node scripts/bench.js` (speed: juice may add at most 75 ms) and `node scripts/check-customizer.js` (the web customizer, needs Playwright). The full list is in [docs/release/checklist.md](../docs/release/checklist.md).
 
 ## Never touch your real Claude folder while testing
 
@@ -36,7 +36,7 @@ Only `plugin/` reaches people who install juice: the marketplace (`.claude-plugi
 | `web/` | The live customizer (GitHub Pages) |
 | `scripts/` | End-to-end test, speed check, customizer check, and the picture scripts in `scripts/pictures/` |
 | `test/` | Tests, with sample status-line input in `test/fixtures/` |
-| `docs/` | The pages the README links to (guide, commands, FAQ, troubleshooting, privacy, badges), its pictures in `docs/images/`, and maintainer notes: the release checklist in `docs/release/`, designs and plans in `docs/superpowers/` |
+| `docs/` | The pages the README links to (guide, commands, FAQ, troubleshooting, privacy, badges), its pictures in `docs/images/`, and the maintainer release checklist in `docs/release/` |
 
 ## Pictures
 
@@ -53,4 +53,4 @@ Run them again after you change `plugin/src/schema.js` or anything in `plugin/sr
 
 ## Writing for juice
 
-juice is for people who don't code. Anything they read (status line, `/juice` replies, the README and its pages in `docs/`) uses plain words without jargon and says what to do next. Record what changed for them in [CHANGELOG.md](CHANGELOG.md).
+juice is for people who don't code. Anything they read (status line, `/juice` replies, the README and its pages in `docs/`) uses plain words without jargon and says what to do next. Record what changed for them in [CHANGELOG.md](../CHANGELOG.md).

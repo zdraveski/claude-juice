@@ -8,7 +8,7 @@ Free and unofficial. Not made by Anthropic.
 
 [![Tests](https://github.com/zdraveski/claude-juice/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/zdraveski/claude-juice/actions/workflows/test.yml) [![Latest release](https://img.shields.io/github/v/release/zdraveski/claude-juice?label=release)](https://github.com/zdraveski/claude-juice/releases/latest) [![License: MIT](https://img.shields.io/github/license/zdraveski/claude-juice)](LICENSE) ![node >=24](https://img.shields.io/badge/node-%3E%3D24-339933) ![Windows, macOS, Linux](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey) ![dependencies: 0](https://img.shields.io/badge/dependencies-0-brightgreen)
 
-[Install](#install) · [Guide](docs/guide.md) · [Commands](docs/commands.md) · [FAQ](docs/faq.md)
+[Install](#install) · [Try it in your browser](https://zdraveski.github.io/claude-juice/web/) · [Guide](docs/guide.md) · [Commands](docs/commands.md) · [FAQ](docs/faq.md)
 
 </div>
 
@@ -45,15 +45,13 @@ Type these into Claude Code, one at a time:
 /juice setup
 ```
 
-Setup saves a copy of your current status line, then switches to juice. `/juice restore` puts it back. The batteries fill in after Claude's first reply. Tested by hand when juice 1.0.0 shipped, with Claude Code 2.1.316 on Windows; CI tests every release on Windows, macOS and Linux. Older versions are untested.
+Setup saves a copy of your current status line, then switches to juice. The batteries fill in after Claude's first reply. Every release is tested on Windows, macOS and Linux.
 
 To undo it, `/juice restore` puts your old status line back. Then remove juice in `/plugin`.
 
 [Try it in your browser first, nothing to install.](https://zdraveski.github.io/claude-juice/web/)
 
 [![The live customizer: pick a look, layout and colours and watch the preview change](docs/images/customizer.gif)](https://zdraveski.github.io/claude-juice/web/)
-
-The pictures here show VS Code's round battery ends. Other terminals show plain ends. `/juice use round ends` switches the round ones on.
 
 ## What the colours mean
 
@@ -66,7 +64,7 @@ The pictures here show VS Code's round battery ends. Other terminals show plain 
 - Amber with `!`: you are going a bit fast. At this pace you will use most of it before it resets.
 - Red with `!!`: nearly empty, or half used and heading for empty before the reset.
 
-An amber or red battery also says when it runs out, for example "runs out ~4:04 PM, resets in 2h 10m". Session is your 5-hour limit and Weekly is your weekly limit. Memory is how full this chat is. Fable is the separate weekly limit for the Fable model. The [guide](docs/guide.md#what-the-batteries-mean) has the exact rules.
+An amber or red battery also says when it runs out, for example "runs out ~4:04 PM, resets in 2h 10m". The [guide](docs/guide.md#what-the-batteries-mean) has the exact rules.
 
 Session, Weekly and Memory come from Claude Code. Fable comes from one extra request to Anthropic, so it may stop working if that changes. The other three keep working. Session, Weekly and Memory were checked once against Anthropic's usage page, on a Max account. Pro is not checked. [FAQ](docs/faq.md#why-does-it-differ-from-usage) says what to compare.
 
@@ -90,11 +88,13 @@ Type `/juice` and say what you want in your own words:
 
 All commands are in [docs/commands.md](docs/commands.md). Every look, layout and colour set is in the [guide](docs/guide.md).
 
+The pictures here show VS Code's round battery ends. Other terminals show plain ends. `/juice use round ends` switches the round ones on.
+
 ## Safe to try
 
 - Setup saves your old status line first. `/juice restore` puts it back. It also writes files only in your Claude folder.
 - The only thing juice sends anywhere is one usage request to `api.anthropic.com`, and only while the Fable battery is on. juice asks before it reads your Claude login for that, unless you already had the Fable battery before 1.4.0 on Windows or Linux. No telemetry, no analytics.
-- It has no dependencies, and adds about 60 ms to Node starting on an old laptop (`node scripts/bench.js` measures yours). It refreshes once a minute.
+- It has no dependencies, and adds about 60 ms to Node starting on an old laptop. It refreshes once a minute.
 - Open source under MIT. Over 500 automated tests run in CI on Windows, macOS and Linux.
 
 juice is new and small. Bug reports are read. [Privacy](docs/privacy.md) has the details, with links to the code that reads your login.
@@ -110,6 +110,4 @@ juice is new and small. Bug reports are read. [Privacy](docs/privacy.md) has the
 
 ## Help
 
-[Bug report](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) (include what `/juice doctor` says) · [Discussions](https://github.com/zdraveski/claude-juice/discussions) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Privacy](docs/privacy.md) · [Troubleshooting](docs/troubleshooting.md)
-
-juice is free and unofficial. It is not made by Anthropic.
+[Bug report](https://github.com/zdraveski/claude-juice/issues/new?template=bug_report.yml) (include what `/juice doctor` says) · [Discussions](https://github.com/zdraveski/claude-juice/discussions) · [Security](.github/SECURITY.md) · [Contributing](.github/CONTRIBUTING.md) · [Privacy](docs/privacy.md) · [Troubleshooting](docs/troubleshooting.md)
