@@ -16,6 +16,6 @@ Claude Code itself is Anthropic's. Please report problems in it to Anthropic.
 
 Say what you found, which juice version (`/juice doctor` prints it) and how to reproduce it. A fix ships as a new version. Your report is credited unless you'd rather not be named.
 
-Only the newest version gets fixes. To update, see [Troubleshooting](docs/troubleshooting.md#update).
+Only the newest version gets fixes. To update, see [Troubleshooting](../docs/troubleshooting.md#update).
 
-What juice reads, sends and keeps is in [Privacy](docs/privacy.md).
+What juice reads, sends and keeps is in [Privacy](../docs/privacy.md).

@@ -55,4 +55,4 @@ While you have badges, `juice-cache` also keeps a copy of the details Claude Cod
 - The token is read in `readToken` and sent in `fetchFable`, both in [plugin/src/fable.js](../plugin/src/fable.js).
 - Badges run in `run` in [plugin/src/badges.js](../plugin/src/badges.js).
 
-Questions or problems: [open an issue](https://github.com/zdraveski/claude-juice/issues). To report a security problem privately, see [SECURITY.md](../SECURITY.md).
+Questions or problems: [open an issue](https://github.com/zdraveski/claude-juice/issues). To report a security problem privately, see [SECURITY.md](../.github/SECURITY.md).
