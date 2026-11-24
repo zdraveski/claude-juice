@@ -1,21 +1,26 @@
 // The customizer page. All drawing of the status line is done by ../src/render; this file only builds controls and converts its ANSI to HTML.
 import { render } from '../src/render/index.js';
 import { RESERVE } from '../src/render/fit.js';
-import { DEFAULTS, STYLE_LAYOUTS, LOOKS, COLOR_KEYS as KEYS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../src/schema.js';
+import { DEFAULTS, STYLE_LAYOUTS, LOOKS, SHOW_IDS, NAMES, CHOICES, COLOR_KEYS as KEYS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../src/schema.js';
 import { PRESETS, NEUTRAL } from '../src/render/palette.js';
 import { SAMPLES, withAccount } from '../src/samples.js';
 import { contrast } from '../src/render/ansi.js';
+import { ansiToHtml } from '../src/render/html.js';
 
-const BATTERIES = ['memory', 'session', 'fable', 'week'];
+// Model and effort stay on top and budget at the bottom; the batteries between them can be reordered.
+const FIXED = ['model', 'effort', 'budget'];
+const BATTERIES = SHOW_IDS.filter((id) => !FIXED.includes(id));
 const COLOR_NAMES = ['Plenty left', 'Going fast', 'Almost empty', 'Accent'];
 const WIDTHS = { small: 80, medium: 120, wide: 400 };
-const LAYOUTS = {
-  bar: ['Status bar', 'Compact, the number with each battery'],
-  segments: ['Classic segments', 'Five bars, like an old phone'],
-  focus: ['Tightest first', 'The one to watch gets the spotlight'],
-  panel: ['Panel', 'One row each, everything spelled out'],
-  pills: ['Capsules', 'Rounded capsules that fill with colour when they need you'],
-  tank: ['Fuel tank', 'Shows what is left, like a fuel gauge'],
+// Each choice's buttons come from the settings rules (src/schema.js), so a new value shows up here by itself.
+const opts = (key) => CHOICES[key].map((id) => [id, NAMES[key][id]]);
+const LAYOUT_NOTES = {
+  bar: 'Compact, the number with each battery',
+  segments: 'Five bars, like an old phone',
+  focus: 'The one to watch gets the spotlight',
+  panel: 'One row each, everything spelled out',
+  pills: 'Rounded capsules that fill with colour when they need you',
+  tank: 'Shows what is left, like a fuel gauge',
 };
 const SHOW = {
   model: ['Model', 'Which Claude you are using'],
@@ -28,15 +33,14 @@ const SHOW = {
 };
 const NOT_ON = { session: { payg: 'API keys have no session limit' }, week: { payg: 'API keys have no weekly limit' }, fable: { payg: 'API keys have no Fable limit', pro: 'The preview hides it on Pro' } };
 const DETAILS = [
-  ['order', 'Battery order', 'Keep the order above, or let the batteries move as things change', [['yours', 'As above'], ['urgent', 'Needs you first'], ['fullest', 'Fullest first']]],
+  ['order', 'Battery order', 'Keep the order above, or let the batteries move as things change'],
   // The preview shows Automatic as rounded, so say plainly where it really is rounded.
-  ['ends', 'Battery ends', 'Rounded ends need a terminal that can draw them. Automatic picks Rounded in VS Code and Plain elsewhere.', [['auto', 'Automatic'], ['round', 'Rounded'], ['plain', 'Plain']]],
-  ['battery', 'Battery style', 'How the batteries are drawn, or a shape instead. Classic is the old flat look', [['glossy', 'Glossy'], ['classic', 'Classic'], ['outline', 'Outline'], ['hot', 'Hot tip'], ['liquid', 'Liquid edge'], ['pace', 'Pace glow'],
-    ['pie', 'Pie'], ['sand', 'Sand'], ['slider', 'Slider'], ['race', 'Pace race'], ['lives', 'Lives'], ['dots', 'Dots'], ['chevrons', 'Chevrons'], ['ruler', 'Ruler']]],
-  ['refills', 'Reset times', 'Always show them, or only when something needs attention', [['always', 'Always'], ['warnings', 'Only when needed']]],
-  ['motion', 'Motion', 'Still draws once. Animated redraws every second and uses about one sixth of a CPU core per open window. The preview stays still; the real line climbs.', [['off', 'Still'], ['on', 'Animated']]],
+  ['ends', 'Battery ends', 'Rounded ends need a terminal that can draw them. Automatic picks Rounded in VS Code and Plain elsewhere.'],
+  ['battery', 'Battery style', 'How the batteries are drawn, or a shape instead. Classic is the old flat look'],
+  ['refills', 'Reset times', 'Always show them, or only when something needs attention'],
+  ['motion', 'Motion', 'Still draws once. Animated redraws every second and uses about one sixth of a CPU core per open window. The preview stays still; the real line climbs.'],
   // Without this the copied command can't fix dark colours on a light terminal: the Dark/Light switch above only changes the preview.
-  ['terminal', "Your terminal's theme", 'Automatic follows Claude Code’s theme. Pick Light if the text is hard to read on a light background', [['auto', 'Automatic'], ['dark', 'Dark'], ['light', 'Light']]],
+  ['terminal', "Your terminal's theme", 'Automatic follows Claude Code’s theme. Pick Light if the text is hard to read on a light background'],
 ];
 
 const phone = matchMedia('(max-width:700px)');
@@ -54,55 +58,10 @@ function adopt(next) {
   order = [...shown, ...BATTERIES.filter((id) => !shown.includes(id))];
   customs = typeof s.colors === 'string' ? presetArrs(s.colors) : { dark: arr(s.colors, 'dark'), light: arr(s.colors, 'light') };
 }
-const setShow = (id, on) => {
-  const want = new Set(on ? [...s.show, id] : s.show.filter((x) => x !== id));
-  s = { ...s, show: ['model', 'effort', ...order, 'budget'].filter((x) => want.has(x)) };
-};
-const reorder = () => { s = { ...s, show: ['model', 'effort', ...order, 'budget'].filter((x) => s.show.includes(x)) }; };
-
-// ---------- ANSI -> HTML (only the codes src/render/ansi.js emits); block and pill glyphs are drawn per cell like VS Code ----------
-const LEFTS = '▏▎▍▌▋▊▉█', LOWERS = '▁▂▃▄▅▆▇';
-function glyph(ch, f, b0) {
-  const b = b0 || 'transparent';
-  let i = LEFTS.indexOf(ch);
-  if (i >= 0) { const p = ((i + 1) / 8) * 100; return `linear-gradient(90deg,${f} ${p}%,${b} ${p}%)`; }
-  i = LOWERS.indexOf(ch);
-  if (i >= 0) { const p = ((i + 1) / 8) * 100; return `linear-gradient(0deg,${f} ${p}%,${b} ${p}%)`; }
-  // At least 1.5px wide, so the even-pace tick stays visible at normal zoom.
-  if (ch === '│') return `linear-gradient(90deg,${b} calc(50% - .75px),${f} calc(50% - .75px),${f} calc(50% + .75px),${b} calc(50% + .75px))`;
-  if (ch === '') return `radial-gradient(ellipse 100% 50% at 100% 50%,${f} 97%,transparent 100%) ${b}`;
-  if (ch === '') return `radial-gradient(ellipse 100% 50% at 0% 50%,${f} 97%,transparent 100%) ${b}`;
-  return null;
-}
-const esc = (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c] || c;
-// A browser has no terminal palette, so colors=terminal previews in VS Code's default 16.
-const ANSI16 = ['#000000', '#cd3131', '#0dbc79', '#e5e510', '#2472c8', '#bc3fbc', '#11a8cd', '#e5e5e5', '#666666', '#f14c4c', '#23d18b', '#f5f543', '#3b8eea', '#d670d6', '#29b8db', '#ffffff'];
-function ansiToHtml(text, termFg) {
-  return text.split('\n').map((ln) => {
-    let f0 = null, b0 = null, bo = false, out = '', run = '', runStyle = '';
-    const flush = () => { if (run) out += `<span style="${runStyle}">${run}</span>`; run = ''; };
-    for (const m of ln.matchAll(/\x1b\[([0-9;]*)m|[\s\S]/gu)) {
-      if (m[1] !== undefined) {
-        const p = (m[1] || '0').split(';').map(Number);
-        for (let i = 0; i < p.length; i++) {
-          const c = p[i];
-          if (c === 0) { f0 = b0 = null; bo = false; } else if (c === 1) bo = true; else if (c === 22) bo = false;
-          else if (c === 39) f0 = null; else if (c === 49) b0 = null;
-          else if (c >= 30 && c <= 37 || c >= 90 && c <= 97) f0 = ANSI16[c < 90 ? c - 30 : c - 82];
-          else if (c >= 40 && c <= 47 || c >= 100 && c <= 107) b0 = ANSI16[c < 100 ? c - 40 : c - 92];
-          else if ((c === 38 || c === 48) && p[i + 1] === 2) { const col = `rgb(${p[i + 2]},${p[i + 3]},${p[i + 4]})`; i += 4; if (c === 38) f0 = col; else b0 = col; }
-        }
-        continue;
-      }
-      const ch = m[0], f = f0 || termFg, g = glyph(ch, f, b0);
-      const style = `color:${f}${b0 ? `;background:${b0}` : ''}${bo ? ';font-weight:700' : ''}`;
-      if (g) { flush(); out += `<span class="cell" style="background:${g}"></span>`; }
-      else { if (style !== runStyle) { flush(); runStyle = style; } run += esc(ch); }
-    }
-    flush();
-    return `<div class="ln">${out}</div>`;
-  }).join('');
-}
+// show in the page's order: model and effort, the batteries as ordered, then budget.
+const showOnly = (want) => { s = { ...s, show: [FIXED[0], FIXED[1], ...order, FIXED[2]].filter((x) => want.includes(x)) }; };
+const setShow = (id, on) => showOnly(on ? [...s.show, id] : s.show.filter((x) => x !== id));
+const reorder = () => showOnly(s.show);
 
 // ---------- preview ----------
 const terminal = (columns, st = s) => ({ columns, theme: view.term, ends: st.ends === 'plain' ? 'plain' : 'round', colorDepth: 'truecolor' });
@@ -111,8 +70,9 @@ const sample = () => withAccount({ ...SAMPLES[view.state], model: { name: view.m
 const drawn = (settings, columns) => render(sample(), settings, terminal(columns - RESERVE, settings));
 const LOOK = Object.fromEntries(LOOKS.map((l) => [l.id, l]));
 // What a hovered card previews: view.hover is 'look:<id>' or 'layout:<id>'.
-const peek = (key) => { const [kind, id] = (key || '').split(':'); return kind === 'look' ? LOOK[id] : kind === 'layout' ? { name: LAYOUTS[id][0], set: { layout: id } } : null; };
-const offered = (id) => id === 'memory' || (view.plan !== 'payg' && (id !== 'fable' || view.plan === 'max'));
+const peek = (key) => { const [kind, id] = (key || '').split(':'); return kind === 'look' ? LOOK[id] : kind === 'layout' ? { name: NAMES.layout[id], set: { layout: id } } : null; };
+// A battery the preview's plan has no limit for can't be switched on; memory is every plan's.
+const offered = (id) => id === 'memory' || id in sample().limits;
 
 // ---------- the page ----------
 const $ = (id) => document.getElementById(id);
@@ -124,17 +84,17 @@ function buildShow() {
     + `<button class="mv" type="button" data-move="${k}" data-dir="-1" aria-label="Move ${SHOW[k][0]} up" ${i === 0 ? 'disabled' : ''}>▲</button><button class="mv" type="button" data-move="${k}" data-dir="1" aria-label="Move ${SHOW[k][0]} down" ${i === BATTERIES.length - 1 ? 'disabled' : ''}>▼</button>`
     + `<button class="sw" type="button" role="switch" data-show="${k}" aria-labelledby="lbl-${k}" aria-describedby="d-${k}"></button></div>`;
   $('show').innerHTML = fixedRow('model') + fixedRow('effort') + order.map(batRow).join('') + fixedRow('budget')
-    + `<div class="row"><span class="grip none"></span><div class="txt"><div class="t">Cost</div><div class="d">Auto shows it only on an API key, where you really pay it. On Pro and Max it's only what the chat would have cost.</div></div>${segHtml('cost', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], 'Cost')}</div>`;
+    + `<div class="row"><span class="grip none"></span><div class="txt"><div class="t">Cost</div><div class="d">Auto shows it only on an API key, where you really pay it. On Pro and Max it's only what the chat would have cost.</div></div>${segHtml('cost', opts('cost'), 'Cost')}</div>`;
 }
 $('looks').innerHTML = LOOKS.map((l) =>
   `<button class="opt" type="button" data-look="${l.id}"><div class="thumb" aria-hidden="true" data-lookthumb="${l.id}"></div><strong>${l.name}</strong><span>${l.note}</span></button>`).join('');
-$('layouts').innerHTML = Object.entries(LAYOUTS).map(([id, [name, note]]) =>
-  `<button class="opt" type="button" data-layout="${id}"><div class="thumb" aria-hidden="true" data-thumb="${id}"></div><strong>${name}${id === 'bar' ? '<span class="badge">Default</span>' : ''}</strong><span>${note}</span></button>`).join('');
+$('layouts').innerHTML = CHOICES.layout.map((id) =>
+  `<button class="opt" type="button" data-layout="${id}"><div class="thumb" aria-hidden="true" data-thumb="${id}"></div><strong>${NAMES.layout[id]}${id === DEFAULTS.layout ? '<span class="badge">Default</span>' : ''}</strong><span>${LAYOUT_NOTES[id]}</span></button>`).join('');
 $('presets').innerHTML = Object.entries(PRESETS).map(([id, p]) =>
   `<button class="opt preset" type="button" data-preset="${id}"><div class="chips" aria-hidden="true" data-chips="${id}"></div><strong>${p.name}</strong><span>${p.note}</span></button>`).join('')
   + `<button class="opt preset" type="button" data-preset="custom"><div class="chips" aria-hidden="true" data-chips="custom"></div><strong>Your own</strong><span>Pick below</span></button>`;
 $('custom').innerHTML = COLOR_NAMES.map((t, i) => `<label>${t}<input type="color" data-custom="${i}"><span class="ratio" data-ratio="${i}"></span></label>`).join('');
-$('details').innerHTML = DETAILS.map(([k, t, d, opts]) => `<div class="drow"><div><div class="t">${t}</div><div class="d" data-hint="${k}">${d}</div></div>${segHtml(k, opts, t)}</div>`).join('');
+$('details').innerHTML = DETAILS.map(([k, t, d]) => `<div class="drow"><div><div class="t">${t}</div><div class="d" data-hint="${k}">${d}</div></div>${segHtml(k, opts(k), t)}</div>`).join('');
 
 // The preview alone. Hovering a card redraws only this, since nothing chosen has changed.
 function preview() {
@@ -192,7 +152,7 @@ function update() {
   document.querySelectorAll('[data-key]').forEach((b) => b.setAttribute('aria-pressed', s[b.dataset.key] === b.dataset.v));
   // Only Status bar and Tightest first draw the style; say so in the others once one is picked, as /juice set does.
   $('details').querySelector('[data-hint=battery]').textContent = DETAILS.find(([k]) => k === 'battery')[2]
-    + (STYLE_LAYOUTS.includes(s.layout) || s.battery === DEFAULTS.battery ? '' : `. ${LAYOUTS[s.layout][0]} keeps its own shapes: styles show in Status bar and Tightest first`);
+    + (STYLE_LAYOUTS.includes(s.layout) || s.battery === DEFAULTS.battery ? '' : `. ${NAMES.layout[s.layout]} keeps its own shapes: styles show in Status bar and Tightest first`);
   $('details').querySelector('[data-key=battery]').closest('.seg').classList.toggle('dim', !STYLE_LAYOUTS.includes(s.layout));
   document.querySelectorAll('[data-view]').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', view[seg.dataset.view] === b.dataset.v)));
   $('model').value = view.model;
@@ -254,7 +214,7 @@ document.addEventListener('click', (e) => {
   if (t.dataset.look) {
     adopt(applySet(s, [`look=${t.dataset.look}`]).settings); buildShow(); view.hover = null;
     say(`${LOOK[t.dataset.look].name} chosen`); }
-  else if (t.dataset.layout) { s = { ...s, layout: t.dataset.layout }; view.hover = null; say(`${LAYOUTS[t.dataset.layout][0]} chosen`); }
+  else if (t.dataset.layout) { s = { ...s, layout: t.dataset.layout }; view.hover = null; say(`${NAMES.layout[t.dataset.layout]} chosen`); }
   else if (t.dataset.show) { if (t.getAttribute('aria-disabled') !== 'true') setShow(t.dataset.show, !s.show.includes(t.dataset.show)); }
   else if (t.dataset.move) return move(t.dataset.move, Number(t.dataset.dir));
   else if (t.dataset.preset) {

@@ -4,7 +4,18 @@ import { contrast } from './render/ansi.js';
 export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank'];
 // The layouts that draw the battery style; the others keep their own shapes.
 export const STYLE_LAYOUTS = ['bar', 'focus'];
-const LAYOUT_NAMES = { segments: 'Classic segments', panel: 'Panel', pills: 'Capsules', tank: 'Fuel tank' };
+// What each choice is called, on the customizer's buttons and in juice's own messages (one name per id in CHOICES).
+export const NAMES = {
+  layout: { bar: 'Status bar', segments: 'Classic segments', focus: 'Tightest first', panel: 'Panel', pills: 'Capsules', tank: 'Fuel tank' },
+  order: { yours: 'As above', urgent: 'Needs you first', fullest: 'Fullest first' },
+  cost: { auto: 'Auto', on: 'On', off: 'Off' },
+  ends: { auto: 'Automatic', round: 'Rounded', plain: 'Plain' },
+  battery: { glossy: 'Glossy', classic: 'Classic', outline: 'Outline', hot: 'Hot tip', liquid: 'Liquid edge', pace: 'Pace glow',
+    pie: 'Pie', sand: 'Sand', slider: 'Slider', race: 'Pace race', lives: 'Lives', dots: 'Dots', chevrons: 'Chevrons', ruler: 'Ruler' },
+  refills: { always: 'Always', warnings: 'Only when needed' },
+  motion: { off: 'Still', on: 'Animated' },
+  terminal: { auto: 'Automatic', dark: 'Dark', light: 'Light' },
+};
 // yours: the order of show; urgent: the one that needs you most first; fullest: the most used first.
 export const ORDER_IDS = ['yours', 'urgent', 'fullest'];
 export const PRESET_IDS = Object.keys(PRESETS);
@@ -69,7 +80,7 @@ const CHECK = {
   truecolor: oneOf(['auto', 'on', 'off']),
   refills: oneOf(['always', 'warnings']),
   fable: oneOf(['auto', 'on', 'off']),
-  motion: oneOf(['on', 'off']),
+  motion: oneOf(['off', 'on']),
   show(v) {
     if (!Array.isArray(v)) return undefined;
     const ids = [...new Set(v.filter((id) => SHOW_IDS.includes(id)))];
@@ -82,6 +93,8 @@ const CHECK = {
     return dark && light ? { dark, light } : undefined;
   },
 };
+// The values each one-of setting takes, in the order the customizer offers them.
+export const CHOICES = Object.fromEntries(Object.entries(CHECK).filter(([, c]) => c.ids).map(([k, c]) => [k, c.ids]));
 
 // A warning reaches Claude's context: a value from a file can't carry a sentence in, so it is one short line.
 const short = (s) => { const t = String(s).replace(/[\u0000-\u001f\u007f-\u009f\s]+/g, ' ').trim(); return t.length > 30 ? `${t.slice(0, 30)}...` : t; };
@@ -181,7 +194,7 @@ export function applySet(settings, pairs) {
   // Changed, not chosen: the customizer's command always carries battery=, picked or not.
   const draws = (s) => STYLE_LAYOUTS.includes(s.layout);
   if (next.battery !== DEFAULTS.battery && !draws(next) && (changed.includes('battery') || draws(settings))) {
-    const where = `the ${LAYOUT_NAMES[next.layout] ?? 'current'} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`;
+    const where = `the ${NAMES.layout[next.layout] ?? 'current'} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`;
     warnings.push(changed.includes('battery') ? `battery: saved, but ${where}` : `battery: your '${next.battery}' style won't show, as ${where}`);
   }
   return { settings: next, warnings, changed, chosen };
