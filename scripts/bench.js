@@ -6,13 +6,14 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { paths } from '../src/paths.js';
-import { install } from '../src/setup.js';
+import { paths } from '../plugin/src/paths.js';
+import { install } from '../plugin/src/setup.js';
 
 const BUDGET_MS = 75; // juice adds about 60 ms on a 2011 i5; the rest is room for noise
 const ROUNDS = 25;
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+const plugin = join(root, 'plugin');
 const now = Math.floor(Date.now() / 1000);
 const input = JSON.stringify(JSON.parse(readFileSync(join(root, 'test/fixtures/busy.json'), 'utf8'), (_, v) => {
   const m = typeof v === 'string' && /^now\+(-?\d+)$/.exec(v);
@@ -33,11 +34,11 @@ process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
 const env = { ...process.env, CLAUDE_CONFIG_DIR: dir, COLORTERM: 'truecolor' };
 delete env.NO_COLOR;
 const p = paths(env);
-install(p, { pluginRoot: root });
+install(p, { pluginRoot: plugin });
 
 // A terminal that doesn't announce full colour gets 256 colours, which costs a colour search on every refresh.
 const { COLORTERM, WT_SESSION, ...env256 } = env;
-const runs = { node: [['-e', '0'], env], juice: [[join(root, 'bin/juice-statusline.js')], env], launcher: [[p.launcherFile], env],
+const runs = { node: [['-e', '0'], env], juice: [[join(plugin, 'bin/juice-statusline.js')], env], launcher: [[p.launcherFile], env],
   launcher256: [[p.launcherFile], env256] };
 // A broken juice can be fast too, so it must really draw the batteries before its time counts.
 for (const k of ['juice', 'launcher', 'launcher256']) {

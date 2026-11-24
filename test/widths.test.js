@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { vis, cut, strip, fg } from '../src/render/ansi.js';
+import { vis, cut, strip, fg } from '../plugin/src/render/ansi.js';
 
 // Every glyph juice draws, with the columns terminals give it, written by hand so a Node Unicode update can't move one.
 const ONE = '·•…─━│┣┫┿╋▀▁▂▃▅▆█▉▊▋▌▍▎▏░▕■▪▰▱▸▹◆○●◑◔◕♡♥✓⠂⡀⣀⣄⣤⣦⣶⣷⣿';
@@ -17,7 +17,7 @@ test('widths: every glyph juice draws has its pinned column count', () => {
 
 test('widths: every non-ASCII character in src/ is in the table, so a new glyph gets pinned too', () => {
   const found = new Set();
-  for (const f of readdirSync(new URL('../src', import.meta.url), { recursive: true, withFileTypes: true })) {
+  for (const f of readdirSync(new URL('../plugin/src', import.meta.url), { recursive: true, withFileTypes: true })) {
     if (f.isFile() && f.name.endsWith('.js')) for (const ch of readFileSync(join(f.parentPath, f.name), 'utf8')) if (ch > '\x7f') found.add(ch);
   }
   found.delete('﻿'); // the BOM juice strips from files
@@ -47,7 +47,7 @@ test('cut never splits what draws as one character: flags, joined emoji, skin to
 });
 
 test('cutting plain text never builds a text segmenter (making one costs a whole refresh ~20 ms)', () => {
-  const url = pathToFileURL(join(import.meta.dirname, '../src/render/ansi.js')).href;
+  const url = pathToFileURL(join(import.meta.dirname, '../plugin/src/render/ansi.js')).href;
   const code = `Intl.Segmenter = class { constructor() { throw new Error('built a segmenter'); } };
     const { cut, strip, fg } = await import(${JSON.stringify(url)});
     process.stdout.write(strip(cut(fg('#ffffff', 'Session ▰▰▱ 88% 日本 😀 left'), 18)));`;
@@ -56,7 +56,7 @@ test('cutting plain text never builds a text segmenter (making one costs a whole
 
 // Final review (1.4.1): a badge is cut to 40 columns on every refresh, so one showing ☀️ built it every time.
 test('text that already fits is never segmented, even with an emoji or an accent', () => {
-  const url = pathToFileURL(join(import.meta.dirname, '../src/render/ansi.js')).href;
+  const url = pathToFileURL(join(import.meta.dirname, '../plugin/src/render/ansi.js')).href;
   const code = `Intl.Segmenter = class { constructor() { throw new Error('built a segmenter'); } };
     const { cut, strip, fg } = await import(${JSON.stringify(url)});
     process.stdout.write(strip(cut(fg('#ffffff', '☀️ +12°C café 👍🏽'), 40)));`;

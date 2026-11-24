@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ansiToHtml } from '../src/render/html.js';
-import { render } from '../src/render/index.js';
-import { DEFAULTS, SHOW_IDS, LOOKS } from '../src/schema.js';
-import { SAMPLES } from '../src/samples.js';
+import { ansiToHtml } from '../plugin/src/render/html.js';
+import { render } from '../plugin/src/render/index.js';
+import { DEFAULTS, SHOW_IDS, LOOKS } from '../plugin/src/schema.js';
+import { SAMPLES } from '../plugin/src/samples.js';
 
 // The visible text: what sits between the tags.
 const text = (html) => [...html.matchAll(/>([^<]*)</g)].map((m) => m[1]).join('');

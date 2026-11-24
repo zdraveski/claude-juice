@@ -12,7 +12,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { cleanEnv } from './helpers.js';
 
-const BIN = fileURLToPath(new URL('../bin/juice-statusline.js', import.meta.url));
+const BIN = fileURLToPath(new URL('../plugin/bin/juice-statusline.js', import.meta.url));
 const GUARD = `import net from 'node:net';
 const real = net.Socket.prototype.connect;
 net.Socket.prototype.connect = function (...a) {

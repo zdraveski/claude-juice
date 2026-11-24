@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { strip } from './helpers.js';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { fg, vis, inkOn, contrast, mix, to256, to16 } from '../src/render/ansi.js';
-import { DEFAULTS, PRESET_IDS, BATTERY_IDS, FORM_IDS } from '../src/schema.js';
-import { PRESETS, NEUTRAL, palette, makeCtx } from '../src/render/palette.js';
-import { battery, batteryPct, batterySeg, batteryLow, ramp, chip, form, CLIMB_MS } from '../src/render/pieces.js';
-import { EFFORT } from '../src/render/words.js';
-import { SAMPLES, withAccount } from '../src/samples.js';
+import { fg, vis, inkOn, contrast, mix, to256, to16 } from '../plugin/src/render/ansi.js';
+import { DEFAULTS, PRESET_IDS, BATTERY_IDS, FORM_IDS } from '../plugin/src/schema.js';
+import { PRESETS, NEUTRAL, palette, makeCtx } from '../plugin/src/render/palette.js';
+import { battery, batteryPct, batterySeg, batteryLow, ramp, chip, form, CLIMB_MS } from '../plugin/src/render/pieces.js';
+import { EFFORT } from '../plugin/src/render/words.js';
+import { SAMPLES, withAccount } from '../plugin/src/samples.js';
 
 // The checks that name the casing or the tick are about the classic cells.
 const mk = (round = false) => makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'classic' }, { theme: 'dark', ends: round ? 'round' : 'plain' });

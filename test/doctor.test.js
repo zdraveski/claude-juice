@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, unlinkSync, cpSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { main } from '../src/cli.js';
-import { doctor, ago } from '../src/doctor.js';
-import { install } from '../src/setup.js';
-import { paths, hideHome } from '../src/paths.js';
-import { runStatusLine } from '../src/statusline.js';
+import { main } from '../plugin/src/cli.js';
+import { doctor, ago } from '../plugin/src/doctor.js';
+import { install } from '../plugin/src/setup.js';
+import { paths, hideHome } from '../plugin/src/paths.js';
+import { runStatusLine } from '../plugin/src/statusline.js';
 import { NOW } from './helpers.js';
 
 // main() and install() look for project settings above process.cwd(): start in a folder of our own, so the runner's cwd can't change a result.
@@ -24,7 +24,7 @@ async function run(dir, argv) {
   const code = await main(argv, io(dir, out));
   return { code, text: out.join('\n') };
 }
-const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const { version } = JSON.parse(readFileSync(new URL('../plugin/package.json', import.meta.url), 'utf8'));
 const check = (dir, extra = {}) => doctor(paths({ CLAUDE_CONFIG_DIR: dir }), { env: {}, platform: 'linux', now: NOW, cwd: dir, version, ...extra }).join('\n');
 
 test('doctor: nothing set up says so and how to fix it', async () => {
@@ -79,7 +79,7 @@ test('doctor: a missing launcher, and a juice line pointing elsewhere', async ()
 test('doctor: installed from the plugin store, it names the store version and spots a mismatch', () => {
   const d = config();
   const root = join(d, 'plugins', 'cache', 'juice', 'juice', '0.2.5');
-  for (const f of ['bin', 'src', 'package.json']) cpSync(new URL(`../${f}`, import.meta.url), join(root, f), { recursive: true });
+  for (const f of ['bin', 'src', 'package.json']) cpSync(new URL(`../plugin/${f}`, import.meta.url), join(root, f), { recursive: true });
   const p = paths({ CLAUDE_CONFIG_DIR: d });
   install(p, { pluginRoot: root, platform: 'linux', env: {}, cwd: d });
   const text = check(d);

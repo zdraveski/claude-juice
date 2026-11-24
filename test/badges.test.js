@@ -4,15 +4,15 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, utimesSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { paths } from '../src/paths.js';
-import { runStatusLine } from '../src/statusline.js';
+import { paths } from '../plugin/src/paths.js';
+import { runStatusLine } from '../plugin/src/statusline.js';
 import { fixture } from './helpers.js';
-import { writeJsonAtomic, takeLock, readJson } from '../src/cache.js';
-import { loadSettings, saveSettings } from '../src/settings.js';
+import { writeJsonAtomic, takeLock, readJson } from '../plugin/src/cache.js';
+import { loadSettings, saveSettings } from '../plugin/src/settings.js';
 
 const busyText = JSON.stringify(fixture('busy'));
 import { strip, at, NOW } from './helpers.js';
-import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, listBadges, removeBadge, run, approve, approved, badgeEnv } from '../src/badges.js';
+import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, listBadges, removeBadge, run, approve, approved, badgeEnv } from '../plugin/src/badges.js';
 
 // process.getBuiltinModule came in Node 22.3 and 20.16. On an older Node the line still draws, so its badges must still run.
 test('a badge runs on a Node without process.getBuiltinModule', async () => {
@@ -335,7 +335,7 @@ test('removing a badge deletes the saved outputs even when another badge stays, 
 
 test('killTree runs taskkill from System32, never found by bare name in the project folder', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../src/badges.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../plugin/src/badges.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /spawn\('taskkill'/);
   assert.match(src, /System32', 'taskkill\.exe'/);
 });

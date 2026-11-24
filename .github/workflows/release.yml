@@ -1,5 +1,5 @@
 # Publishes a GitHub Release when a version tag is pushed, for example: git tag v1.5.3 && git push origin v1.5.3
-# It first runs every test (test.yml), then checks the tag matches package.json, .claude-plugin/plugin.json
+# It first runs every test (test.yml), then checks the tag matches plugin/package.json, plugin/.claude-plugin/plugin.json
 # and a CHANGELOG.md entry, and uses that entry as the release notes.
 name: release
 

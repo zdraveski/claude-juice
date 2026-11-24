@@ -6,9 +6,9 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdi
 import { tmpdir, homedir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { main, friendly } from '../src/cli.js';
-import { isJuice } from '../src/setup.js';
-import { CUSTOMIZER_URL, LOOKS } from '../src/schema.js';
+import { main, friendly } from '../plugin/src/cli.js';
+import { isJuice } from '../plugin/src/setup.js';
+import { CUSTOMIZER_URL, LOOKS } from '../plugin/src/schema.js';
 
 // main() and install() look for project settings above process.cwd(): start in a folder of our own, so the runner's cwd can't change a result.
 process.chdir(mkdtempSync(join(tmpdir(), 'juice-cwd-')));
@@ -38,13 +38,13 @@ const launcherCommand = (d) => new RegExp(`^(?:PATH="[^"]*:\\$PATH" )?node "${es
 
 // Claude Code finds updates by plugin.json's version; the refresher's User-Agent reads package.json's.
 test('plugin.json and package.json carry the same version', () => {
-  const version = (f) => json(new URL(`../${f}`, import.meta.url)).version;
+  const version = (f) => json(new URL(`../plugin/${f}`, import.meta.url)).version;
   assert.equal(version('.claude-plugin/plugin.json'), version('package.json'));
 });
 
 // The README sends people to "What's new", so a release must never ship without its entry there.
 test('CHANGELOG.md has an entry for the version being released', () => {
-  const { version } = json(new URL('../package.json', import.meta.url));
+  const { version } = json(new URL('../plugin/package.json', import.meta.url));
   const log = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
   assert.match(log, new RegExp(`^## ${version.replaceAll('.', '\\.')}( |\\r?$)`, 'm'), `no "## ${version}" section in CHANGELOG.md`);
   // The release checklist asks for the compare link to the heading just below.
@@ -143,8 +143,8 @@ test('a settings.json with a mistake in it says try again, not run setup, so res
 test('settings.json is read once, so a save between two reads is not called a mistake', async (t) => {
   const d = env();
   writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD));
-  const { readClaudeSettings } = await import('../src/setup.js');
-  const { paths } = await import('../src/paths.js');
+  const { readClaudeSettings } = await import('../plugin/src/setup.js');
+  const { paths } = await import('../plugin/src/paths.js');
   const real = fs.readFileSync;
   let reads = 0;
   t.mock.method(fs, 'readFileSync', function (file, ...rest) {
@@ -194,7 +194,7 @@ test('after an update, a refresh makes the cache folders private', { skip: proce
   mkdirSync(badges, { recursive: true });
   chmodSync(cache, 0o755); chmodSync(badges, 0o755);
   utimesSync(join(d, 'juice-statusline.mjs'), new Date(0), new Date(0));
-  const { runStatusLine } = await import('../src/statusline.js');
+  const { runStatusLine } = await import('../plugin/src/statusline.js');
   await runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
   assert.equal(statSync(cache).mode & 0o777, 0o700);
   assert.equal(statSync(badges).mode & 0o777, 0o700);
@@ -207,9 +207,9 @@ test('after an update, a refresh moves the 1 juice wrote to 60 once, and nothing
   const s = { ...json(f), theme: 'dark', permissions: { allow: ['Bash(ls)'] }, hooks: { Stop: [] }, env: { A: '1' } };
   const put = (o) => writeFileSync(f, JSON.stringify({ ...s, statusLine: { ...s.statusLine, ...o } }));
   const stale = () => utimesSync(launcher, new Date(0), new Date(0));
-  const { runStatusLine } = await import('../src/statusline.js');
-  const { matchRefresh } = await import('../src/setup.js');
-  const { paths } = await import('../src/paths.js');
+  const { runStatusLine } = await import('../plugin/src/statusline.js');
+  const { matchRefresh } = await import('../plugin/src/setup.js');
+  const { paths } = await import('../plugin/src/paths.js');
   const draw = () => runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
   put({ refreshInterval: 1 }); stale(); await draw();
   assert.equal(json(f).statusLine.refreshInterval, 60);
@@ -228,7 +228,7 @@ test('after an update, a refresh moves the 1 juice wrote to 60 once, and nothing
 
 // Two refreshes after an update, the first with refreshInterval put back to 1: the check moves it to 60 once.
 async function checkedOnce(d, name) {
-  const { runStatusLine } = await import('../src/statusline.js');
+  const { runStatusLine } = await import('../plugin/src/statusline.js');
   const f = join(d, 'settings.json');
   const every = (n) => writeFileSync(f, JSON.stringify({ statusLine: { ...json(f).statusLine, refreshInterval: n } }));
   const draw = () => runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
@@ -239,7 +239,7 @@ async function checkedOnce(d, name) {
 }
 
 test('a launcher or juice dated far ahead by a wrong clock gets the once-per-update check, once', async (t) => {
-  const YEAR = 365 * 86400000, template = new URL('../bin/launcher.js', import.meta.url), installed = statSync(template).mtimeMs;
+  const YEAR = 365 * 86400000, template = new URL('../plugin/bin/launcher.js', import.meta.url), installed = statSync(template).mtimeMs;
   const utimes = fs.utimesSync, stat = fs.statSync, even = (x) => new Date(Math.floor(+x / 2000) * 2000);
   // clock: a year before juice was installed, not before today, which an old checkout or ZIP could predate.
   // ahead: juice dated a year ahead of the real clock, which then dates a launcher juice rewrites (old) before it.
@@ -299,7 +299,7 @@ test('a launcher deleted during the once-per-update check is not written back', 
     throw Object.assign(new Error('no such file'), { code: 'ENOENT' });
   });
   syncBuiltinESMExports();
-  const { runStatusLine } = await import('../src/statusline.js');
+  const { runStatusLine } = await import('../plugin/src/statusline.js');
   try { await runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} }); }
   finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
   assert.ok(restored, 'the check ran');
@@ -361,7 +361,7 @@ test('a settings.json juice cannot read is never replaced', { skip: process.plat
 test('the once-per-update refresh sweeps temp files a killed refresh left behind', async () => {
   const d = env();
   await run(d, ['setup']);
-  const { runStatusLine } = await import('../src/statusline.js');
+  const { runStatusLine } = await import('../plugin/src/statusline.js');
   const old = new Date('2020-01-01'), cache = join(d, 'juice-cache');
   mkdirSync(cache, { recursive: true });
   const stale = join(cache, 'lastseen.json.1.a.tmp'), fresh = join(cache, 'lastseen.json.2.b.tmp');
@@ -376,7 +376,7 @@ test('a refresh brings an old or outdated launcher up to date, and leaves a remo
   const d = env();
   await run(d, ['setup']);
   const launcher = join(d, 'juice-statusline.mjs'), current = readFileSync(launcher, 'utf8');
-  const { runStatusLine } = await import('../src/statusline.js');
+  const { runStatusLine } = await import('../plugin/src/statusline.js');
   const refresh = () => runStatusLine({ stdinText: '{}', env: { CLAUDE_CONFIG_DIR: d }, now: new Date(), platform: 'linux', spawnDetached() {} });
   // The pre-0.2.1 kind, written long before the juice now installed.
   const old = new Date('2020-01-01');
@@ -515,8 +515,8 @@ test('a damaged backup is set aside and the current status line is still saved',
 
 // Builds a POSIX PATH out of real folders, so it needs real POSIX paths: CI runs it on macOS and Linux.
 test('on macOS and Linux the folder of the first node on PATH goes in front of PATH; restore still knows it', { skip: process.platform === 'win32' && 'POSIX PATH lookup; runs on macOS and Linux in CI' }, async () => {
-  const { install, restore } = await import('../src/setup.js');
-  const { paths } = await import('../src/paths.js');
+  const { install, restore } = await import('../plugin/src/setup.js');
+  const { paths } = await import('../plugin/src/paths.js');
   // A PATH like a Mac's: a folder holding node (Homebrew's /opt/homebrew/bin).
   const bin = env('bin'), fnm = env('fnm_multishells/9_1/bin'), rel = env('rel');
   for (const dir of [bin, fnm]) writeFileSync(join(dir, 'node'), '');
@@ -561,8 +561,8 @@ test('setup says why the line is empty when juice was told to show nothing', asy
 });
 
 test('the home folder\'s own .claude is never taken for a project that hides juice', async () => {
-  const { install } = await import('../src/setup.js');
-  const { paths } = await import('../src/paths.js');
+  const { install } = await import('../plugin/src/setup.js');
+  const { paths } = await import('../plugin/src/paths.js');
   const home = env('home'), keep = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE };
   mkdirSync(join(home, '.claude'), { recursive: true });
   writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'echo mine' } }));
@@ -582,8 +582,8 @@ test('a juice line run by a Node file with another name ("nodejs") is still juic
 });
 
 test('setup run from a subfolder still finds a project setting above it that hides juice', async () => {
-  const { install } = await import('../src/setup.js');
-  const { paths } = await import('../src/paths.js');
+  const { install } = await import('../plugin/src/setup.js');
+  const { paths } = await import('../plugin/src/paths.js');
   const project = env('project'), sub = join(project, 'src', 'deep');
   mkdirSync(join(project, '.claude'), { recursive: true }); mkdirSync(sub, { recursive: true });
   writeFileSync(join(project, '.claude', 'settings.json'), JSON.stringify({ disableAllHooks: true }));
@@ -652,8 +652,8 @@ test('a new backup is as private as settings.json', { skip: process.platform ===
 });
 
 test('setup says so when a project setting or disableAllHooks keeps juice from showing', async () => {
-  const { install } = await import('../src/setup.js');
-  const { paths } = await import('../src/paths.js');
+  const { install } = await import('../plugin/src/setup.js');
+  const { paths } = await import('../plugin/src/paths.js');
   const d = env(), project = env('project');
   mkdirSync(join(project, '.claude'), { recursive: true });
   writeFileSync(join(project, '.claude', 'settings.local.json'), JSON.stringify({ statusLine: { type: 'command', command: 'echo project' } }));
@@ -1006,8 +1006,8 @@ test('restore leaves someone else\'s status line alone', async () => {
 });
 
 test('a plugin path with $ replacement patterns still gives a valid launcher', async () => {
-  const { install } = await import('../src/setup.js');
-  const { paths } = await import('../src/paths.js');
+  const { install } = await import('../plugin/src/setup.js');
+  const { paths } = await import('../plugin/src/paths.js');
   const { spawnSync } = await import('node:child_process');
   const d = env();
   install(paths({ CLAUDE_CONFIG_DIR: d }), { pluginRoot: "C:/dev/it$'s/$&/juice" });
@@ -1017,8 +1017,8 @@ test('a plugin path with $ replacement patterns still gives a valid launcher', a
 });
 
 test('setup from the plugin cache writes its marketplace into the launcher', async () => {
-  const { install } = await import('../src/setup.js');
-  const { paths } = await import('../src/paths.js');
+  const { install } = await import('../plugin/src/setup.js');
+  const { paths } = await import('../plugin/src/paths.js');
   const d = env();
   install(paths({ CLAUDE_CONFIG_DIR: d }), { pluginRoot: `${d.replaceAll('\\', '/')}/plugins/cache/juice-mk/juice/0.2.0` });
   const text = readFileSync(join(d, 'juice-statusline.mjs'), 'utf8');

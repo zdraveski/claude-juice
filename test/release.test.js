@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const { version } = JSON.parse(readFileSync(new URL('../plugin/package.json', import.meta.url), 'utf8'));
 const notes = (tag) => spawnSync(process.execPath, ['scripts/release-notes.mjs', tag], { cwd: ROOT, encoding: 'utf8' });
 
 test('the current version matches plugin.json and has a changelog entry', () => {

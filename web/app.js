@@ -1,18 +1,18 @@
-// The customizer page. All drawing of the status line is done by ../src/render; this file only builds controls and converts its ANSI to HTML.
-import { render } from '../src/render/index.js';
-import { RESERVE } from '../src/render/fit.js';
-import { DEFAULTS, STYLE_LAYOUTS, LOOKS, SHOW_IDS, NAMES, CHOICES, COLOR_KEYS as KEYS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../src/schema.js';
-import { PRESETS, NEUTRAL } from '../src/render/palette.js';
-import { SAMPLES, withAccount } from '../src/samples.js';
-import { contrast } from '../src/render/ansi.js';
-import { ansiToHtml } from '../src/render/html.js';
+// The customizer page. All drawing of the status line is done by ../plugin/src/render; this file only builds controls and converts its ANSI to HTML.
+import { render } from '../plugin/src/render/index.js';
+import { RESERVE } from '../plugin/src/render/fit.js';
+import { DEFAULTS, STYLE_LAYOUTS, LOOKS, SHOW_IDS, NAMES, CHOICES, COLOR_KEYS as KEYS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../plugin/src/schema.js';
+import { PRESETS, NEUTRAL } from '../plugin/src/render/palette.js';
+import { SAMPLES, withAccount } from '../plugin/src/samples.js';
+import { contrast } from '../plugin/src/render/ansi.js';
+import { ansiToHtml } from '../plugin/src/render/html.js';
 
 // Model and effort stay on top and budget at the bottom; the batteries between them can be reordered.
 const FIXED = ['model', 'effort', 'budget'];
 const BATTERIES = SHOW_IDS.filter((id) => !FIXED.includes(id));
 const COLOR_NAMES = ['Plenty left', 'Going fast', 'Almost empty', 'Accent'];
 const WIDTHS = { small: 80, medium: 120, wide: 400 };
-// Each choice's buttons come from the settings rules (src/schema.js), so a new value shows up here by itself.
+// Each choice's buttons come from the settings rules (plugin/src/schema.js), so a new value shows up here by itself.
 const opts = (key) => CHOICES[key].map((id) => [id, NAMES[key][id]]);
 const LAYOUT_NOTES = {
   bar: 'Compact, the number with each battery',

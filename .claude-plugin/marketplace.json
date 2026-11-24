@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "juice",
-      "source": "./",
+      "source": "./plugin",
       "description": "A Claude Code status line that shows your usage limits as batteries: your 5-hour session, your weekly and Fable limits, and how full your chat is. It says when each limit resets and warns you before you run out."
     }
   ]

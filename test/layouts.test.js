@@ -2,15 +2,15 @@ import './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { strip, at, fixture, NOW } from './helpers.js';
-import { normalize } from '../src/data.js';
+import { normalize } from '../plugin/src/data.js';
 
 const TERM = { columns: 200, theme: 'dark', ends: 'round', colorDepth: 'truecolor' };
-import { render } from '../src/render/index.js';
-import { LAYOUTS } from '../src/render/layouts.js';
-import { DEFAULTS, LAYOUT_IDS, applySet } from '../src/schema.js';
-import { SAMPLES, withAccount } from '../src/samples.js';
-import { fg, contrast, inkOn } from '../src/render/ansi.js';
-import { palette, NEUTRAL, makeCtx, PRESETS } from '../src/render/palette.js';
+import { render } from '../plugin/src/render/index.js';
+import { LAYOUTS } from '../plugin/src/render/layouts.js';
+import { DEFAULTS, LAYOUT_IDS, applySet } from '../plugin/src/schema.js';
+import { SAMPLES, withAccount } from '../plugin/src/samples.js';
+import { fg, contrast, inkOn } from '../plugin/src/render/ansi.js';
+import { palette, NEUTRAL, makeCtx, PRESETS } from '../plugin/src/render/palette.js';
 
 const term = { columns: 200, theme: 'dark', ends: 'round', colorDepth: 'truecolor' };
 const run = (data, over = {}, t = {}) => render(data, { ...DEFAULTS, ...over }, { ...term, ...t }).text;
@@ -190,7 +190,7 @@ test('gateway shows Budget', () => {
   assert.ok(!text({ ...d, account: 'subscriber' }).includes('Budget'), 'Budget is for gateway accounts only');
 });
 test('fit flags hide things', async () => {
-  const { makeCtx } = await import('../src/render/palette.js');
+  const { makeCtx } = await import('../plugin/src/render/palette.js');
   const ctx = makeCtx({ ...SAMPLES.busy, badges: ['[B]'] }, { ...DEFAULTS }, term);
   ctx.fit = { noRefills: true, noEffortWord: true, noModel: true, badges: true };
   const s = strip(LAYOUTS.bar({ ...SAMPLES.busy, badges: ['[B]'] }, ctx));

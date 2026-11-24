@@ -1,7 +1,7 @@
 import './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULTS, LAYOUT_IDS, PRESET_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink, CUSTOMIZER_URL, BATTERY_IDS, SHOW_IDS, NAMES, CHOICES } from '../src/schema.js';
+import { DEFAULTS, LAYOUT_IDS, PRESET_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink, CUSTOMIZER_URL, BATTERY_IDS, SHOW_IDS, NAMES, CHOICES } from '../plugin/src/schema.js';
 
 const A = { plentyLeft: '#11AA22', goingFast: '#223344', almostEmpty: '#abcdef', accent: '#000000' };
 const custom = { dark: A, light: { ...A, accent: '#ffffff' } };
@@ -234,8 +234,8 @@ test('applySet ignores prototype names and bare words without throwing', () => {
 // The /juice skill can't run code to look these up, so its lists must match the code exactly.
 test('the /juice skill numbers the looks and names the colour sets exactly as the code does', async () => {
   const { readFileSync } = await import('node:fs');
-  const { PRESETS } = await import('../src/render/palette.js');
-  const skill = readFileSync(new URL('../skills/juice/SKILL.md', import.meta.url), 'utf8');
+  const { PRESETS } = await import('../plugin/src/render/palette.js');
+  const skill = readFileSync(new URL('../plugin/skills/juice/SKILL.md', import.meta.url), 'utf8');
   const numbered = /numbered list: ([^(]+?) \(/.exec(skill)[1].split(', ').map((x) => x.split(' ')[1]);
   assert.deepEqual(numbered, LOOKS.map((l) => l.id));
   for (const id of PRESET_IDS) assert.ok(skill.includes(`${id} (${PRESETS[id].name}`), `colour set ${id} (${PRESETS[id].name}) is not named in the skill`);
@@ -244,7 +244,7 @@ test('the /juice skill numbers the looks and names the colour sets exactly as th
 // Every "key: a, b, c" list in the skill is the set of values juice accepts for that key, no more and no fewer.
 test('the /juice skill lists exactly the values the code accepts for every key', async () => {
   const { readFileSync } = await import('node:fs');
-  const skill = readFileSync(new URL('../skills/juice/SKILL.md', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+  const skill = readFileSync(new URL('../plugin/skills/juice/SKILL.md', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
   const listed = (key) => {
     const line = new RegExp(`^   - ${key}[ ,:].*$`, 'm').exec(skill)?.[0];
     assert.ok(line, `no "${key}" line in the skill`);
@@ -264,7 +264,7 @@ test('the /juice skill lists exactly the values the code accepts for every key',
 // The few that change things or print secrets are meant to ask, so they must not be allowed.
 test('every juice command the /juice skill runs matches its allowed-tools line, except the ones that must ask', async () => {
   const { readFileSync } = await import('node:fs');
-  const skill = readFileSync(new URL('../skills/juice/SKILL.md', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+  const skill = readFileSync(new URL('../plugin/skills/juice/SKILL.md', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
   const allowed = /^allowed-tools: (.*)$/m.exec(skill)[1].split(/, (?=Bash\(|PowerShell\()/);
   const PREFIX = 'node "${CLAUDE_PLUGIN_ROOT}/bin/juice.js"';
   const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
