@@ -5,8 +5,10 @@ name: tests
 
 on:
   push:
+    branches: ['**'] # not tags: a version tag runs these through release.yml instead
   pull_request:
   workflow_dispatch: # a "Run workflow" button on the Actions tab
+  workflow_call: # lets release.yml run every test before it publishes
 
 permissions:
   contents: read # it only reads the code
