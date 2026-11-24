@@ -4,6 +4,21 @@ This page lists what changed in each version of juice, newest first.
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.5.2 (2026-11-24)
+
+[Changes since 1.5.1](https://github.com/zdraveski/claude-juice/compare/v1.5.1...v1.5.2)
+
+Tidier code inside juice. What you see stays the same, apart from two small fixes.
+
+### Changed
+
+- **Motion warning:** a wrong `motion` value now lists the choices as `off, on`, in the same order as the customizer's buttons.
+- **Customizer:** its buttons now come straight from juice's settings rules, so a new choice shows up on the page by itself. They look the same as before.
+
+### Fixed
+
+- **Badge list:** a badge saved with an empty list of extra variables no longer shows "(also sees )".
+
 ## 1.5.1 (2026-11-24)
 
 [Changes since 1.5.0](https://github.com/zdraveski/claude-juice/compare/v1.5.0...v1.5.1)

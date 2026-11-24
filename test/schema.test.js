@@ -1,7 +1,7 @@
 import './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULTS, LAYOUT_IDS, PRESET_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink, CUSTOMIZER_URL, BATTERY_IDS, SHOW_IDS } from '../src/schema.js';
+import { DEFAULTS, LAYOUT_IDS, PRESET_IDS, LOOKS, sanitize, applySet, toCommand, encodeLink, parseLink, CUSTOMIZER_URL, BATTERY_IDS, SHOW_IDS, NAMES, CHOICES } from '../src/schema.js';
 
 const A = { plentyLeft: '#11AA22', goingFast: '#223344', almostEmpty: '#abcdef', accent: '#000000' };
 const custom = { dark: A, light: { ...A, accent: '#ffffff' } };
@@ -324,7 +324,7 @@ test('battery set in a layout that keeps its own shapes says so; bar and focus s
 test('a wrong value lists the right ones, built from the table that checks them', () => {
   const w = (pair) => applySet(DEFAULTS, [pair]).warnings[0];
   assert.match(w('layout=nope'), new RegExp(`Use one of: ${LAYOUT_IDS.join(', ')}\\.`));
-  assert.match(w('motion=maybe'), /Use one of: on, off\./);
+  assert.match(w('motion=maybe'), /Use one of: off, on\./);
   assert.match(w('cost=x'), /Use one of: auto, on, off\./);
   assert.match(w('look=nope'), new RegExp(`Use one of: ${LOOKS.map((l) => l.id).join(', ')}\\.`));
   assert.match(w('colors=nope'), new RegExp(`Use one of: ${PRESET_IDS.join(', ')}\\. Or .*dark:.*light:.*#`));
@@ -345,4 +345,8 @@ test('a value in a warning is one short line', () => {
   const w = sanitize({ layout: `a\nb\u001b[31m${'z'.repeat(100)}` }, { allowBadges: false }).warnings[0];
   assert.doesNotMatch(w, /[\u0000-\u001f]|z{30}/);
   assert.match(w, /^layout: 'a b \[31mz+\.\.\.' isn't valid/);
+});
+
+test('every choice the customizer offers has a name, and every name is a choice', () => {
+  for (const [key, names] of Object.entries(NAMES)) assert.deepEqual(Object.keys(names), CHOICES[key], key);
 });

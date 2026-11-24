@@ -1,6 +1,5 @@
 // Shared by the picture scripts: juice's own renderer, and the GitHub look every README picture shares
 // (Primer colours, Mona Sans), drawn once for GitHub's dark theme and once for its light theme.
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -10,8 +9,7 @@ const { render } = await imp('src/render/index.js');
 const { DEFAULTS, SHOW_IDS, LOOKS } = await imp('src/schema.js');
 const { NEUTRAL, PRESETS } = await imp('src/render/palette.js');
 const { SAMPLES } = await imp('src/samples.js');
-const app = readFileSync(REPO + 'web/app.js', 'utf8');
-const ansiToHtml = new Function(app.slice(app.indexOf('const LEFTS'), app.indexOf('// ---------- preview')) + '\nreturn ansiToHtml;')();
+const { ansiToHtml } = await imp('src/render/html.js');
 
 export { LOOKS, PRESETS, NEUTRAL };
 export const busy = SAMPLES.busy;
