@@ -6,6 +6,9 @@
 // - fetched: Anthropic's usage service (fable.js), counted for up to an hour.
 // A reading is { used, resetsAt } with resetsAt a Date, epoch milliseconds, or null when unknown.
 
+// Claude Code sends reset times in epoch seconds; a value above 1e11 is already milliseconds.
+export const toMs = (t) => (t > 1e11 ? t : t * 1000);
+
 const DAY = 86400000;
 const TOLERANCE = 60000; // sources disagree on a reset time by a few seconds
 const time = (r) => (typeof r.resetsAt === 'number' ? r.resetsAt : r.resetsAt?.getTime() ?? 0);

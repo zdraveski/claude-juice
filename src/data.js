@@ -1,5 +1,5 @@
 import { strip } from './render/ansi.js';
-import { toShow, fetchedCounts, accountOf } from './readings.js';
+import { toShow, fetchedCounts, accountOf, toMs } from './readings.js';
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 // Whole percents, but 100 only when really used up: 99.6% rounds to 99, not to a "used up" that would block nothing.
@@ -11,7 +11,7 @@ const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 function limit(used, resetsAt, windowSec) {
   used = pct(used);
   if (used === null) return undefined;
-  const t = typeof resetsAt === 'string' ? Date.parse(resetsAt) : num(resetsAt) === null ? NaN : resetsAt > 1e11 ? resetsAt : resetsAt * 1000; // above 1e11 it is already milliseconds
+  const t = typeof resetsAt === 'string' ? Date.parse(resetsAt) : num(resetsAt) === null ? NaN : toMs(resetsAt);
   const d = new Date(t > 0 ? t : NaN); // out-of-range values (1e20) give an Invalid Date; zero or below is "unknown", not "long ago"
   return { used, resetsAt: Number.isNaN(d.getTime()) ? null : d, windowSec };
 }
