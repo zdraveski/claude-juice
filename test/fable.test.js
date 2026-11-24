@@ -7,10 +7,9 @@ import { join } from 'node:path';
 import { paths } from '../src/paths.js';
 import { readJson, writeJsonAtomic, takeLock } from '../src/cache.js';
 import { readToken, fetchFable, refreshFable, keychainService } from '../src/fable.js';
-import { fableCacheState } from '../src/readings.js';
 import * as readings from '../src/readings.js';
 import { createHash } from 'node:crypto';
-import { fableEnabled } from '../src/schema.js';
+import { readFetched } from '../src/fetched.js';
 
 const TOKEN = 'test-token-123';
 const NOW = NOW_DATE.getTime();
@@ -32,16 +31,6 @@ const noExec = () => { throw new Error('should not run'); };
 // What `security` does when the Keychain holds no such item (status 44), and when the person denies or cancels the dialog.
 const notFound = () => { throw Object.assign(new Error('not found'), { status: 44 }); };
 const refused = () => { throw Object.assign(new Error('denied'), { status: 1 }); };
-
-test('fableEnabled', () => {
-  // auto stays on only for someone who already has a reading (1.3.x turned it on without asking); a new install asks first.
-  assert.equal(fableEnabled('auto', 'win32', true), true);
-  assert.equal(fableEnabled('auto', 'linux', true), true);
-  assert.equal(fableEnabled('auto', 'win32', false), false);
-  assert.equal(fableEnabled('auto', 'darwin', true), false);
-  assert.equal(fableEnabled('on', 'darwin', false), true);
-  assert.equal(fableEnabled('off', 'linux', true), false);
-});
 
 test('readToken: file on win32, null on problems', () => {
   const p = setup();
@@ -194,23 +183,13 @@ test('refreshFable with no token and no old cache backs off, never throws', asyn
   assert.deepEqual(readJson(cacheFile(p)), { backoffUntil: NOW + 900000, why: 'login' });
 });
 
-test('fableCacheState', () => {
-  const c = (ageMin, extra = {}) => ({ used: 1, resetsAt: 'x', fetchedAt: NOW - ageMin * 60000, ...extra });
-  assert.equal(fableCacheState(c(4), NOW).stale, false);
-  assert.equal(fableCacheState(c(6), NOW).stale, true);
-  assert.equal(fableCacheState(c(6, { backoffUntil: NOW + 1 }), NOW).stale, false);
-  assert.equal(fableCacheState(c(6, { backoffUntil: NOW + 10 * 3600000 }), NOW).stale, true, 'a pause stamped hours ahead (clock was ahead) is ignored');
-  assert.equal(fableCacheState(null, NOW).stale, true);
-  assert.equal(fableCacheState({ fetchedAt: NOW + 5000, used: 1 }, NOW).stale, true, 'a fetch stamped in the future is never trusted');
-});
-
 test('refreshFable accepts a Date for now and writes numbers', async () => {
   const p = setup();
   const args = { p, platform: 'win32', execFileSync: noExec, now: NOW_DATE, version: 'v' };
   await refreshFable({ ...args, fetchImpl: okFetch() });
   const c = readJson(cacheFile(p));
   assert.equal(c.fetchedAt, NOW);
-  assert.equal(fableCacheState(c, NOW_DATE).stale, false);
+  assert.equal(readFetched(p, 'on', 'win32', NOW_DATE).due, false, 'what the refresher writes, the status line reads as fresh');
   await refreshFable({ ...args, fetchImpl: async () => ({ ok: false }) });
   const b = readJson(cacheFile(p));
   assert.equal(b.backoffUntil, NOW + 900000);
@@ -260,8 +239,8 @@ test('on a Mac, a refused Keychain read is told apart from a missing item, and b
   assert.equal(called, false);
   const c = readJson(cacheFile(p));
   assert.deepEqual(c, { backoffUntil: NOW + 12 * 3600000, why: 'denied' });
-  assert.equal(fableCacheState(c, NOW + 3600000).backedOff, true);
-  assert.equal(fableCacheState(c, NOW + 12 * 3600000 + 1).backedOff, false);
+  assert.equal(readFetched(p, 'on', 'darwin', new Date(NOW + 3600000)).failed?.why, 'denied');
+  assert.equal(readFetched(p, 'on', 'darwin', new Date(NOW + 12 * 3600000 + 1)).failed, null);
 });
 
 test('the fable lock outlasts the Keychain wait plus the fetch, so a second refresher never starts meanwhile', () => {

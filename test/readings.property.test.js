@@ -7,11 +7,12 @@
 // A failure names its seed: JUICE_SEED=<n> node --test test/readings.property.test.js replays just that history.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { remember } from '../src/lastseen.js';
 import { normalize } from '../src/data.js';
+import { readFetched } from '../src/fetched.js';
 
 const HISTORIES = 150, STEPS = 40;
 const MIN = 60e3, HOUR = 60 * MIN, DAY = 24 * HOUR;
@@ -52,7 +53,7 @@ const iso = (ms) => new Date(ms).toISOString();
 function history(seed) {
   const r = rng(seed);
   const dir = mkdtempSync(join(tmpdir(), 'juice-prop-'));
-  const p = { cacheDir: dir };
+  const p = { cacheDir: dir, fableFile: join(dir, 'fable.json') };
   const log = [];
   try {
     let now = START;
@@ -79,6 +80,8 @@ function history(seed) {
           week: { used: acc.seven.used, resetsAt: iso(acc.seven.resetsAt + jitter(r)) },
           fetchedAt: now - r.int(70) * MIN,
         };
+        // Saved the way fable.js saves it, so the status line's own reader decides what still counts.
+        if (fable) writeFileSync(p.fableFile, JSON.stringify(fable)); else rmSync(p.fableFile, { force: true });
       }
       const version = r.pick(['2.1.300', '2.1.300', '2.1.200', undefined]);
       const limitsNow = () => {
@@ -117,7 +120,8 @@ function history(seed) {
       log.push(`${step} ${what} ${id}${isNew ? ' (new)' : ''} now=${iso(now)} ${JSON.stringify(stdin.rate_limits ?? null)} fable=${JSON.stringify(fable)}`);
 
       const rec = remember(stdin, p, at);
-      const data = normalize(stdin, { lastSeen: rec, fable }, at);
+      const fetched = readFetched(p, 'on', 'linux', at).reading;
+      const data = normalize(stdin, { lastSeen: rec, ...(fetched && { fetched }) }, at);
       const where = `seed ${seed}, step ${step}\n${log.slice(-8).join('\n')}`;
 
       // 1. A reset limit never hides a current one from any source.
