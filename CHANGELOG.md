@@ -4,6 +4,12 @@ This page lists what changed in each version of juice, newest first.
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## Unreleased
+
+### Fixed
+
+- **Doctor on a Mac:** after a denied Keychain read, its advice now names the right file to delete, `fable.json` in the `juice-cache` folder. It said `fable-cache.json`, which doesn't exist.
+
 ## 1.5.2 (2026-11-24)
 
 [Changes since 1.5.1](https://github.com/zdraveski/claude-juice/compare/v1.5.1...v1.5.2)

@@ -225,6 +225,6 @@ juice runs on Windows, macOS and Linux, in the terminal where you type `claude`.
 
 - Your Claude folder is `~/.claude` (on Windows, `.claude` in your user folder), or the folder in `CLAUDE_CONFIG_DIR` if you set it. juice keeps its files there.
 - On Windows, badge commands run in the command prompt (cmd), not Git Bash. See [Badges](badges.md#on-windows).
-- On a Mac, the Fable battery makes macOS ask once for permission to read the sign-in from the Keychain. It is safe to allow or deny. If you deny it, juice does not ask again for about 12 hours, and `/juice doctor` says it was denied. To retry at once, delete `fable-cache.json` in the juice cache folder.
+- On a Mac, the Fable battery makes macOS ask once for permission to read the sign-in from the Keychain. It is safe to allow or deny. If you deny it, juice does not ask again for about 12 hours, and `/juice doctor` says it was denied. To retry at once, delete `fable.json` in the `juice-cache` folder.
 - On Windows and Linux, the Fable battery reads `.credentials.json` in your Claude folder.
 - The macOS Terminal app before macOS 26 does not draw full colour. iTerm2, Windows Terminal, VS Code and kitty do. See [Troubleshooting](troubleshooting.md) if colours look off.
