@@ -6,7 +6,7 @@ its child, restore) on Windows, macOS and Linux with Node 24 and 26 on every pus
 
 ## 0. main is what people install
 
-The plugin store serves whatever is newest on `main` (the marketplace entry is `"source": "./"`), to new installs at
+The plugin store serves whatever is newest on `main` (the marketplace entry is `"source": "./plugin"`), to new installs at
 once and under whatever version number `main` says. So:
 
 - `main` is protected by the ruleset `main` (id 26291212): a change reaches it only through a pull request whose 7 GitHub checks pass (3 systems × Node 24 and 26, plus `customizer`, the browser checks), docs included.
@@ -15,7 +15,7 @@ once and under whatever version number `main` says. So:
 - Code reaches `main` only at a release: merge the pull request with the version raised and its CHANGELOG entry in one go
   (then tag it, step 1 below).
 - Docs-only pull requests (README, the pages in `docs/`, CHANGELOG) can be merged between releases; code can't.
-- Never run a checkout's `bin/juice-statusline.js` without `CLAUDE_CONFIG_DIR` set to a throwaway folder: a refresh
+- Never run a checkout's `plugin/bin/juice-statusline.js` without `CLAUDE_CONFIG_DIR` set to a throwaway folder: a refresh
   points your real status line at the juice it ran from, and it goes blank once that folder is deleted.
 
 ## 1. Run here before every release
@@ -25,7 +25,7 @@ once and under whatever version number `main` says. So:
 - [ ] `node scripts/check-customizer.js` passes every browser check and does not print SKIPPED (needs Playwright: `npm i -g playwright`; GitHub runs it too, as `customizer`).
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
 - [ ] The pinned Playwright in `.github/workflows/test.yml` (`npm i -g playwright@...`) is bumped when it ages (dependabot can't see it): bump it, and check the customizer job is still green.
-- [ ] If a look, layout, colour set, the drawing in `src/render`, the sample numbers in `src/samples.js` or the customizer page in `web/` changed since the last release, rebuild the pictures in `docs/images` (`node scripts/pictures/readme.mjs`, plus `hero-features.mjs` and `customizer.mjs` there for the hero, features, button and customizer; they need Playwright, ffmpeg and the network, for Google Fonts) so the README and `docs/guide.md` show what juice draws now. Their alt texts spell out those numbers (64%, 47%, 50%, Road trip's 36% and 53%, Sat 7:20 PM, ~2:33 PM): check they still match the new pictures. If the hero changed, upload `docs/images/hero.png` as the repo's social preview too (Settings, General).
+- [ ] If a look, layout, colour set, the drawing in `plugin/src/render`, the sample numbers in `plugin/src/samples.js` or the customizer page in `web/` changed since the last release, rebuild the pictures in `docs/images` (`node scripts/pictures/readme.mjs`, plus `hero-features.mjs` and `customizer.mjs` there for the hero, features, button and customizer; they need Playwright, ffmpeg and the network, for Google Fonts) so the README and `docs/guide.md` show what juice draws now. Their alt texts spell out those numbers (64%, 47%, 50%, Road trip's 36% and 53%, Sat 7:20 PM, ~2:33 PM): check they still match the new pictures. If the hero changed, upload `docs/images/hero.png` as the repo's social preview too (Settings, General).
 - [ ] `version` is raised in both `plugin/.claude-plugin/plugin.json` and `plugin/package.json` (tests fail if they differ; Claude Code uses plugin.json's version to find updates).
 - [ ] `CHANGELOG.md` has a `## X.Y.Z` section for the new version (tests fail if it is missing), in plain words for users, with `[Changes since <previous>](https://github.com/zdraveski/claude-juice/compare/v<previous>...v<version>)` under its heading (every version from 1.0.1 on has one; earlier ones have no tags).
 - [ ] After merging: pull `main`, then `git tag v<version> && git push origin v<version>`. The release workflow (`.github/workflows/release.yml`) runs every test, checks the tag matches `plugin/package.json`, `plugin/.claude-plugin/plugin.json` and a changelog section, and publishes the GitHub release titled with the bare version and that section as its notes. Watch it on the Actions tab; if it fails, fix the cause, delete the tag (`git push --delete origin v<version>`, `git tag -d v<version>`) and tag again.

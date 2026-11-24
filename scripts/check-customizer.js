@@ -45,14 +45,15 @@ before(async () => {
 });
 after(async () => { await browser?.close(); server.close(); });
 
-// A fresh page with nothing remembered from earlier visits; collects page errors.
-async function open(width = 1280) {
+// A fresh page with nothing remembered from earlier visits; collects page errors. at: a share link, opened as a
+// new visit would open it (going there from an open page only changes the hash, and races the page's update).
+async function open(width = 1280, at = url) {
   const page = await (await browser.newContext({ viewport: { width, height: 900 } })).newPage();
   page.setDefaultTimeout(5000); // a missing element fails in seconds, not Playwright's 30
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-  await page.goto(url);
+  await page.goto(at);
   return { page, errors };
 }
 const cmd = (page) => page.textContent('#cmd');
@@ -114,10 +115,14 @@ test('hovering a look previews it without choosing it', async () => {
 
 test('a share link brings the same settings back', async () => {
   const { page } = await open();
+  // The page writes its address as it loads, then follows the settings at most 5 times a second (see the colour-picker
+  // check): wait for the first write, so the change after the click is the click's, then copy the link once it lands.
+  await page.waitForFunction(() => location.hash.startsWith('#c='));
+  const start = page.url();
   await page.click('[data-look=nightowl]');
+  await page.waitForFunction((s) => location.href !== s, start);
   const want = await cmd(page);
-  const other = await open();
-  await other.page.goto(page.url());
+  const other = await open(1280, page.url());
   assert.equal(await cmd(other.page), want);
 });
 
@@ -339,8 +344,7 @@ test('dragging a colour picker changes the address at most 5 times a second, and
     return { calls, ms: performance.now() - t0 };
   });
   assert.ok(n.calls <= Math.ceil(n.ms / 200) + 1, JSON.stringify(n));
-  const want = await cmd(page), other = await open();
-  await other.page.goto(page.url());
+  const want = await cmd(page), other = await open(1280, page.url());
   assert.equal(await cmd(other.page), want);
 });
 
