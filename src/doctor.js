@@ -130,7 +130,7 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
       const advice = proxyBlocks ? `You're behind a company proxy, which juice can only get through with Node 24 or newer (this is ${node}): install the newest from nodejs.org.`
         : failed.why === 'expired' ? 'Your Claude sign-in was due for renewal; Claude Code renews it on your next message, and juice picks it up after that.'
         : failed.why === 'busy' ? "Anthropic's server was busy; nothing to do."
-        : failed.why === 'denied' ? 'macOS Keychain access was denied; run /juice set fable=off or allow it. juice asks again after about 12 hours; to retry at once, delete fable-cache.json in the juice cache folder.'
+        : failed.why === 'denied' ? 'macOS Keychain access was denied; run /juice set fable=off or allow it. juice asks again after about 12 hours; to retry at once, delete fable.json in the juice-cache folder.'
         : failed.why === 'changed' ? "Anthropic's answer wasn't what juice expects. If it lasts a day, tell us at https://github.com/zdraveski/claude-juice/issues."
         : failed.why === 'offline' ? "juice couldn't reach Anthropic: check you're online. Behind a company proxy, set HTTPS_PROXY (and NODE_EXTRA_CA_CERTS if it checks secure connections)."
         : 'If it keeps failing, type /login to sign in to Claude Code again.';
