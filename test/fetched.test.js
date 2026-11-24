@@ -6,8 +6,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { paths } from '../src/paths.js';
-import { readFetched, FRESH_MS } from '../src/fetched.js';
+import { paths } from '../plugin/src/paths.js';
+import { readFetched, FRESH_MS } from '../plugin/src/fetched.js';
 
 const T = NOW.getTime(), MIN = 60000, HOUR = 60 * MIN;
 const at = (ms) => new Date(T + ms);

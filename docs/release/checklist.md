@@ -26,9 +26,9 @@ once and under whatever version number `main` says. So:
 - [ ] `node scripts/bench.js` prints OK: juice adds at most 75 ms to Node starting.
 - [ ] The pinned Playwright in `.github/workflows/test.yml` (`npm i -g playwright@...`) is bumped when it ages (dependabot can't see it): bump it, and check the customizer job is still green.
 - [ ] If a look, layout, colour set, the drawing in `src/render`, the sample numbers in `src/samples.js` or the customizer page in `web/` changed since the last release, rebuild the pictures in `docs/images` (`node scripts/pictures/readme.mjs`, plus `hero-features.mjs` and `customizer.mjs` there for the hero, features, button and customizer; they need Playwright, ffmpeg and the network, for Google Fonts) so the README and `docs/guide.md` show what juice draws now. Their alt texts spell out those numbers (64%, 47%, 50%, Road trip's 36% and 53%, Sat 7:20 PM, ~2:33 PM): check they still match the new pictures. If the hero changed, upload `docs/images/hero.png` as the repo's social preview too (Settings, General).
-- [ ] `version` is raised in both `.claude-plugin/plugin.json` and `package.json` (tests fail if they differ; Claude Code uses plugin.json's version to find updates).
+- [ ] `version` is raised in both `plugin/.claude-plugin/plugin.json` and `plugin/package.json` (tests fail if they differ; Claude Code uses plugin.json's version to find updates).
 - [ ] `CHANGELOG.md` has a `## X.Y.Z` section for the new version (tests fail if it is missing), in plain words for users, with `[Changes since <previous>](https://github.com/zdraveski/claude-juice/compare/v<previous>...v<version>)` under its heading (every version from 1.0.1 on has one; earlier ones have no tags).
-- [ ] After merging: pull `main`, then `git tag v<version> && git push origin v<version>`. The release workflow (`.github/workflows/release.yml`) runs every test, checks the tag matches `package.json`, `plugin.json` and a changelog section, and publishes the GitHub release titled with the bare version and that section as its notes. Watch it on the Actions tab; if it fails, fix the cause, delete the tag (`git push --delete origin v<version>`, `git tag -d v<version>`) and tag again.
+- [ ] After merging: pull `main`, then `git tag v<version> && git push origin v<version>`. The release workflow (`.github/workflows/release.yml`) runs every test, checks the tag matches `plugin/package.json`, `plugin/.claude-plugin/plugin.json` and a changelog section, and publishes the GitHub release titled with the bare version and that section as its notes. Watch it on the Actions tab; if it fails, fix the cause, delete the tag (`git push --delete origin v<version>`, `git tag -d v<version>`) and tag again.
 
 ## 2. Inside Claude Code, on each system you have
 
@@ -122,7 +122,7 @@ The repo is named `claude-juice` because other projects already use the name jui
 ## Hosting (public since 2026-10-29)
 
 - [x] Create the GitHub repo: `zdraveski/claude-juice`, public.
-- [x] Enable GitHub Pages from the main branch **root** (`web/app.js` imports `../src/`, and the customizer lives at `/web/`).
+- [x] Enable GitHub Pages from the main branch **root** (`web/app.js` imports `../plugin/src/`, and the customizer lives at `/web/`).
 - [x] Replace `OWNER/REPO` (and `OWNER.github.io/REPO`) in `src/schema.js` `CUSTOMIZER_URL`, `web/index.html` and `README.md`.
-- [x] Add `homepage` and `repository` to `.claude-plugin/plugin.json`.
+- [x] Add `homepage` and `repository` to `plugin/.claude-plugin/plugin.json`.
 - [x] Confirm `CUSTOMIZER_URL` contains none of `& | ^ % < >` (the Windows opener passes it to cmd).

@@ -1,9 +1,9 @@
 // Test card for the release checklist's terminal matrix: run `node scripts/terminal-check.js` in each terminal
 // (dark and light theme) and answer the numbered questions. Prints what juice would pick on its own there too.
-import { render } from '../src/render/index.js';
-import { DEFAULTS, SHOW_IDS } from '../src/schema.js';
-import { SAMPLES } from '../src/samples.js';
-import { detectTerminal } from '../src/terminal.js';
+import { render } from '../plugin/src/render/index.js';
+import { DEFAULTS, SHOW_IDS } from '../plugin/src/schema.js';
+import { SAMPLES } from '../plugin/src/samples.js';
+import { detectTerminal } from '../plugin/src/terminal.js';
 
 const env = process.env;
 const auto = detectTerminal({ env, settings: DEFAULTS, claudeTheme: () => null });

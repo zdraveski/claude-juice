@@ -4,10 +4,10 @@ import { mkdtempSync, writeFileSync, readFileSync, readdirSync, mkdirSync, statS
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
-import { paths } from '../src/paths.js';
-import { readJson, writeJsonAtomic, takeLock, holdLock, removeOld, HOT_WRITE } from '../src/cache.js';
-import { loadSettings, saveSettings } from '../src/settings.js';
-import { DEFAULTS } from '../src/schema.js';
+import { paths } from '../plugin/src/paths.js';
+import { readJson, writeJsonAtomic, takeLock, holdLock, removeOld, HOT_WRITE } from '../plugin/src/cache.js';
+import { loadSettings, saveSettings } from '../plugin/src/settings.js';
+import { DEFAULTS } from '../plugin/src/schema.js';
 import { NOW, at } from './helpers.js';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'juice-'));
@@ -47,7 +47,7 @@ test('round trip, and bad files read as null', () => {
 
 test('concurrent writers never expose a partial file', async () => {
   const d = tmp(), f = join(d, 'x.json');
-  const url = new URL('../src/cache.js', import.meta.url).href;
+  const url = new URL('../plugin/src/cache.js', import.meta.url).href;
   const code = `import(${JSON.stringify(url)}).then(m=>{for(let i=0;i<50;i++)m.writeJsonAtomic(${JSON.stringify(f)},{n:i,pad:'x'.repeat(5000)})})`;
   let running = 4;
   const done = new Promise((res, rej) => {
@@ -91,7 +91,7 @@ test('takeLock leaves a lock taken a moment after this window read the clock', (
 // and out to a shared file: no two windows may ever overlap in one round, and exactly one wins each.
 const ROUNDS = 5;
 async function race(p) {
-  const url = new URL('../src/cache.js', import.meta.url).href;
+  const url = new URL('../plugin/src/cache.js', import.meta.url).href;
   const log = join(tmp(), 'sections.log');
   const go = Date.now() + 1500; // every child waits for the same instant, so they really do collide
   const code = `import(${JSON.stringify(url)}).then(m=>{const fs=require('fs');for(let r=0;r<${ROUNDS};r++){while(Date.now()<${go}+r*300);` +

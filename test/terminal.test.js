@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { paths } from '../src/paths.js';
-import { DEFAULTS, applySet } from '../src/schema.js';
-import { detectTerminal, readClaudeTheme } from '../src/terminal.js';
-import { remember, recall } from '../src/lastseen.js';
+import { paths } from '../plugin/src/paths.js';
+import { DEFAULTS, applySet } from '../plugin/src/schema.js';
+import { detectTerminal, readClaudeTheme } from '../plugin/src/terminal.js';
+import { remember, recall } from '../plugin/src/lastseen.js';
 import { NOW, at, cleanEnv } from './helpers.js';
 
 // The release checklist runs this test card in every terminal, so it must at least start.

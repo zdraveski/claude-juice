@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
-const { version } = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8'));
+const { version } = JSON.parse(readFileSync(join(repo, 'plugin', 'package.json'), 'utf8'));
 const V = version.replaceAll('.', '\\.');
 // Copied file by file: Node 22's fs.cpSync on Windows mangled this folder name, so the copy landed elsewhere
 // (juice itself never copies files, so users can't hit that).
@@ -22,7 +22,7 @@ const copy = (from, to) => {
   if (statSync(from).isDirectory()) { mkdirSync(to, { recursive: true }); for (const f of readdirSync(from)) copy(join(from, f), join(to, f)); }
   else copyFileSync(from, to);
 };
-const plugin = (to) => { for (const f of ['bin', 'src', 'package.json', '.claude-plugin']) copy(join(repo, f), join(to, f)); };
+const plugin = (to) => { for (const f of ['bin', 'src', 'package.json', '.claude-plugin']) copy(join(repo, 'plugin', f), join(to, f)); };
 // A fresh home with juice in Claude Code's plugin store, as <version>. The temp folder by its full name, as a real
 // home folder always is (C:\Users\Zoë, not RUNNER~1).
 // Every temp folder goes when the run ends, passed or failed.

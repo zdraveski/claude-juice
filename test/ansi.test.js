@@ -1,12 +1,12 @@
 import './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fg, strip, vis, cut, contrast, inkOn, to256, to16 } from '../src/render/ansi.js';
-import { render } from '../src/render/index.js';
-import { makeCtx } from '../src/render/palette.js';
-import { batteryPct } from '../src/render/pieces.js';
-import { SAMPLES } from '../src/samples.js';
-import { DEFAULTS } from '../src/schema.js';
+import { fg, strip, vis, cut, contrast, inkOn, to256, to16 } from '../plugin/src/render/ansi.js';
+import { render } from '../plugin/src/render/index.js';
+import { makeCtx } from '../plugin/src/render/palette.js';
+import { batteryPct } from '../plugin/src/render/pieces.js';
+import { SAMPLES } from '../plugin/src/samples.js';
+import { DEFAULTS } from '../plugin/src/schema.js';
 
 test('strip removes escapes', () => assert.equal(strip(fg('#ff0000', 'hi')), 'hi'));
 test('vis ignores escapes', () => assert.equal(vis(fg('#ff0000', 'abc')), 3));

@@ -10,9 +10,9 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { remember } from '../src/lastseen.js';
-import { normalize } from '../src/data.js';
-import { readFetched } from '../src/fetched.js';
+import { remember } from '../plugin/src/lastseen.js';
+import { normalize } from '../plugin/src/data.js';
+import { readFetched } from '../plugin/src/fetched.js';
 
 const HISTORIES = 150, STEPS = 40;
 const MIN = 60e3, HOUR = 60 * MIN, DAY = 24 * HOUR;

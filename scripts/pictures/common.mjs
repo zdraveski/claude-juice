@@ -5,11 +5,11 @@ import { pathToFileURL } from 'node:url';
 
 const REPO = join(import.meta.dirname, '../../');
 const imp = (p) => import(pathToFileURL(REPO + p).href);
-const { render } = await imp('src/render/index.js');
-const { DEFAULTS, SHOW_IDS, LOOKS } = await imp('src/schema.js');
-const { NEUTRAL, PRESETS } = await imp('src/render/palette.js');
-const { SAMPLES } = await imp('src/samples.js');
-const { ansiToHtml } = await imp('src/render/html.js');
+const { render } = await imp('plugin/src/render/index.js');
+const { DEFAULTS, SHOW_IDS, LOOKS } = await imp('plugin/src/schema.js');
+const { NEUTRAL, PRESETS } = await imp('plugin/src/render/palette.js');
+const { SAMPLES } = await imp('plugin/src/samples.js');
+const { ansiToHtml } = await imp('plugin/src/render/html.js');
 
 export { LOOKS, PRESETS, NEUTRAL };
 export const busy = SAMPLES.busy;

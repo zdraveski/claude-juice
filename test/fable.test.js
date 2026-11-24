@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, utimesSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { paths } from '../src/paths.js';
-import { readJson, writeJsonAtomic, takeLock } from '../src/cache.js';
-import { readToken, fetchFable, refreshFable, keychainService } from '../src/fable.js';
-import * as readings from '../src/readings.js';
+import { paths } from '../plugin/src/paths.js';
+import { readJson, writeJsonAtomic, takeLock } from '../plugin/src/cache.js';
+import { readToken, fetchFable, refreshFable, keychainService } from '../plugin/src/fable.js';
+import * as readings from '../plugin/src/readings.js';
 import { createHash } from 'node:crypto';
-import { readFetched } from '../src/fetched.js';
+import { readFetched } from '../plugin/src/fetched.js';
 
 const TOKEN = 'test-token-123';
 const NOW = NOW_DATE.getTime();

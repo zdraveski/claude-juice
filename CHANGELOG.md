@@ -6,6 +6,10 @@ To update, type `/plugin`, update juice, then restart Claude Code.
 
 ## Unreleased
 
+### Changed
+
+- **Smaller install:** juice now installs only the files it runs, about 280 KB instead of 3.5 MB. Its tests, scripts and pictures stay on GitHub.
+
 ### Fixed
 
 - **Doctor on a Mac:** after a denied Keychain read, its advice now names the right file to delete, `fable.json` in the `juice-cache` folder. It said `fable-cache.json`, which doesn't exist.

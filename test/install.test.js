@@ -7,11 +7,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { paths } from '../src/paths.js';
-import { install, restore } from '../src/setup.js';
-import { launcherFor, constant, fwd } from '../src/launcher-file.js';
+import { paths } from '../plugin/src/paths.js';
+import { install, restore } from '../plugin/src/setup.js';
+import { launcherFor, constant, fwd } from '../plugin/src/launcher-file.js';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '');
+const ROOT = fileURLToPath(new URL('../plugin', import.meta.url)).replace(/[\\/]$/, '');
 const tmp = () => mkdtempSync(join(tmpdir(), 'juice-install-'));
 const busyText = JSON.stringify(fixture('busy'));
 // Always a temp CLAUDE_CONFIG_DIR: juice must never see the real login.

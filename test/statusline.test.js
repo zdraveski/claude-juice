@@ -6,10 +6,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
-import { runStatusLine } from '../src/statusline.js';
-import { resolveTarget, turnedOff } from '../bin/launcher.js';
-import { badgeKey, approve } from '../src/badges.js';
-import { paths } from '../src/paths.js';
+import { runStatusLine } from '../plugin/src/statusline.js';
+import { resolveTarget, turnedOff } from '../plugin/bin/launcher.js';
+import { badgeKey, approve } from '../plugin/src/badges.js';
+import { paths } from '../plugin/src/paths.js';
 
 // settings may be a function of the config dir, for badges that must be approved on "this computer".
 const setup = (platform = 'win32', settings) => {
@@ -133,7 +133,7 @@ test('the stashed stdin is private to the person', { skip: process.platform === 
 
 test('a stdin pipe that never closes still ends in a drawn line', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'juice-hang-'));
-  const c = spawn(process.execPath, [fileURLToPath(new URL('../bin/juice-statusline.js', import.meta.url))], { env: cleanEnv(dir), stdio: ['pipe', 'pipe', 'ignore'] });
+  const c = spawn(process.execPath, [fileURLToPath(new URL('../plugin/bin/juice-statusline.js', import.meta.url))], { env: cleanEnv(dir), stdio: ['pipe', 'pipe', 'ignore'] });
   let out = '';
   c.stdout.on('data', (d) => { out += d; });
   c.stdin.write('{"model":{"display_name":"Opus 5.5"}}'); // and never end it

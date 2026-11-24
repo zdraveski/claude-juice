@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { normalize } from '../src/data.js';
-import { remember } from '../src/lastseen.js';
-import { sendsPromptCache } from '../src/readings.js';
+import { normalize } from '../plugin/src/data.js';
+import { remember } from '../plugin/src/lastseen.js';
+import { sendsPromptCache } from '../plugin/src/readings.js';
 
 const nowS = Math.floor(NOW / 1000);
 const seen = (ago = 86400000) => ({

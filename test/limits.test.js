@@ -1,7 +1,7 @@
 import { NOW, at } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assess, memLevel } from '../src/render/limits.js';
+import { assess, memLevel } from '../plugin/src/render/limits.js';
 
 const A = (used, s, windowSec) => assess({ used, resetsAt: at(s), windowSec }, NOW);
 const H5 = 18000, D7 = 604800;

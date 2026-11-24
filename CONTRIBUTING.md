@@ -16,7 +16,7 @@ The status line writes to your Claude folder, and a refresh run from a copy of t
 
 ```sh
 export CLAUDE_CONFIG_DIR="$(mktemp -d)"
-node bin/juice.js looks          # every look, drawn with sample numbers
+node plugin/bin/juice.js looks   # every look, drawn with sample numbers
 rm -rf "$CLAUDE_CONFIG_DIR"
 ```
 
@@ -24,12 +24,15 @@ The tests already do this. (The `now+…` reset times in `test/fixtures/` are fi
 
 ## Where things are
 
+Only `plugin/` reaches people who install juice: the marketplace (`.claude-plugin/marketplace.json`) points there, so the tests, scripts and docs never get copied to anyone's computer. Code in `plugin/` must not reach outside it.
+
 | Folder | What is in it |
 |---|---|
-| `bin/` | The status line, the `/juice` command, and the launcher that setup copies into your Claude folder |
-| `src/` | Reading Claude Code's data, settings, setup, the doctor, badges and the Fable battery |
-| `src/render/` | Drawing: layouts, colours, fitting a narrow window |
-| `skills/juice/` | The `/juice` instructions Claude follows |
+| `plugin/` | The plugin, exactly as installed: its manifest and icon in `plugin/.claude-plugin/`, and its `package.json`, which holds the version |
+| `plugin/bin/` | The status line, the `/juice` command, and the launcher that setup copies into your Claude folder |
+| `plugin/src/` | Reading Claude Code's data, settings, setup, the doctor, badges and the Fable battery |
+| `plugin/src/render/` | Drawing: layouts, colours, fitting a narrow window |
+| `plugin/skills/juice/` | The `/juice` instructions Claude follows |
 | `web/` | The live customizer (GitHub Pages) |
 | `scripts/` | End-to-end test, speed check, customizer check, and the picture scripts in `scripts/pictures/` |
 | `test/` | Tests, with sample status-line input in `test/fixtures/` |
@@ -46,7 +49,7 @@ The README and guide pictures in `docs/images/` are drawn by scripts with juice'
 | `node scripts/pictures/readme.mjs` | `anatomy-*`, `colours-*`, `looks-*` and `colour-sets-*` |
 | `node scripts/pictures/customizer.mjs` | `customizer.gif` |
 
-Run them again after you change `src/schema.js` or anything in `src/render/`, so the pictures match the code.
+Run them again after you change `plugin/src/schema.js` or anything in `plugin/src/render/`, so the pictures match the code.
 
 ## Writing for juice
 

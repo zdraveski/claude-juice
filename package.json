@@ -1,7 +1,7 @@
 {
-  "name": "juice",
+  "name": "claude-juice",
   "private": true,
-  "version": "1.5.2",
+  "description": "Development of juice. The plugin itself, and its version, are in plugin/.",
   "type": "module",
   "engines": { "node": ">=24" },
   "scripts": { "test": "node --test" }

@@ -1,8 +1,8 @@
 import { NOW, at } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { countdown, clock, resetWhen, limitNote, memoryNote, LABELS, EFFORT } from '../src/render/words.js';
-import { assess } from '../src/render/limits.js';
+import { countdown, clock, resetWhen, limitNote, memoryNote, LABELS, EFFORT } from '../plugin/src/render/words.js';
+import { assess } from '../plugin/src/render/limits.js';
 
 test('countdown: minutes, hours and minutes, or days and hours', () => {
   assert.equal(countdown(at(31 * 60), NOW), '31m');
