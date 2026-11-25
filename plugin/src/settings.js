@@ -1,6 +1,5 @@
-import { existsSync, realpathSync } from 'node:fs';
 import { sanitize, applySet } from './schema.js';
-import { readOwnJson, writeJsonAtomic } from './cache.js';
+import { readOwnJson, writeJsonThroughLink } from './cache.js';
 
 // juice.json as juice uses it, from one read. "locked" is never told to delete the file: that would lose settings and badges.
 function fromRead({ state, value }) {
@@ -29,8 +28,7 @@ export function updateSettings(p, decide) {
   if (read.state === 'broken') {
     throw new Error("Your juice settings file (juice.json in your Claude folder) can't be read, so juice changed nothing. Fix or delete it (Claude can do it for you), then try again.");
   }
-  // Through a symlink (a dotfiles repo), so the link stays a link.
-  writeJsonAtomic(existsSync(p.settingsFile) ? realpathSync(p.settingsFile) : p.settingsFile, { ...read.value, ...r.changes });
+  writeJsonThroughLink(p.settingsFile, { ...read.value, ...r.changes });
   return r;
 }
 
