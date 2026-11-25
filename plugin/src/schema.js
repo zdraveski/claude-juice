@@ -1,6 +1,7 @@
 // The one definition of a valid setting. Files, /juice set and share links all pass through here.
 import { PRESETS, NEUTRAL } from './render/palette.js';
 import { contrast } from './render/ansi.js';
+import { LABELS } from './render/words.js';
 export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank'];
 // The layouts that draw the battery style; the others keep their own shapes.
 export const STYLE_LAYOUTS = ['bar', 'focus'];
@@ -101,7 +102,7 @@ const valid = (key) => key === 'colors' ? `Use one of: ${PRESET_IDS.join(', ')}.
 const unknownShow = (v) => (Array.isArray(v) ? v.filter((id) => !SHOW_IDS.includes(id)) : []);
 // A value from a newer juice looks invalid to an older one.
 const NEWER = " If it's new, update juice: type /plugin, update juice, restart Claude Code.";
-const showWarning = (bad, then = 'so it was left out') => `show: ${bad.map(show).join(', ')} isn't a battery name (they are ${SHOW_IDS.join(', ')}; Weekly is "week"), ${then}`;
+const showWarning = (bad, then = 'so it was left out') => `show: ${bad.map(show).join(', ')} isn't a battery name (they are ${SHOW_IDS.join(', ')}; ${LABELS.week[0]} is "week"), ${then}`;
 
 // The name of an extra environment variable a badge may see (badges.js).
 export const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/, MAX_ENV = 20;

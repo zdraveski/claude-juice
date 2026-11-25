@@ -6,6 +6,7 @@ import { PRESETS, NEUTRAL } from '../plugin/src/render/palette.js';
 import { SAMPLES, withAccount } from '../plugin/src/samples.js';
 import { contrast } from '../plugin/src/render/ansi.js';
 import { ansiToHtml } from '../plugin/src/render/html.js';
+import { LABELS } from '../plugin/src/render/words.js';
 
 // Model and effort stay on top and budget at the bottom; the batteries between them can be reordered.
 const FIXED = ['model', 'effort', 'budget'];
@@ -22,14 +23,15 @@ const LAYOUT_NOTES = {
   pills: 'Rounded capsules that fill with colour when they need you',
   tank: 'Shows what is left, like a fuel gauge',
 };
+// Battery names as the panel layout spells them, so the page and the line never disagree.
 const SHOW = {
   model: ['Model', 'Which Claude you are using'],
   effort: ['Effort', 'How hard Claude is thinking, from low to max'],
-  memory: ['Memory', 'How much of the room in this chat is used'],
-  session: ['Session', 'Your 5-hour limit'],
-  week: ['Weekly', 'Your weekly limit'],
-  fable: ['Fable weekly', 'The separate weekly limit for Fable'],
-  budget: ['Budget', "Your company's spending limit. Shows only if you have one, so the preview can't show it."],
+  memory: [LABELS.memory[1], 'How much of the room in this chat is used'],
+  session: [LABELS.session[1], 'Your 5-hour limit'],
+  week: [LABELS.week[1], 'Your weekly limit'],
+  fable: [LABELS.fable[1], 'The separate weekly limit for Fable'],
+  budget: [LABELS.budget[1], "Your company's spending limit. Shows only if you have one, so the preview can't show it."],
 };
 const NOT_ON = { session: { payg: 'API keys have no session limit' }, week: { payg: 'API keys have no weekly limit' }, fable: { payg: 'API keys have no Fable limit', pro: 'The preview hides it on Pro' } };
 const DETAILS = [
