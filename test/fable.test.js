@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { paths } from '../plugin/src/paths.js';
 import { readJson, writeJsonAtomic, takeLock } from '../plugin/src/cache.js';
 import { readToken, fetchFable, refreshFable, keychainService } from '../plugin/src/fable.js';
-import * as readings from '../plugin/src/readings.js';
+import * as fetched from '../plugin/src/fetched.js';
 import { createHash } from 'node:crypto';
 import { readFetched } from '../plugin/src/fetched.js';
 
@@ -212,7 +212,7 @@ test('refreshFable sweeps temp files a cancelled refresh left behind, but not on
 test('the Keychain read waits long enough to answer the macOS dialog, and with the fetch ends before the fable lock does', () => {
   let opts;
   readToken({ platform: 'darwin', env: {}, execFileSync: (c, a, o) => { opts = o; return '{}'; } });
-  assert.ok(opts.timeout >= 20000 && opts.timeout < readings.FABLE_LOCK_MS - readings.FETCH_TIMEOUT_MS, String(opts.timeout));
+  assert.ok(opts.timeout >= 20000 && opts.timeout < fetched.FABLE_REFRESH.holdMs - fetched.FETCH_TIMEOUT_MS, String(opts.timeout));
 });
 
 test('a Keychain item that security prints as hex is read too', () => {
@@ -244,6 +244,14 @@ test('on a Mac, a refused Keychain read is told apart from a missing item, and b
 });
 
 test('the fable lock outlasts the Keychain wait plus the fetch, so a second refresher never starts meanwhile', () => {
-  const { FABLE_LOCK_MS, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS } = readings;
+  const { FABLE_REFRESH: { holdMs: FABLE_LOCK_MS }, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS } = fetched;
   assert.ok(FABLE_LOCK_MS >= KEYCHAIN_TIMEOUT_MS + FETCH_TIMEOUT_MS + 10000, 'margin of at least 10 s');
+});
+
+test('every reason a check can fail with has its own wait, so none silently waits like another', async () => {
+  const reasons = new Set(['expired', 'denied', 'login']); // readToken's outcomes, as refreshFable names them
+  for (const status of [401, 403, 404, 429, 500]) reasons.add(await fetchFable(TOKEN, async () => ({ ok: false, status }), 'v'));
+  reasons.add(await fetchFable(TOKEN, async () => { throw new Error('no answer'); }, 'v'));
+  reasons.add(await fetchFable(TOKEN, async () => ({ ok: true, json: async () => ({}) }), 'v'));
+  assert.deepEqual([...reasons].sort(), Object.keys(fetched.WAIT_MS).sort());
 });

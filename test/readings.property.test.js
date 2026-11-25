@@ -125,12 +125,12 @@ function history(seed) {
       const where = `seed ${seed}, step ${step}\n${log.slice(-8).join('\n')}`;
 
       // 1. A reset limit never hides a current one from any source.
-      for (const [key, five, kept] of [['session', 'five_hour', 'fiveHour'], ['week', 'seven_day', 'sevenDay']]) {
+      for (const [key, five] of [['session', 'five_hour'], ['week', 'seven_day']]) {
         const shown = data.limits[key];
         if (!shown?.resetsAt || shown.resetsAt.getTime() > now) continue;
         const own = stdin.rate_limits?.[five];
         const f = fable && now - fable.fetchedAt >= 0 && now - fable.fetchedAt <= HOUR ? fable[key] : null;
-        const current = [own && own.resets_at * 1000, rec?.[kept] && rec[kept].resetsAt * 1000, f && Date.parse(f.resetsAt)]
+        const current = [own && own.resets_at * 1000, rec?.[key].saved && rec[key].saved.resetsAt * 1000, f && Date.parse(f.resetsAt)]
           .some((t) => t > now);
         assert.ok(!current, `${key} shows a reset limit while a current one exists at ${where}`);
       }

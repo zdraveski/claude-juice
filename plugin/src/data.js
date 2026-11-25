@@ -6,6 +6,7 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const pct = (v) => { const n = num(v); return n === null ? null : n >= 100 ? 100 : Math.min(99, Math.round(Math.max(0, n))); };
 const obj = (v) => (v && typeof v === 'object' ? v : {});
 const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+const SESSION_SEC = 18000, WEEK_SEC = 604800;
 
 // resetsAt in epoch seconds, or an ISO string for the Fable extra.
 function limit(used, resetsAt, windowSec) {
@@ -26,8 +27,8 @@ export function normalize(stdin, extras, now) {
   const cw = obj(input.context_window);
 
   const fresh = {
-    session: limit(obj(rl.five_hour).used_percentage, obj(rl.five_hour).resets_at, 18000),
-    week: limit(obj(rl.seven_day).used_percentage, obj(rl.seven_day).resets_at, 604800),
+    session: limit(obj(rl.five_hour).used_percentage, obj(rl.five_hour).resets_at, SESSION_SEC),
+    week: limit(obj(rl.seven_day).used_percentage, obj(rl.seven_day).resets_at, WEEK_SEC),
   };
   const spend = obj(rl.spend_limit);
   const budget = limit(spend.used_percentage, spend.resets_at, null);
@@ -39,14 +40,15 @@ export function normalize(stdin, extras, now) {
   // Fetched readings only refine a known subscriber, so an API-key user who is also logged in never gets limits.
   const reading = (r, sec) => limit(obj(r).used, obj(r).resetsAt, sec);
   if (account === 'subscriber') {
-    // Each session's last [fiveHour, sevenDay] as lastseen.js keeps it: a JSON string per session id.
-    const sent = Object.values(obj(seen.sessions)).map((s) => { try { return JSON.parse(s); } catch { return null; } }).filter(Array.isArray);
-    const sentOf = (i, sec) => sent.map((s) => reading(s[i], sec)).filter(Boolean);
-    const session = toShow({ own: fresh.session, saved: reading(seen.fiveHour, 18000), fetched: live ? reading(f.session, 18000) : undefined, sent: sentOf(0, 18000) }, now);
-    const week = toShow({ own: fresh.week, saved: reading(seen.sevenDay, 604800), fetched: live ? reading(f.week, 604800) : undefined, sent: sentOf(1, 604800) }, now);
+    const show = (own, side, got, sec) => {
+      const { saved, sent } = obj(side);
+      return toShow({ own, saved: reading(saved, sec), fetched: live ? reading(got, sec) : undefined, sent: (Array.isArray(sent) ? sent : []).map((s) => reading(s, sec)).filter(Boolean) }, now);
+    };
+    const session = show(fresh.session, seen.session, f.session, SESSION_SEC);
+    const week = show(fresh.week, seen.week, f.week, WEEK_SEC);
     if (session) limits.session = session;
     if (week) limits.week = week;
-    const fableLimit = live ? limit(obj(f.fable).used, obj(f.fable).resetsAt, 604800) : undefined;
+    const fableLimit = live ? limit(obj(f.fable).used, obj(f.fable).resetsAt, WEEK_SEC) : undefined;
     if (fableLimit) limits.fable = fableLimit;
   }
   if (budget) limits.budget = budget;

@@ -2,7 +2,7 @@
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { runStatusLine } from '../src/statusline.js';
-import { FABLE_REFRESH } from '../src/cache.js';
+import { FABLE_REFRESH } from '../src/fetched.js';
 
 const juice = fileURLToPath(new URL('./juice.js', import.meta.url));
 // Claude Code goes through a company proxy when HTTPS_PROXY is set; Node's own fetch only does when told to

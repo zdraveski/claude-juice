@@ -3,13 +3,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, chmodSync, unlinkSync } from 'node:fs';
 import { paths, hideHome } from './paths.js';
-import { takeLock, writeAtomic, writeJsonAtomic, removeOld, HOT_WRITE, FABLE_REFRESH, BADGE_REFRESH } from './cache.js';
+import { takeLock, writeAtomic, writeJsonAtomic, removeOld, HOT_WRITE, BADGE_REFRESH } from './cache.js';
 import { loadSettings } from './settings.js';
-import { readFetched } from './fetched.js';
+import { readFetched, FABLE_REFRESH } from './fetched.js';
 import { detectTerminal, readClaudeTheme, columnsOf } from './terminal.js';
 import { remember } from './lastseen.js';
 import { normalize } from './data.js';
-import { FABLE_LOCK_MS } from './readings.js';
 import { render } from './render/index.js';
 import { strip, dim, vis, cut } from './render/ansi.js';
 import { upgradeLauncher } from './launcher-file.js';
@@ -48,7 +47,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     const { text } = render(data, settings, { ...terminal, animate: settings.motion === 'on' });
 
     // Only subscribers have these limits, so nobody else's login is sent to Anthropic for nothing.
-    if (data.account === 'subscriber' && fetched.due && takeLock(p, FABLE_REFRESH.lock, now, FABLE_LOCK_MS)) {
+    if (data.account === 'subscriber' && fetched.due && takeLock(p, FABLE_REFRESH.lock, now, FABLE_REFRESH.holdMs)) {
       quiet(() => spawnDetached([FABLE_REFRESH.command]));
     }
     if (badges?.stale && takeLock(p, BADGE_REFRESH.lock(key), now, BADGE_REFRESH.holdMs)) {

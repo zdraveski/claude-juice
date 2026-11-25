@@ -7,10 +7,22 @@ const MAX_SESSIONS = 20;
 const file = (p) => join(p.cacheDir, 'lastseen.json');
 const isObj = (r) => !!r && typeof r === 'object' && !Array.isArray(r);
 
-export function recall(p) {
+function read(p) {
   const r = readJson(file(p));
   return isObj(r) ? r : null;
 }
+
+// What callers get instead of the file: per battery, the saved reading and each chat's last-sent one, as Claude Code
+// sent them (reset times in seconds). Values pass through unchecked: data.js's limit() vets every reading alike.
+function answer(rec) {
+  if (!rec) return null;
+  const sent = Object.values(isObj(rec.sessions) ? rec.sessions : {})
+    .map((s) => { try { return JSON.parse(s); } catch { return null; } }).filter(Array.isArray);
+  const side = (saved, i) => ({ saved, sent: sent.map((s) => s[i]) });
+  return { subscriberSeenAt: rec.subscriberSeenAt, session: side(rec.fiveHour, 0), week: side(rec.sevenDay, 1) };
+}
+
+export const recall = (p) => answer(read(p));
 
 const limit = (w) => Number.isFinite(w?.used_percentage) && Number.isFinite(w?.resets_at)
   ? { used: w.used_percentage, resetsAt: w.resets_at } : undefined;
@@ -19,9 +31,11 @@ const valid = (w) => (Number.isFinite(w?.used) && Number.isFinite(w?.resetsAt) ?
 // Saves the best Session and Weekly numbers any session has sent; readings.js toSave() decides which. Claude Code
 // re-sends a session's last numbers on every redraw, so only a change from what a session it already knows sent
 // before is news: that is what the per-session signatures here are for.
-// Runs before drawing and returns the record, so this refresh already uses what it just saw. Never throws.
-export function remember(stdin, p, now) {
-  const old = recall(p);
+// Runs before drawing and returns the answer, so this refresh already uses what it just saw. Never throws.
+export const remember = (stdin, p, now) => answer(update(stdin, p, now));
+
+function update(stdin, p, now) {
+  const old = read(p);
   try {
     const seenFive = limit(stdin?.rate_limits?.five_hour);
     const seenSeven = limit(stdin?.rate_limits?.seven_day);

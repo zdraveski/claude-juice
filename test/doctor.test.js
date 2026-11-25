@@ -8,6 +8,7 @@ import { doctor, ago } from '../plugin/src/doctor.js';
 import { install } from '../plugin/src/setup.js';
 import { paths, hideHome } from '../plugin/src/paths.js';
 import { runStatusLine } from '../plugin/src/statusline.js';
+import { WAIT_MS } from '../plugin/src/fetched.js';
 import { NOW } from './helpers.js';
 
 // main() and install() look for project settings above process.cwd(): start in a folder of our own, so the runner's cwd can't change a result.
@@ -245,14 +246,18 @@ test('doctor: Fable off, failing, and checked', () => {
   const old = check(d, { ...proxy, node: '22.21.0' });
   assert.match(old, /company proxy, which juice can only get through with Node 24 or newer \(this is 22\.21\.0\)/);
   assert.doesNotMatch(old, /22\.21 or newer/, 'juice needs Node 24 everywhere');
-  // Each failure gets the advice that fits it: /login only when Anthropic refused the login.
+  // Each failure gets the advice that fits it: /login only when Anthropic refused the login. Every reason juice can
+  // wait after is here, so one added without its own advice fails instead of telling people to sign in again.
   const failed = (why) => {
-    writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 10 * 60000, why }));
+    writeFileSync(join(d, 'juice-cache', 'fable.json'), JSON.stringify({ backoffUntil: NOW.getTime() + 3 * 60000, why }));
     return check(d);
   };
-  assert.match(failed('login'), /tries again in 10 min\. If it keeps failing, type \/login/);
+  assert.match(failed('login'), /tries again in 3 min\. If it keeps failing, type \/login/);
   assert.match(failed('expired'), /sign-in was due for renewal/);
-  for (const why of ['expired', 'busy', 'changed', 'offline']) assert.doesNotMatch(failed(why), /\/login/, why);
+  for (const why of Object.keys(WAIT_MS).filter((w) => w !== 'login')) {
+    assert.match(failed(why), /the last check failed/, why);
+    assert.doesNotMatch(failed(why), /\/login/, why);
+  }
   assert.match(failed('busy'), /Anthropic's server was busy/);
   assert.match(failed('denied'), /macOS Keychain access was denied; run \/juice set fable=off or allow it/);
   assert.doesNotMatch(failed('denied'), /\/login/);
