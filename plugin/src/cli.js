@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paths, hideHome } from './paths.js';
 import { loadSettings, setSettings } from './settings.js';
+import { FABLE_REFRESH, BADGE_REFRESH } from './cache.js';
 import { applySet, encodeLink, CUSTOMIZER_URL, LOOKS, NOTHING_SHOWN } from './schema.js';
 import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
@@ -141,19 +142,19 @@ export async function main(argv, io) {
         }
         io.err(USAGE); return 1;
       }
-      case 'refresh-fable': {
+      case FABLE_REFRESH.command: {
         const { settings } = loadSettings(p);
         if (readFetched(p, settings.fable, io.platform, io.now).on) {
           await refreshFable({ p, platform: io.platform, env: io.env, now: io.now, version: version() });
         }
         return 0;
       }
-      case 'refresh-badges': {
+      case BADGE_REFRESH.command: {
         const key = args[0];
         if (!/^[0-9a-f]{16}$/.test(key ?? '')) { io.err('refresh-badges needs a 16-character key.'); return 1; }
         let stdinText;
         // Deleted once read: it holds the chat's project folder and transcript path, and nothing reads it again.
-        const stash = join(p.cacheDir, 'badges', `${key}.stdin.json`);
+        const stash = BADGE_REFRESH.stash(p, key);
         try { stdinText = readFileSync(stash, 'utf8'); } catch { stdinText = ''; }
         try { rmSync(stash, { force: true }); } catch {} // a week-old one goes with the badge caches
         await refreshBadges({ p, settings: loadSettings(p).settings, key, stdinText, env: io.env });

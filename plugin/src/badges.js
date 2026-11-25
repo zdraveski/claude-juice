@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync, renameSync, statSync, rmSync } 
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { cut, strip, ESCAPES } from './render/ansi.js';
-import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
+import { readJson, writeJsonAtomic, removeOld, holdLock, BADGE_REFRESH } from './cache.js';
 import { loadSettings, updateSettings } from './settings.js';
 import { sanitize, ENV_NAME, MAX_ENV } from './schema.js';
 
@@ -137,7 +137,7 @@ export async function refreshBadges({ p, settings, key, stdinText, runImpl = run
       } catch { return keep(command); }
     }));
     try { writeJsonAtomic(file(p, key), { texts: results.map((r) => r[0]), commands, okAt: results.map((r) => r[1] ?? null), at: now }); } catch {
-      holdLock(p, `badges-${key}`, now, GRACE_MS); // not saved, so every draw would run the commands again
+      holdLock(p, BADGE_REFRESH.lock(key), now, GRACE_MS); // not saved, so every draw would run the commands again
     }
   } catch {}
   sweep(p);
@@ -147,7 +147,7 @@ export async function refreshBadges({ p, settings, key, stdinText, runImpl = run
 // takeLock clears a session's old markers only while that session runs, so an ended session's last one is cleared here.
 function sweep(p) {
   removeOld(join(p.cacheDir, 'badges'), (f) => /\.json$|\.tmp$/.test(f), KEEP_MS);
-  removeOld(p.cacheDir, (f) => /^badges-.*\.(lock|steal)$|\.tmp$/.test(f), KEEP_MS);
+  removeOld(p.cacheDir, (f) => BADGE_REFRESH.isLock(f) || f.endsWith('.tmp'), KEEP_MS);
 }
 
 // env: names of extra environment variables the command may see. They aren't signed: someone who can write juice.json

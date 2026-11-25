@@ -20,6 +20,16 @@ export function readOwnJson(file) {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? { state: 'ok', value } : { state: 'broken', value: null };
 }
 
+// The background refreshers a draw starts, named once: the lock that stops a second one starting, the juice.js command
+// it runs, and for badges the file that hands it the draw's stdin. The Fable lock's time is FABLE_LOCK_MS in
+// readings.js, next to the timeouts it must outlast.
+export const FABLE_REFRESH = { lock: 'fable', command: 'refresh-fable' };
+export const BADGE_REFRESH = {
+  lock: (key) => `badges-${key}`, holdMs: 6000, command: 'refresh-badges',
+  stash: (p, key) => join(p.cacheDir, 'badges', `${key}.stdin.json`),
+  isLock: (f) => /^badges-.*\.(lock|steal)$/.test(f), // its locks and their stale-lock markers
+};
+
 const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 export const HOT_WRITE = { maxWaitMs: 30 };

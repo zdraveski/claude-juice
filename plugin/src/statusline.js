@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, chmodSync, unlinkSync } from 'node:fs';
 import { paths, hideHome } from './paths.js';
-import { takeLock, writeAtomic, writeJsonAtomic, removeOld, HOT_WRITE } from './cache.js';
+import { takeLock, writeAtomic, writeJsonAtomic, removeOld, HOT_WRITE, FABLE_REFRESH, BADGE_REFRESH } from './cache.js';
 import { loadSettings } from './settings.js';
 import { readFetched } from './fetched.js';
 import { detectTerminal, readClaudeTheme, columnsOf } from './terminal.js';
@@ -48,13 +48,13 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     const { text } = render(data, settings, { ...terminal, animate: settings.motion === 'on' });
 
     // Only subscribers have these limits, so nobody else's login is sent to Anthropic for nothing.
-    if (data.account === 'subscriber' && fetched.due && takeLock(p, 'fable', now, FABLE_LOCK_MS)) {
-      quiet(() => spawnDetached(['refresh-fable']));
+    if (data.account === 'subscriber' && fetched.due && takeLock(p, FABLE_REFRESH.lock, now, FABLE_LOCK_MS)) {
+      quiet(() => spawnDetached([FABLE_REFRESH.command]));
     }
-    if (badges?.stale && takeLock(p, `badges-${key}`, now, 6000)) {
+    if (badges?.stale && takeLock(p, BADGE_REFRESH.lock(key), now, BADGE_REFRESH.holdMs)) {
       quiet(() => {
-        writeAtomic(join(p.cacheDir, 'badges', `${key}.stdin.json`), stdinText, HOT_WRITE); // raw text: the refresher pipes it to each command
-        spawnDetached(['refresh-badges', key]);
+        writeAtomic(BADGE_REFRESH.stash(p, key), stdinText, HOT_WRITE); // raw text: the refresher pipes it to each command
+        spawnDetached([BADGE_REFRESH.command, key]);
       });
     }
     // Keeps the launcher setup wrote up to date with the juice now running. Once per update, the refresh time
