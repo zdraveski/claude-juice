@@ -4,6 +4,12 @@ This page lists what changed in each version of juice, newest first.
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## Unreleased
+
+### Fixed
+
+- **Setup over a status line that isn't valid:** when `settings.json` held a status line Claude Code can't use (plain text, say), setup said it saved it "so you can get it back", but `/juice restore` never puts such a line back. Setup now says so, and still keeps it in `juice-backup.json`.
+
 ## 1.5.3 (2026-11-24)
 
 [Changes since 1.5.2](https://github.com/zdraveski/claude-juice/compare/v1.5.2...v1.5.3)

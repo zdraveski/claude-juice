@@ -1,20 +1,17 @@
-import { existsSync, readFileSync, renameSync, unlinkSync, realpathSync } from 'node:fs';
+import { existsSync, renameSync, unlinkSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { readJson, writeJsonAtomic, writeAtomic } from './cache.js';
 import { NOTHING_SHOWN } from './schema.js';
 import { loadSettings } from './settings.js';
-import { fwd, constant, launcherTarget, launcherFor } from './launcher-file.js';
+import { fwd, launcherTarget, launcherFor } from './launcher-file.js';
+import { inspectInstall, isJuice, samePath } from './install.js';
 
-export { fwd, constant };
 // Keys in another order (a hand edit, another tool) are the same status line.
 const sorted = (_, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort()) : v);
 const same = (a, b) => JSON.stringify(a ?? null, sorted) === JSON.stringify(b ?? null, sorted);
-// A saved copy of the old status line is usable when it is an object with a statusLine (valid JSON may still be "x" or 5).
-// statusLine is null (no line before) or an object: a string or number written back would break settings.json.
-const usableBackup = (b) => !!b && typeof b === 'object' && 'statusLine' in b
-  && (b.statusLine === null || (typeof b.statusLine === 'object' && !Array.isArray(b.statusLine)));
-export const readText = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };
+// What setup acts on: the Install as it is now, or the reason settings.json can't be read.
+const look = (p, opts) => { const s = inspectInstall(p, opts); if (s.error) throw s.error; return s; };
 // Claude Code only redraws on events, so without a timer the countdowns freeze while it is idle.
 // With motion on, every second moves the climb: two redraws per step (CLIMB_MS in render/pieces.js), so a step is never skipped.
 // Every time juice itself writes or wrote (60 up to 1.2.2 and from 1.4.0, 30 in 1.3.0, 1 in 1.3.1), so juice may move it;
@@ -28,32 +25,6 @@ export const refreshWords = (seconds) => (seconds === 1 ? 'every second' : secon
 
 // A symlinked settings.json must stay a symlink, so write to what it points at.
 const writeSettings = (p, v, opts) => writeJsonAtomic(existsSync(p.claudeSettings) ? realpathSync(p.claudeSettings) : p.claudeSettings, v, opts);
-
-// juice's own line is Node (node, nodejs or node.exe, bare or by path, optionally after the PATH="…:$PATH"
-// that setup writes on macOS and Linux) running a juice-statusline.mjs, and nothing else, so a wrapper script
-// that merely mentions the file is never taken for juice. Any folder counts: the same one can be spelled
-// C:\ or c:\, and settings can be copied from another machine.
-const NODE = String.raw`(?:node|"(?:[^"]*[\\/])?node(?:js)?(?:\.exe)?"|\S*[\\/]node(?:js)?(?:\.exe)?)`;
-const JUICE_COMMAND = new RegExp(String.raw`^\s*(?:PATH="[^"]*"\s+)?${NODE}\s+"[^"]*[\\/]juice-statusline\.mjs"\s*$`, 'i');
-export const isJuice = (statusLine) => typeof statusLine?.command === 'string' && JUICE_COMMAND.test(statusLine.command);
-// Windows paths ignore case and slash direction.
-const samePath = (a, b, platform) => (platform === 'win32' ? fwd(a, 'win32').toLowerCase() === fwd(b, 'win32').toLowerCase() : a === b);
-// Whether a juice line runs this config folder's launcher, whatever way it finds Node.
-export const runsLauncher = (p, command, platform) => samePath(command.replace(/^.*\s(?="[^"]*"\s*$)/, '').trim(), `"${fwd(p.launcherFile)}"`, platform);
-
-// Claude Code started from a desktop app on macOS or Linux runs the status line without the shell's PATH,
-// where Homebrew's or nvm's node is missing. So the folder of the first node on PATH goes in front of PATH:
-// PATH="/opt/homebrew/bin:$PATH" node "…". If that folder later goes (nvm uninstall), node is still looked up
-// on the rest of PATH instead of failing. Only absolute folders count (node_modules/.bin breaks elsewhere);
-// fnm's per-shell folder vanishes with the shell; a folder with characters the shell would change is skipped.
-function nodeCommand(platform, env) {
-  if (platform === 'win32') return 'node';
-  for (const dir of String(env.PATH ?? '').split(':').filter((d) => d.startsWith('/'))) {
-    if (!existsSync(`${dir.replace(/\/+$/, '')}/node`)) continue;
-    return /fnm_multishells/.test(dir) || /["$`\\]/.test(dir) ? 'node' : `PATH="${dir.replace(/\/+$/, '')}:$PATH" node`;
-  }
-  return 'node';
-}
 
 // The shell Claude Code runs the status line in (Git Bash on Windows, sh elsewhere) would change a $ or a
 // backtick inside the quoted path, cmd a %, and a " would end the quotes, so such a path can't be set up safely.
@@ -84,35 +55,14 @@ export function overrides(p, settings, cwd, platform) {
 
 export class NeedsConfirm extends Error {}
 
-// Valid or not, juice can't tell: a settings.json left owned by root by "sudo claude", say. Not a file with a mistake.
-export class Unreadable extends Error {}
-
-// A missing or empty file counts as {}; anything unreadable, unparseable or not an object aborts before we write anything.
-// Read once, since Claude Code may save it in between. "Try again", not "run setup": restore shows these too.
-export function readClaudeSettings(p) {
-  let text;
-  // Only the error says "missing": existsSync is false for a file in a folder juice can't enter, too.
-  try { text = readFileSync(p.claudeSettings, 'utf8').replace(/^﻿/, ''); } catch (e) { // BOM: PowerShell 5.1 writes one
-    if (e.code === 'ENOENT' || e.code === 'ENOTDIR') return {};
-    throw new Unreadable("juice can't read your Claude Code settings file (settings.json in your Claude folder), so it changed nothing. Make sure it is yours and you can read it (Claude can help), then try again.");
-  }
-  if (!text.trim()) return {};
-  let v = null;
-  try { v = JSON.parse(text); } catch {}
-  if (v === null || typeof v !== 'object' || Array.isArray(v)) {
-    throw new Error("Your Claude Code settings file (settings.json in your Claude folder) has a mistake in it, so juice changed nothing. Ask Claude to fix it, then try again.");
-  }
-  return v;
-}
-
 // Sets the refresh of this folder's juice line to what motion wants, unless it was chosen by hand. Run by set motion, and
 // once after each update (1.3.x wrote every second, which costs CPU while the line stands still).
 // Throws on a broken settings.json. Returns { seconds, kept: false } when it wrote the time, { seconds, kept: true } when
 // the person's own time stays, or null when there was nothing to change.
 // write: HOT_WRITE from a refresh, which must not wait on a file another program holds open.
 export function matchRefresh(p, { platform = process.platform, write } = {}) {
-  const settings = readClaudeSettings(p), line = settings.statusLine;
-  if (!isJuice(line) || !runsLauncher(p, line.command, platform)) return null;
+  const { settings, line, owner } = look(p, { platform });
+  if (owner !== 'here') return null;
   const want = refreshFor(line, loadSettings(p).settings.motion);
   // A time the person chose stays, and set motion says so: else motion=on looks broken with no word.
   if (line.refreshInterval === want) return keepsRefresh(line) ? { seconds: want, kept: true } : null;
@@ -121,25 +71,24 @@ export function matchRefresh(p, { platform = process.platform, write } = {}) {
 }
 
 export function install(p, { pluginRoot, yes = false, platform = process.platform, env = process.env, cwd = process.cwd() }) {
-  const settings = readClaudeSettings(p);
+  const s = look(p, { platform, env }), { settings, command } = s;
   if (SHELL_UNSAFE.test(p.launcherFile)) {
     throw new Error(`Your Claude Code folder (${fwd(p.config)}) has a $, \`, % or " in its path, which would break the status line, so juice changed nothing. Point CLAUDE_CONFIG_DIR at a folder without them and run setup again.`);
   }
-  const command = `${nodeCommand(platform, env)} "${fwd(p.launcherFile)}"`;
-  const ours = isJuice(settings.statusLine);
+  const ours = s.owner === 'here' || s.owner === 'elsewhere';
   const lines = [];
 
   // A backup that exists but can't be read is set aside like a stale one, so the current line is still saved.
-  const backupThere = existsSync(p.backupFile);
-  const old = ours ? null : readJson(p.backupFile);
-  const usable = usableBackup(old);
+  const backupThere = s.backup.there;
+  const old = s.backup.value;
+  const usable = !ours && s.backup.usable;
   const damaged = !ours && backupThere && !usable;
   const stale = usable && !same(settings.statusLine, old.statusLine);
   if (stale && !yes) throw new NeedsConfirm('Your status line has changed since juice saved a copy of the old one, so juice changed nothing. Run setup again with --yes to save your current status line too (the earlier copy is kept under a new name) and switch to juice.');
 
   const launcher = launcherFor(pluginRoot);
   // Said in every case below: what the launcher runs really changed, or it was missing or from an older juice.
-  const before = readText(p.launcherFile);
+  const before = s.launcher.text;
   const fix = before === null || !launcherTarget(before) ? 'Its launcher file was missing or from an older juice, so juice put it back.'
     : launcherTarget(before) !== launcherTarget(launcher) ? 'It now uses the juice you just ran setup from.' : '';
   if (stale || damaged) {
@@ -151,7 +100,10 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   if (!ours && (stale || damaged || !backupThere)) {
     // As private as settings.json itself: the old status line command can hold a key.
     writeJsonAtomic(p.backupFile, { statusLine: settings.statusLine ?? null, savedAt: new Date().toISOString() }, { modeFrom: p.claudeSettings });
-    lines.push(settings.statusLine ? 'Saved your current status line so you can get it back.' : 'You had no status line, so there is nothing to save.');
+    lines.push(!settings.statusLine ? 'You had no status line, so there is nothing to save.'
+      : s.restorable ? 'Saved your current status line so you can get it back.'
+      // Kept all the same: restore never writes such a line back, so it can't be promised.
+      : "Your status line wasn't valid for Claude Code, so /juice restore won't put it back. It is kept in juice-backup.json in your Claude folder.");
   }
   // Written only once the old line is saved. A settings.json juice can't save must not leave the launcher pointing
   // at this copy of juice either.
@@ -162,7 +114,7 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
       throw e;
     }
   };
-  const current = ours && samePath(settings.statusLine.command, command, platform);
+  const current = s.current;
   // Another tool's refresh time was chosen for that tool, so a first setup starts from juice's own.
   const want = refreshFor(ours ? settings.statusLine : null, loadSettings(p).settings.motion);
   if (current && settings.statusLine.refreshInterval === want) lines.push(fix ? 'juice is already your status line.' : 'juice is already your status line. Nothing changed.');
@@ -173,7 +125,7 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
   } else if (ours) {
     // A juice line pointing elsewhere (settings copied from another machine, a renamed user folder) draws nothing;
     // one with the right launcher but an older way of finding Node just gets the current one.
-    const sameLauncher = runsLauncher(p, settings.statusLine.command, platform);
+    const sameLauncher = s.owner === 'here';
     save({ ...settings, statusLine: { ...settings.statusLine, command, refreshInterval: want } });
     lines.push(sameLauncher ? 'juice is your status line, now set up to find Node even when Claude Code starts from an app.'
       : 'juice was your status line but pointed somewhere else, so it now points at this copy of juice.');
@@ -194,11 +146,11 @@ export function install(p, { pluginRoot, yes = false, platform = process.platfor
 
 // Always leaves a way out: with no saved copy, juice is simply removed.
 export function restore(p) {
-  const { statusLine, ...rest } = readClaudeSettings(p);
-  if (statusLine && !isJuice(statusLine)) return ["juice isn't your status line right now, so there is nothing to undo. Nothing changed."];
-  const backup = readJson(p.backupFile);
-  const saved = usableBackup(backup);
-  const damaged = !saved && existsSync(p.backupFile); // kept, never deleted: it may still be read by hand
+  const s = look(p), { statusLine, ...rest } = s.settings;
+  if (s.owner === 'other') return ["juice isn't your status line right now, so there is nothing to undo. Nothing changed."];
+  const backup = s.backup.value;
+  const saved = s.backup.usable;
+  const damaged = !saved && s.backup.there; // kept, never deleted: it may still be read by hand
   if (!saved && !statusLine) {
     return [damaged ? "juice's saved copy of your old status line is damaged, so it can't be put back, and juice isn't your status line. Nothing changed."
       : 'There is no saved status line, so there is nothing to restore. Nothing changed.'];

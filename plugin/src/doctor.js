@@ -2,8 +2,6 @@
 // Each line starts with ✓ (fine), ! (needs attention, with what to do) or · (for information).
 // Never prints a command (another status line's, or a badge's): they can hold keys. The home folder shows as ~,
 // so the report can be pasted into a bug report.
-import { existsSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
 import { readJson } from './cache.js';
 import { loadSettings } from './settings.js';
 import { NOTHING_SHOWN } from './schema.js';
@@ -15,10 +13,9 @@ import { SAMPLES } from './samples.js';
 import { listBadges, unapprovedBadges } from './badges.js';
 import { readFetched } from './fetched.js';
 import { recall } from './lastseen.js';
-import { isJuice, runsLauncher, overrides, readClaudeSettings, Unreadable, refreshes, refreshFor, refreshWords, constant, readText, fwd } from './setup.js';
+import { overrides, refreshes, refreshFor, refreshWords } from './setup.js';
+import { inspectInstall, Unreadable } from './install.js';
 import { hideHome } from './paths.js';
-import { marketOf } from './launcher-file.js';
-import { resolveTarget, turnedOff } from '../bin/launcher.js';
 
 const ok = (s) => `✓ ${s}`, bad = (s) => `! ${s}`, info = (s) => `· ${s}`;
 const OS = { win32: 'Windows', darwin: 'macOS', linux: 'Linux' };
@@ -43,17 +40,15 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
     : bad(`Node ${node} isn't supported: juice needs Node 24 or newer. Update it from nodejs.org.`));
 
   // 1. Is juice the status line, and can that line find Node and juice?
-  let settings = null;
-  try { settings = readClaudeSettings(p); } catch (e) {
-    out.push(bad(e instanceof Unreadable ? "juice can't read your Claude Code settings file (settings.json in your Claude folder). Make sure it is yours and you can read it (Claude can help), then run /juice setup."
+  const s = inspectInstall(p, { platform, env }), { settings, line, owner } = s;
+  if (s.error) {
+    out.push(bad(s.error instanceof Unreadable ? "juice can't read your Claude Code settings file (settings.json in your Claude folder). Make sure it is yours and you can read it (Claude can help), then run /juice setup."
       : "juice can't read your Claude Code settings file (settings.json in your Claude folder). It has a mistake, or comments or a comma after the last item: Claude Code may read it fine, but juice can't. Ask Claude to fix it, then run /juice setup."));
   }
-  const line = settings?.statusLine;
-  const here = isJuice(line) && runsLauncher(p, line.command, platform);
-  if (settings && !line) out.push(bad('No status line is set. Run /juice setup.'));
-  else if (line && !isJuice(line)) out.push(bad("Another status line is set, so juice isn't showing. Run /juice setup to switch to juice."));
-  else if (line && !here) out.push(bad("juice is your status line but points at a folder that isn't this one (settings copied from another computer?). Run /juice setup."));
-  else if (line) {
+  if (owner === 'none') out.push(bad('No status line is set. Run /juice setup.'));
+  else if (owner === 'other') out.push(bad("Another status line is set, so juice isn't showing. Run /juice setup to switch to juice."));
+  else if (owner === 'elsewhere') out.push(bad("juice is your status line but points at a folder that isn't this one (settings copied from another computer?). Run /juice setup."));
+  else if (owner === 'here') {
     const every = line.refreshInterval, want = refreshFor(line, loadSettings(p).settings.motion);
     out.push(refreshes(line) ? ok(`juice is your status line, refreshing ${refreshWords(every)}`)
       // Only juice's own times differ from what motion wants: one chosen by hand is what it wants.
@@ -62,25 +57,18 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
       : bad("juice is your status line but doesn't refresh on its own, so its numbers and reset times go stale while Claude Code is idle. Run /juice setup."));
   }
 
-  if (here) {
+  if (owner === 'here') {
     // On macOS and Linux setup puts Node's folder in front of PATH; if that Node was uninstalled, a Claude Code
     // started from an app may find no Node at all.
-    const pin = /^\s*PATH="([^"]*?):\$PATH"\s/.exec(line.command)?.[1];
-    if (pin && !existsSync(join(pin, 'node'))) out.push(bad('The Node juice was set up with is gone (uninstalled or moved), so the line may stay empty. Run /juice setup.'));
-    const launcher = readText(p.launcherFile);
-    const pinned = launcher && constant(launcher, 'PINNED'), market = launcher && constant(launcher, 'MARKET');
-    if (launcher === null) out.push(bad("juice's launcher file is missing, so the status line draws nothing. Run /juice setup."));
+    if (s.pinGone) out.push(bad('The Node juice was set up with is gone (uninstalled or moved), so the line may stay empty. Run /juice setup.'));
+    const { text, pinned, market, off, found, runs, movedTo, stuck } = s.launcher;
+    if (text === null) out.push(bad("juice's launcher file is missing, so the status line draws nothing. Run /juice setup."));
     else if (!pinned && !market) out.push(bad("juice's launcher file is damaged or from an older juice, so the status line may draw nothing. Run /juice setup."));
-    else if (turnedOff(p.config, market)) out.push(bad('juice is turned off in /plugin, so the status line only says so. Turn it back on in /plugin.'));
+    else if (off) out.push(bad('juice is turned off in /plugin, so the status line only says so. Turn it back on in /plugin.'));
     else {
-      const target = resolveTarget(p.config, pinned, market);
-      const runs = !target ? null : pinned ? readJson(join(pinned, 'package.json'))?.version : basename(dirname(dirname(target)));
-      // Only the marketplace name differs: setup rewrites the launcher, so no reinstall is needed.
-      const other = !target && market && resolveTarget(p.config, null, null);
-      const moved = other && basename(dirname(dirname(dirname(dirname(other)))));
-      if (pinned && marketOf(fwd(pinned))) out.push(bad(`The status line is stuck on one juice folder (${pinned}) and won't follow updates. Run /juice setup.`));
-      if (moved) out.push(bad(`The status line looks for juice under "${market}", but it is installed under "${moved}". Run /juice setup.`));
-      else if (!target) out.push(bad("The status line can't find juice any more. Install it again, then run /juice setup."));
+      if (stuck) out.push(bad(`The status line is stuck on one juice folder (${pinned}) and won't follow updates. Run /juice setup.`));
+      if (movedTo) out.push(bad(`The status line looks for juice under "${market}", but it is installed under "${movedTo}". Run /juice setup.`));
+      else if (!found) out.push(bad("The status line can't find juice any more. Install it again, then run /juice setup."));
       else out.push(ok(`The status line runs juice${runs ? ` ${runs}` : ''}${pinned ? ' from a folder on this computer' : ''}`));
       if (runs && runs !== version) out.push(bad(`These /juice commands are juice ${version} but the status line runs ${runs}. Restarting Claude Code usually lines them up.`));
     }

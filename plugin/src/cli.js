@@ -11,7 +11,9 @@ import { SAMPLES } from './samples.js';
 import { refreshFable } from './fable.js';
 import { readFetched } from './fetched.js';
 import { refreshBadges, addBadge, checkEnv, listBadges, badgeList, removeBadge } from './badges.js';
-import { install, restore, matchRefresh, refreshWords, fwd, NeedsConfirm, Unreadable } from './setup.js';
+import { install, restore, matchRefresh, refreshWords, NeedsConfirm } from './setup.js';
+import { Unreadable } from './install.js';
+import { fwd } from './launcher-file.js';
 
 const ROOT = new URL('..', import.meta.url);
 // The /juice skill runs badges list without asking, and a command can hold a key: shown is only its first word,
