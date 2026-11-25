@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, statSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -77,7 +77,7 @@ test('remember then recall; payg leaves file alone', () => {
   assert.equal(recall(p), null);
   remember(busy, p, NOW);
   const r = recall(p);
-  assert.deepEqual([r.fiveHour, r.sevenDay, r.subscriberSeenAt], [{ used: 47, resetsAt: R5 }, { used: 12, resetsAt: R7 }, NOW.getTime()]);
+  assert.deepEqual([r.session.saved, r.week.saved, r.subscriberSeenAt], [{ used: 47, resetsAt: R5 }, { used: 12, resetsAt: R7 }, NOW.getTime()]);
   remember({}, p, at(60));
   remember({ rate_limits: {} }, p, at(60));
   assert.deepEqual(recall(p), r);
@@ -93,7 +93,7 @@ test('unchanged values within the hour do not rewrite; later they refresh the st
   remember(busy, p, at(3700));
   assert.equal(recall(p).subscriberSeenAt, at(3700).getTime());
   remember({ rate_limits: { five_hour: { used_percentage: 50, resets_at: R5 } } }, p, at(3800));
-  assert.equal(recall(p).fiveHour.used, 50);
+  assert.equal(recall(p).session.saved.used, 50);
 });
 test('an idle window repeating old numbers never overwrites newer ones; real news does, even when lower', () => {
   const p = tmpPaths();
@@ -101,13 +101,13 @@ test('an idle window repeating old numbers never overwrites newer ones; real new
   remember(reading('idle', 20, R5), p, NOW); // the idle session's last reply
   remember(reading('busy', 60, R5), p, at(30)); // the busy session's newer reply
   remember(reading('idle', 20, R5), p, at(60)); // the idle session redraws its old numbers
-  assert.equal(recall(p).fiveHour.used, 60);
+  assert.equal(recall(p).session.saved.used, 60);
   remember(reading('busy', 19, R5), p, at(90)); // plan upgraded mid-window: lower, but real news
-  assert.equal(recall(p).fiveHour.used, 19);
+  assert.equal(recall(p).session.saved.used, 19);
   remember(reading('idle', 95, R5 + 1), p, at(100)); // the idle session gets a reply too: its new numbers are news
-  assert.equal(recall(p).fiveHour.used, 95);
+  assert.equal(recall(p).session.saved.used, 95);
   remember(reading('busy', 5, R5 + 18000), p, at(120)); // the window reset
-  assert.deepEqual(recall(p).fiveHour, { used: 5, resetsAt: R5 + 18000 });
+  assert.deepEqual(recall(p).session.saved, { used: 5, resetsAt: R5 + 18000 });
 });
 
 test('a session seen for the first time (after /clear, or an upgrade) cannot lower the saved reading', () => {
@@ -116,9 +116,9 @@ test('a session seen for the first time (after /clear, or an upgrade) cannot low
   remember(reading('a', 40, R5), p, NOW);
   remember(reading('a', 60, R5), p, at(10));
   remember(reading('a-cleared', 40, R5), p, at(20)); // same process, new session id, its old numbers
-  assert.equal(recall(p).fiveHour.used, 60);
+  assert.equal(recall(p).session.saved.used, 60);
   remember(reading('new-chat', 70, R5), p, at(30)); // a new chat's first reply is higher: it counts
-  assert.equal(recall(p).fiveHour.used, 70);
+  assert.equal(recall(p).session.saved.used, 70);
 });
 
 test('a new session is recorded the first time, so its next reply counts even when lower', () => {
@@ -126,9 +126,9 @@ test('a new session is recorded the first time, so its next reply counts even wh
   const reading = (session_id, used) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at: R5 } } });
   remember(reading('A', 81), p, NOW);
   remember(reading('B', 10), p, at(60)); // first sighting: lower, so ignored, but B is now known
-  assert.equal(recall(p).fiveHour.used, 81);
+  assert.equal(recall(p).session.saved.used, 81);
   remember(reading('B', 12), p, at(120)); // B's next reply is real news
-  assert.equal(recall(p).fiveHour.used, 12);
+  assert.equal(recall(p).session.saved.used, 12);
 });
 
 test('after an account switch, the idle window of the old account cannot bring its numbers back', () => {
@@ -138,7 +138,7 @@ test('after an account switch, the idle window of the old account cannot bring i
   remember(reading('s2', 40, R5 + 7200), p, at(5)); // account A, another window
   remember(reading('s1', 10, R5), p, at(10)); // s1 switched to account B and replied
   remember(reading('s2', 40, R5 + 7200), p, at(15)); // s2 still repeats A: its window is later, but B's is running
-  assert.deepEqual(recall(p).fiveHour, { used: 10, resetsAt: R5 });
+  assert.deepEqual(recall(p).session.saved, { used: 10, resetsAt: R5 });
 });
 
 test('a reading from a window that has already ended never replaces the current one', () => {
@@ -146,7 +146,7 @@ test('a reading from a window that has already ended never replaces the current 
   const reading = (session_id, used, resets_at) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at } } });
   remember(reading('a', 5, R5), p, NOW);
   remember(reading('old', 90, Math.floor(NOW / 1000) - 60), p, at(5));
-  assert.equal(recall(p).fiveHour.used, 5);
+  assert.equal(recall(p).session.saved.used, 5);
 });
 
 test('lastseen.json remembers only the 20 most recent chats, so it never grows without end', () => {
@@ -154,13 +154,27 @@ test('lastseen.json remembers only the 20 most recent chats, so it never grows w
   for (let i = 1; i <= 25; i++) {
     remember({ session_id: `s${i}`, rate_limits: { five_hour: { used_percentage: i, resets_at: R5 } } }, p, at(i));
   }
-  assert.deepEqual(Object.keys(recall(p).sessions), Array.from({ length: 20 }, (_, i) => `s${i + 6}`));
+  const file = JSON.parse(readFileSync(join(p.cacheDir, 'lastseen.json'), 'utf8'));
+  assert.deepEqual(Object.keys(file.sessions), Array.from({ length: 20 }, (_, i) => `s${i + 6}`));
+  assert.deepEqual(recall(p).session.sent.map((r) => r.used), Array.from({ length: 20 }, (_, i) => i + 6));
+});
+
+test('recall gives each chat\'s last-sent readings per battery, and skips a damaged entry', () => {
+  const p = tmpPaths();
+  remember({ session_id: 'a', ...busy }, p, NOW);
+  remember({ session_id: 'b', rate_limits: { seven_day: { used_percentage: 30, resets_at: R7 } } }, p, at(5));
+  const file = join(p.cacheDir, 'lastseen.json');
+  const rec = JSON.parse(readFileSync(file, 'utf8'));
+  writeFileSync(file, JSON.stringify({ ...rec, sessions: { ...rec.sessions, broken: '{x' } }));
+  const r = recall(p);
+  assert.deepEqual(r.session.sent, [{ used: 47, resetsAt: R5 }, null]);
+  assert.deepEqual(r.week.sent, [{ used: 12, resetsAt: R7 }, { used: 30, resetsAt: R7 }]);
 });
 
 test('remember returns what it saved, so the refresh that saw it already uses it', () => {
   const p = tmpPaths();
-  assert.equal(remember(busy, p, NOW).fiveHour.used, 47);
-  assert.equal(remember({}, p, at(5)).fiveHour.used, 47, 'nothing new: the saved record');
+  assert.equal(remember(busy, p, NOW).session.saved.used, 47);
+  assert.equal(remember({}, p, at(5)).session.saved.used, 47, 'nothing new: the saved record');
 });
 
 test('a stamp from the future is rewritten, not kept', () => {
@@ -175,7 +189,7 @@ test('reset times sent in milliseconds count like seconds, so a window that ende
   const reading = (session_id, used, resets_at) => ({ session_id, rate_limits: { five_hour: { used_percentage: used, resets_at } } });
   remember(reading('a', 80, NOW.getTime() + 60000), p, NOW); // this window ends a minute from now
   remember(reading('b', 5, NOW.getTime() + 18000000), p, at(120)); // a new chat, once it has ended
-  assert.equal(recall(p).fiveHour.used, 5);
+  assert.equal(recall(p).session.saved.used, 5);
 });
 
 test('remember never throws; recall of corrupt file is null', () => {

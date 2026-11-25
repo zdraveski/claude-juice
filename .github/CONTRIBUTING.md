@@ -30,7 +30,7 @@ Only `plugin/` reaches people who install juice: the marketplace (`.claude-plugi
 |---|---|
 | `plugin/` | The plugin, exactly as installed: its manifest and icon in `plugin/.claude-plugin/`, and its `package.json`, which holds the version |
 | `plugin/bin/` | The status line, the `/juice` command, and the launcher that setup copies into your Claude folder |
-| `plugin/src/` | Reading Claude Code's data, settings, setup, the doctor, badges and the Fable battery |
+| `plugin/src/` | Everything but drawing: reading what Claude Code sends (`data.js`), the Session and Weekly rules (`readings.js`), what juice remembers between redraws (`lastseen.js`), the fetched reading (`fetched.js`, `fable.js`), settings (`settings.js`, `schema.js`), the install (`install.js`, `setup.js`), the doctor and badges |
 | `plugin/src/render/` | Drawing: layouts, colours, fitting a narrow window |
 | `plugin/skills/juice/` | The `/juice` instructions Claude follows |
 | `web/` | The live customizer (GitHub Pages) |

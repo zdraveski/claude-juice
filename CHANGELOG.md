@@ -4,6 +4,10 @@ This page lists what changed in each version of juice, newest first.
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## Unreleased
+
+Tidier code behind the numbers juice remembers between redraws. Nothing you see changes.
+
 ## 1.5.5 (2026-11-25)
 
 [Changes since 1.5.4](https://github.com/zdraveski/claude-juice/compare/v1.5.4...v1.5.5)

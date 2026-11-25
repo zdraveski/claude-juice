@@ -9,10 +9,11 @@ import { remember } from '../plugin/src/lastseen.js';
 import { sendsPromptCache } from '../plugin/src/readings.js';
 
 const nowS = Math.floor(NOW / 1000);
-const seen = (ago = 86400000) => ({
-  fiveHour: { used: 30, resetsAt: nowS + 3600 },
-  sevenDay: { used: 20, resetsAt: nowS + 86400 },
+// Last seen as lastseen.js answers it: the saved Session and Weekly readings, no other chats.
+const seen = (ago = 86400000, five = { used: 30, resetsAt: nowS + 3600 }, seven = { used: 20, resetsAt: nowS + 86400 }) => ({
   subscriberSeenAt: NOW.getTime() - ago,
+  session: { saved: five, sent: [] },
+  week: { saved: seven, sent: [] },
 });
 // A chat before its first reply: no rate_limits and nothing spent yet.
 const newChat = () => ({ ...fixture('payg'), cost: { total_cost_usd: 0 } });
@@ -38,7 +39,7 @@ test('a limit shows 100% only when it really is used up', () => {
 });
 
 test('this window\'s number beats a saved one that has already ended, even without a reset time', () => {
-  const ended = { ...seen(), fiveHour: { used: 30, resetsAt: nowS - 7200 } };
+  const ended = seen(undefined, { used: 30, resetsAt: nowS - 7200 });
   const d = normalize({ rate_limits: { five_hour: { used_percentage: 95 } } }, { lastSeen: ended }, NOW);
   assert.equal(d.limits.session.used, 95, 'not the ended 30%, which would show as an empty battery');
 });
@@ -84,10 +85,10 @@ test('a resumed chat (cost restored, no reply yet) still counts as the subscribe
 
 test('an idle window shows the newer saved reading, not its own old one', () => {
   const idle = fixture('busy'); // its own Session: 47%, window ends in 2h 10m
-  const newer = { ...seen(), fiveHour: { used: 60, resetsAt: nowS + 7800 } }; // another session saw 60% since
+  const newer = seen(undefined, { used: 60, resetsAt: nowS + 7800 }); // another session saw 60% since
   assert.equal(normalize(idle, { lastSeen: newer }, NOW).limits.session.used, 60);
   idle.rate_limits.five_hour = { used_percentage: 90, resets_at: nowS - 600 }; // its window already ended
-  const nextWindow = { ...seen(), fiveHour: { used: 4, resetsAt: nowS + 17000 } };
+  const nextWindow = seen(undefined, { used: 4, resetsAt: nowS + 17000 });
   assert.equal(normalize(idle, { lastSeen: nextWindow }, NOW).limits.session.used, 4);
 });
 
@@ -234,7 +235,7 @@ test('unusable reset times become null, not Invalid Date', () => {
   assert.equal(normalize(s, {}, NOW).limits.session.resetsAt, null);
   const f = normalize(fixture('busy'), { fetched: { fable: { used: 5, resetsAt: 'garbage' } } }, NOW);
   assert.equal(f.limits.fable.resetsAt, null);
-  const l = normalize(newChat(), { lastSeen: { ...seen(), fiveHour: { used: 30, resetsAt: 1e20 } } }, NOW);
+  const l = normalize(newChat(), { lastSeen: seen(undefined, { used: 30, resetsAt: 1e20 }) }, NOW);
   assert.equal(l.limits.session.resetsAt, null);
 });
 
@@ -248,7 +249,7 @@ test('model name loses OSC sequences and line breaks', () => {
 
 test('a window signed into another account shows its own numbers, not the saved account\'s later window', () => {
   const s = fixture('busy'); // own Session 47%, resets in 2h 10m; own Weekly too
-  const other = { ...seen(), fiveHour: { used: 80, resetsAt: nowS + 17000 }, sevenDay: { used: 90, resetsAt: s.rate_limits.seven_day.resets_at + 86400 } };
+  const other = seen(undefined, { used: 80, resetsAt: nowS + 17000 }, { used: 90, resetsAt: s.rate_limits.seven_day.resets_at + 86400 });
   const d = normalize(s, { lastSeen: other }, NOW);
   assert.equal(d.limits.session.used, 47);
   assert.equal(d.limits.week.used, s.rate_limits.seven_day.used_percentage);
