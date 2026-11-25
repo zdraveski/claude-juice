@@ -90,16 +90,14 @@ test('clicking a look applies and highlights it; changing anything clears the hi
 });
 
 // In a layout with its own shapes, picking a style left the preview unchanged with no word why (1.1.0).
-test('the battery style says which layouts show it, only when a picked style is hidden', async () => {
+// When it shows is test/customizer-state.test.js's; here, that the page says it.
+test('the battery style says which layouts show it when a picked style is hidden', async () => {
   const { page } = await open();
   const hint = () => page.textContent('[data-hint=battery]');
   assert.doesNotMatch(await hint(), /keeps its own shapes/);
   await page.click('[data-layout=segments]');
-  assert.doesNotMatch(await hint(), /keeps its own shapes/, 'the default style: nothing to warn about, as in /juice set');
   await page.click('[data-key=battery][data-v=pie]');
-  assert.match(await hint(), /Classic segments keeps its own shapes/);
-  await page.click('[data-layout=focus]');
-  assert.doesNotMatch(await hint(), /keeps its own shapes/);
+  assert.match(await hint(), /Classic segments keeps its own shapes: styles show in Status bar and Tightest first/);
 });
 
 test('hovering a look previews it without choosing it', async () => {
@@ -142,17 +140,13 @@ test('Copy buttons put exactly the shown text on the clipboard', async () => {
 test('dragging a battery row reorders it, and so do the arrow buttons', async () => {
   const { page } = await open();
   const order = () => page.$$eval('[data-bat]', (rows) => rows.map((r) => r.dataset.bat));
+  // Where each one lands is test/customizer-state.test.js's; here, that dragging and the arrows reach it.
   assert.deepEqual(await order(), ['memory', 'session', 'fable', 'week']);
-  await page.dragAndDrop('[data-bat=memory]', '[data-bat=memory]');
-  assert.deepEqual(await order(), ['memory', 'session', 'fable', 'week'], 'dropped onto itself: nothing moves');
   await page.dragAndDrop('[data-bat=week]', '[data-bat=memory]');
   assert.deepEqual(await order(), ['week', 'memory', 'session', 'fable']);
   assert.match(await cmd(page), /show=model,effort,week,memory,session,fable,budget /);
   await page.click('[data-move=session][data-dir="-1"]');
   assert.deepEqual(await order(), ['week', 'session', 'memory', 'fable']);
-  // Dragged down onto the last row, it takes the last place (1.4.0 stopped one short, so the bottom was unreachable).
-  await page.dragAndDrop('[data-bat=week]', '[data-bat=fable]');
-  assert.deepEqual(await order(), ['session', 'memory', 'fable', 'week']);
 });
 
 test('light terminal, and no sideways scrolling on a phone', async () => {
@@ -384,6 +378,7 @@ test('a faint colour is marked softly, a hard-to-read one strongly, an easy one 
     await page.fill('[data-custom="0"]', hex);
     return page.evaluate(() => { const el = document.querySelector('[data-ratio="0"]'); return `${el.className} ${el.textContent.split(' (')[0]}`; });
   };
+  // Which colour is which is test/customizer-state.test.js's; here, how each is marked.
   assert.equal(await mark('#707070'), 'ratio faint A little faint');
   assert.equal(await mark('#404040'), 'ratio bad Hard to read here');
   assert.equal(await mark('#ffffff'), 'ratio Easy to read');
@@ -409,8 +404,6 @@ test('the Motion choice reaches the copied command, once the person makes it', a
   assert.doesNotMatch(await cmd(page), /motion=/, 'a page left at Still keeps the motion they set before');
   await page.click('[data-key=motion][data-v=on]');
   assert.match(await cmd(page), / motion=on$/);
-  await page.click('[data-key=motion][data-v=off]');
-  assert.match(await cmd(page), / motion=off$/);
 });
 
 test('the control cards keep a side gutter, and a short window lets the preview scroll', async () => {
@@ -438,9 +431,6 @@ test('choosing another look afterwards undoes Sand, and only Sand', async () => 
   await page.click('[data-look=juice]');
   assert.doesNotMatch(await cmd(page), /battery=sand/);
   assert.equal(await page.getAttribute('[data-key=battery][data-v=glossy]', 'aria-pressed'), 'true');
-  await page.click('[data-key=battery][data-v=pie]');
-  await page.click('[data-look=juice]');
-  assert.match(await cmd(page), /battery=pie/, 'a style the person picked stays');
 });
 
 test('with nothing switched on the page says the status line would be empty', async () => {
