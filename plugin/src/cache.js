@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, renameSync, mkdirSync, unlinkSync, statSync, chmodSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, mkdirSync, unlinkSync, statSync, chmodSync, readdirSync, existsSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 // Notepad and PowerShell 5.1 start files with a BOM, which JSON.parse rejects.
@@ -46,6 +46,11 @@ export function removeOld(dir, ok, keepMs) {
 }
 
 export const writeJsonAtomic = (file, value, opts) => writeAtomic(file, JSON.stringify(value, null, 2), opts);
+// For a file people may keep as a symlink (a dotfiles repo): writes what it points at, so the link stays a link.
+export const writeJsonThroughLink = (file, value, opts) => writeJsonAtomic(existsSync(file) ? realpathSync(file) : file, value, opts);
+
+// Temp files a killed write left. An hour old at least: another window may be writing one right now.
+export const sweepTemp = (p) => removeOld(p.cacheDir, (f) => f.endsWith('.tmp'), 3600000);
 
 // Written to a temp copy, then renamed into place, so a reader (another window's refresh) never sees half a file.
 // modeFrom: for a new file, the file whose permissions it should take (the old file's win when there is one).

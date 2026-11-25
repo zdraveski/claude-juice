@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, readdirSync, mkdirSync, statSync, unlinkSync, utimesSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, readdirSync, mkdirSync, statSync, unlinkSync, utimesSync, existsSync, symlinkSync, lstatSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { paths } from '../plugin/src/paths.js';
-import { readJson, writeJsonAtomic, takeLock, holdLock, removeOld, HOT_WRITE } from '../plugin/src/cache.js';
+import { readJson, writeJsonAtomic, takeLock, holdLock, removeOld, sweepTemp, HOT_WRITE } from '../plugin/src/cache.js';
 import { loadSettings, updateSettings } from '../plugin/src/settings.js';
 const saveSettings = (p, changes) => updateSettings(p, () => ({ changes }));
 import { DEFAULTS } from '../plugin/src/schema.js';
@@ -215,4 +215,25 @@ test('hot-path writes fail fast and takeLock returns false instead of throwing',
   const p = paths({ CLAUDE_CONFIG_DIR: d });
   mkdirSync(join(p.cacheDir, 'u.lock'), { recursive: true });
   assert.equal(takeLock(p, 'u', NOW), false);
+});
+
+test('juice.json kept as a symlink (a dotfiles repo) stays a symlink when juice saves it', (t) => {
+  const p = paths({ CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-link-')) });
+  const real = join(mkdtempSync(join(tmpdir(), 'juice-dotfiles-')), 'juice.json');
+  writeFileSync(real, '{"layout":"panel"}');
+  try { symlinkSync(real, p.settingsFile, 'file'); } catch (e) { if (process.env.CI) throw e; return t.skip('cannot create a symlink here'); }
+  saveSettings(p, { motion: 'on' });
+  assert.equal(lstatSync(p.settingsFile).isSymbolicLink(), true);
+  assert.deepEqual(JSON.parse(readFileSync(real, 'utf8')), { layout: 'panel', motion: 'on' });
+});
+
+test('sweepTemp removes temp files an hour old, and leaves newer ones another window may be writing', () => {
+  const p = paths({ CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'juice-sweep-')) });
+  mkdirSync(p.cacheDir, { recursive: true });
+  const old = join(p.cacheDir, 'a.json.1.x.tmp'), fresh = join(p.cacheDir, 'b.json.2.y.tmp'), kept = join(p.cacheDir, 'fable.json');
+  for (const f of [old, fresh, kept]) writeFileSync(f, '{}');
+  const hourAgo = (Date.now() - 3700000) / 1000;
+  utimesSync(old, hourAgo, hourAgo); utimesSync(kept, hourAgo, hourAgo);
+  sweepTemp(p);
+  assert.deepEqual([old, fresh, kept].map(existsSync), [false, true, true]);
 });

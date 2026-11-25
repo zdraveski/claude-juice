@@ -10,7 +10,7 @@ import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 import { LABELS } from './render/words.js';
 import { SAMPLES } from './samples.js';
-import { listBadges, unapprovedBadges } from './badges.js';
+import { badgeList } from './badges.js';
 import { readFetched } from './fetched.js';
 import { recall } from './lastseen.js';
 import { overrides, refreshes, refreshFor, refreshWords } from './setup.js';
@@ -35,6 +35,7 @@ export function ago(ms) {
 export function doctor(p, { env, platform, now, cwd, version, node = process.versions.node }) {
   const out = [];
   const t = now.getTime();
+  const { settings: mine, warnings } = loadSettings(p);
   // Older Node still draws the line; juice just isn't tested there, so say so instead of refusing.
   out.push(Number(node.split('.')[0]) >= 24 ? ok(`juice ${version}, Node ${node}, ${OS[platform] ?? platform}`)
     : bad(`Node ${node} isn't supported: juice needs Node 24 or newer. Update it from nodejs.org.`));
@@ -49,7 +50,7 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
   else if (owner === 'other') out.push(bad("Another status line is set, so juice isn't showing. Run /juice setup to switch to juice."));
   else if (owner === 'elsewhere') out.push(bad("juice is your status line but points at a folder that isn't this one (settings copied from another computer?). Run /juice setup."));
   else if (owner === 'here') {
-    const every = line.refreshInterval, want = refreshFor(line, loadSettings(p).settings.motion);
+    const every = line.refreshInterval, want = refreshFor(line, mine.motion);
     out.push(refreshes(line) ? ok(`juice is your status line, refreshing ${refreshWords(every)}`)
       // Only juice's own times differ from what motion wants: one chosen by hand is what it wants.
       + (want === every ? '' : '\n' + info(want === 1 ? 'Run /juice setup to refresh every second, so the effort level and batteries climb.'
@@ -75,8 +76,7 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
   }
   if (settings) out.push(...overrides(p, settings, cwd, platform).map((o) => bad(/in that project\.$/.test(o) ? `${o} To use juice there, take that setting out of that file (Claude can do it for you).` : o)));
 
-  // 2. juice's own settings, and whether drawing works with them.
-  const { settings: mine, warnings } = loadSettings(p);
+  // 2. juice's own settings (read once, above), and whether drawing works with them.
   // An unreadable juice.json is never overwritten (it may hold badges), so only a bad value is fixed by changing a setting.
   // Matched from the start: a warning about a bad value quotes it, and the value could hold the same words.
   warnings.forEach((w) => out.push(bad(`juice settings: ${w.replace(/\.$/, '')}. ${/^juice isn't allowed/.test(w)
@@ -129,7 +129,7 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
   }
 
   // 4. Badges, counted, never shown.
-  const badges = listBadges(p).length, off = unapprovedBadges(p).length;
+  const list = badgeList(p, mine), badges = list.length, off = list.filter((b) => !b.approved).length;
   if (badges) out.push(info(`${badges} badge${badges === 1 ? '' : 's'}`));
   if (off) out.push(bad(`${off} badge${off === 1 ? " isn't" : "s aren't"} approved on this computer, so ${off === 1 ? 'it never runs' : 'they never run'}. See /juice badges list.`));
 

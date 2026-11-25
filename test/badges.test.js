@@ -13,7 +13,7 @@ const saveSettings = (p, changes) => updateSettings(p, () => ({ changes }));
 
 const busyText = JSON.stringify(fixture('busy'));
 import { strip, at, NOW } from './helpers.js';
-import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, listBadges, removeBadge, run, approve, approved, badgeEnv } from '../plugin/src/badges.js';
+import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, badgeList, removeBadge, run, approve, approved, badgeEnv } from '../plugin/src/badges.js';
 
 // process.getBuiltinModule came in Node 22.3 and 20.16. On an older Node the line still draws, so its badges must still run.
 test('a badge runs on a Node without process.getBuiltinModule', async () => {
@@ -118,11 +118,11 @@ test('add, list and remove badges', () => {
   const p = tmp();
   addBadge(p, 'echo hi');
   addBadge(p, 'echo yo');
-  assert.deepEqual(listBadges(p), ['echo hi', 'echo yo']);
+  assert.deepEqual(badgeList(p).map((b) => b.command), ['echo hi', 'echo yo']);
   assert.throws(() => addBadge(p, ''), /1 to 500 characters/);
   assert.throws(() => addBadge(p, 'x'.repeat(501)), Error);
   removeBadge(p, 1);
-  assert.deepEqual(listBadges(p), ['echo yo']);
+  assert.deepEqual(badgeList(p).map((b) => b.command), ['echo yo']);
 });
 
 // The sweep runs only from a badge refresh, so with no badges left nothing else would ever clear the saved session details.

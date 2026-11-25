@@ -1,7 +1,7 @@
-import { existsSync, renameSync, unlinkSync, realpathSync } from 'node:fs';
+import { renameSync, unlinkSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
-import { readJson, writeJsonAtomic, writeAtomic } from './cache.js';
+import { readJson, writeJsonAtomic, writeJsonThroughLink, writeAtomic } from './cache.js';
 import { NOTHING_SHOWN } from './schema.js';
 import { loadSettings } from './settings.js';
 import { fwd, launcherTarget, launcherFor } from './launcher-file.js';
@@ -24,7 +24,7 @@ export const refreshFor = (statusLine, motion) => (keepsRefresh(statusLine) ? st
 export const refreshWords = (seconds) => (seconds === 1 ? 'every second' : seconds === 60 ? 'once a minute' : `every ${seconds} seconds`);
 
 // A symlinked settings.json must stay a symlink, so write to what it points at.
-const writeSettings = (p, v, opts) => writeJsonAtomic(existsSync(p.claudeSettings) ? realpathSync(p.claudeSettings) : p.claudeSettings, v, opts);
+const writeSettings = (p, v, opts) => writeJsonThroughLink(p.claudeSettings, v, opts);
 
 // The shell Claude Code runs the status line in (Git Bash on Windows, sh elsewhere) would change a $ or a
 // backtick inside the quoted path, cmd a %, and a " would end the quotes, so such a path can't be set up safely.

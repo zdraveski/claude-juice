@@ -40,7 +40,8 @@ async function viaProxy(variable, { oldNode = false } = {}) {
     const env = cleanEnv(dir, { [variable]: `http://127.0.0.1:${proxy.address().port}`, NODE_OPTIONS: `--import ${pathToFileURL(join(dir, 'guard.mjs')).href}` });
     const c = spawn(process.execPath, [BIN], { env, stdio: ['pipe', 'ignore', 'ignore'] });
     c.stdin.end(stdin);
-    for (let i = 0; i < 200 && !seen.length; i++) await new Promise((r) => setTimeout(r, 50)); // the refresher starts after the line is drawn
+    // The refresher starts after the line is drawn. Up to 30 s: GitHub's Windows machines have taken 12-16 s.
+    for (let i = 0; i < 600 && !seen.length; i++) await new Promise((r) => setTimeout(r, 50));
     return seen;
   } finally { proxy.close(); proxy.closeAllConnections?.(); }
 }

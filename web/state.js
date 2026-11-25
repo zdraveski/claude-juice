@@ -2,7 +2,7 @@
 // back on returns to its place), the colour-picker values per terminal, and whether the command must name terminal=
 // and motion= even at their defaults. Each change returns a new state; every setting goes through schema's applySet,
 // so the page follows the same rules as /juice set. app.js draws it.
-import { SHOW_IDS, COLOR_KEYS as KEYS, sanitize, applySet, toPair } from '../plugin/src/schema.js';
+import { SHOW_IDS, COLOR_KEYS as KEYS, sanitize, applySet, toPair, parseLink } from '../plugin/src/schema.js';
 import { PRESETS } from '../plugin/src/render/palette.js';
 
 export const FIXED = ['model', 'effort', 'budget'];
@@ -21,6 +21,18 @@ export function fromSettings(s, { terminalChosen = false, motionChosen = false }
   };
 }
 export const reset = () => fromSettings(sanitize({}, { allowBadges: false }).settings);
+
+// Where the page starts, on load and whenever the address changes: a valid shared link wins, then the settings saved
+// last time (savedText, as stored), then the defaults. A link never brings badges. damaged: the address held a
+// settings link that was cut short or mangled, so the page should say why it shows something else.
+export function startFrom(hash, savedText, current) {
+  let settings, damaged = false;
+  try { settings = parseLink(hash); } catch {
+    damaged = hash.startsWith('#c=');
+    try { settings = sanitize(JSON.parse(savedText), { allowBadges: false }).settings; } catch { settings = sanitize({}, { allowBadges: false }).settings; }
+  }
+  return { st: fromSettings(settings, current), damaged };
+}
 
 // A look sets several things at once, and the order and colour pickers follow it; what was chosen stays chosen.
 export const chooseLook = (st, id) => fromSettings(applySet(st.s, [`look=${id}`]).settings, st);

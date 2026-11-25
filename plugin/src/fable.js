@@ -2,7 +2,7 @@ import { execFileSync as realExec } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
+import { readJson, writeJsonAtomic, sweepTemp, holdLock } from './cache.js';
 import { FABLE_REFRESH, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS, waitAfter } from './fetched.js';
 
 // Claude Code's own name for the Keychain entry: with CLAUDE_CONFIG_DIR (or its storage override) set, each
@@ -92,8 +92,7 @@ export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fe
     holdLock(p, FABLE_REFRESH.lock, now, waitAfter('offline')); // the backoff could not be saved, so the lock carries it
   } finally {
     // Runs about every 5 minutes, so stray temp files go even for people without badges (whose refresher sweeps too).
-    // An hour old at least: another window may be writing one right now.
-    removeOld(p.cacheDir, (f) => f.endsWith('.tmp'), 3600000);
+    sweepTemp(p);
   }
   return false;
 }

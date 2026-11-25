@@ -2,8 +2,8 @@
 // The page's wiring of each one is checked by scripts/check-customizer.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reset, chooseLook, choose, toggleBattery, moveBattery, dropBattery, choosePreset, setCustom } from '../web/state.js';
-import { toCommand, hidesStyle, readability, applySet } from '../plugin/src/schema.js';
+import { reset, chooseLook, choose, toggleBattery, moveBattery, dropBattery, choosePreset, setCustom, startFrom } from '../web/state.js';
+import { toCommand, hidesStyle, readability, applySet, encodeLink, DEFAULTS } from '../plugin/src/schema.js';
 import { PRESETS } from '../plugin/src/render/palette.js';
 
 const cmd = (st) => toCommand(st.s, st);
@@ -77,4 +77,18 @@ test('readability: the same bar the page marks and /juice set warns at', () => {
   assert.equal(readability('#404040', 'dark').level, 'hard');
   assert.equal(readability('#ffffff', 'dark').level, 'ok');
   assert.match(applySet(reset().s, ['colors=dark:#404040,#ffffff,#ffffff,#ffffff/light:#000000,#000000,#000000,#000000']).warnings.join(), /hard to read on a dark terminal/);
+});
+
+test('the page starts from a valid link, else the saved settings, else the defaults, and says when a link was damaged', () => {
+  const linked = applySet(DEFAULTS, ['layout=panel']).settings, saved = applySet(DEFAULTS, ['layout=tank']).settings;
+  const savedText = JSON.stringify(saved), hash = '#c=' + encodeLink(linked);
+  const start = (h, text) => { const { st, damaged } = startFrom(h, text); return [st.s.layout, damaged]; };
+  assert.deepEqual(start(hash, savedText), ['panel', false], 'a valid link wins over what was saved');
+  assert.deepEqual(start(hash.slice(0, 8), savedText), ['tank', true], 'a link cut short: the saved settings, and a word why');
+  assert.deepEqual(start('', savedText), ['tank', false], 'no link: the saved settings');
+  assert.deepEqual(start('', '{not json'), [DEFAULTS.layout, false], 'damaged saved settings: the defaults');
+  assert.deepEqual(start('', null), [DEFAULTS.layout, false], 'nothing saved: the defaults');
+  assert.deepEqual(startFrom('', JSON.stringify({ ...saved, badges: [{ command: 'echo hi' }] })).st.s.badges, [], 'saved settings never bring badges');
+  // What was chosen stays chosen across an address change.
+  assert.equal(startFrom(hash, null, choose(reset(), 'motion', 'on')).st.motionChosen, true);
 });

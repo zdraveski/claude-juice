@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, chmodSync, unlinkSync } from 'node:fs';
 import { paths, hideHome } from './paths.js';
-import { takeLock, writeAtomic, writeJsonAtomic, removeOld, HOT_WRITE, BADGE_REFRESH } from './cache.js';
+import { takeLock, writeAtomic, writeJsonAtomic, sweepTemp, HOT_WRITE, BADGE_REFRESH } from './cache.js';
 import { loadSettings } from './settings.js';
 import { readFetched, FABLE_REFRESH } from './fetched.js';
 import { detectTerminal, readClaudeTheme, columnsOf } from './terminal.js';
@@ -62,7 +62,7 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     if (upgradeLauncher(p, ROOT)) {
       if (platform !== 'win32') for (const d of [p.cacheDir, join(p.cacheDir, 'badges')]) quiet(() => chmodSync(d, 0o700));
       // Temp files a killed refresh left: the Fable and badge refreshers sweep them too, but not everyone runs those.
-      quiet(() => removeOld(p.cacheDir, (f) => f.endsWith('.tmp'), 3600000));
+      quiet(() => sweepTemp(p));
       try { (await import('./setup.js')).matchRefresh(p, { platform, write: HOT_WRITE }); } catch {}
     }
     if (existsSync(p.lastErrorFile)) quiet(() => unlinkSync(p.lastErrorFile)); // this run worked, so an earlier glitch is no longer news for /juice doctor
