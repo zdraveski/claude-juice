@@ -4,7 +4,9 @@ This page lists what changed in each version of juice, newest first.
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
-## Unreleased
+## 1.5.7 (2026-11-25)
+
+[Changes since 1.5.6](https://github.com/zdraveski/claude-juice/compare/v1.5.6...v1.5.7)
 
 Tidier code behind the doctor, badges and the customizer's shared links. Nothing you see changes.
 
