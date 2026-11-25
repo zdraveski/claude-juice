@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { paths } from '../plugin/src/paths.js';
 import { install, restore } from '../plugin/src/setup.js';
+import { inspectInstall } from '../plugin/src/install.js';
 import { launcherFor, constant, fwd } from '../plugin/src/launcher-file.js';
 
 const ROOT = fileURLToPath(new URL('../plugin', import.meta.url)).replace(/[\\/]$/, '');
@@ -129,5 +130,56 @@ test('a backup juice cannot save leaves the launcher as it was, or absent on a f
     let now = null;
     try { now = readFileSync(p.launcherFile, 'utf8'); } catch {}
     assert.equal(now, launcher);
+  }
+});
+
+// One look at the Install, in every state setup acts on and the doctor reports.
+test('inspectInstall names whose status line it is, and what its launcher and backup look like', () => {
+  const look = ({ settings, launcher, backup, store }) => {
+    const d = tmp(), p = paths({ CLAUDE_CONFIG_DIR: d });
+    if (settings !== undefined) writeFileSync(p.claudeSettings, typeof settings === 'string' ? settings : JSON.stringify(settings(p)));
+    if (launcher !== undefined) writeFileSync(p.launcherFile, launcher);
+    if (backup !== undefined) writeFileSync(p.backupFile, backup);
+    for (const [market, version] of store ?? []) {
+      mkdirSync(join(d, 'plugins', 'cache', market, 'juice', version, 'bin'), { recursive: true });
+      writeFileSync(join(d, 'plugins', 'cache', market, 'juice', version, 'bin', 'juice-statusline.js'), '');
+    }
+    return inspectInstall(p, { platform: 'linux', env: {} });
+  };
+  const line = (command) => () => ({ statusLine: { type: 'command', command } });
+  const ours = (pre = '') => (p) => ({ statusLine: { type: 'command', command: `${pre}node "${fwd(p.launcherFile)}"` } });
+
+  assert.equal(look({}).owner, 'none');
+  assert.equal(look({ settings: line('node old.js') }).owner, 'other');
+  assert.equal(look({ settings: line('node "/far/away/juice-statusline.mjs"') }).owner, 'elsewhere');
+  let s = look({ settings: ours() });
+  assert.deepEqual([s.owner, s.current, s.pinGone], ['here', true, false]);
+  s = look({ settings: ours('PATH="/no/such/node/folder:$PATH" ') });
+  assert.deepEqual([s.owner, s.current, s.pinGone], ['here', false, true], 'an older way of finding Node, and that Node is gone');
+
+  s = look({ settings: '{ "statusLine": ' });
+  assert.deepEqual([s.owner, s.settings, s.error?.constructor], [null, null, Error], 'a mistake in settings.json comes back, never thrown');
+  s = look({ settings: () => ({ statusLine: 'echo hi' }) });
+  assert.deepEqual([s.owner, s.restorable], ['other', false], 'a text line is no object: restore would never put it back');
+  assert.equal(look({ settings: line('node old.js') }).restorable, true);
+
+  assert.deepEqual(look({}).launcher.text, null);
+  s = look({ launcher: 'const OTHER = 1;' }).launcher;
+  assert.deepEqual([s.pinned, s.market, s.found], [null, null, false], 'damaged or from before 0.2.1');
+  s = look({ launcher: 'const MARKET = "m";', store: [['m', '1.2.3']] }).launcher;
+  assert.deepEqual([s.found, s.runs, s.off, s.movedTo], [true, '1.2.3', false, null]);
+  s = look({ launcher: 'const MARKET = "m";', store: [['m', '1.2.3']], settings: () => ({ enabledPlugins: { 'juice@m': false } }) }).launcher;
+  assert.equal(s.off, true, 'turned off in /plugin');
+  s = look({ launcher: 'const MARKET = "old";', store: [['new', '1.0.0']] }).launcher;
+  assert.deepEqual([s.found, s.movedTo], [false, 'new'], 'the marketplace was renamed');
+  assert.equal(look({ launcher: 'const PINNED = "D:/shared/plugins/cache/m/juice/1.3.1";' }).launcher.stuck, true);
+  assert.equal(look({ launcher: 'const PINNED = "/home/a/code/juice";' }).launcher.stuck, false, 'a checkout pinned on purpose');
+
+  assert.deepEqual(look({}).backup, { there: false, value: null, usable: false });
+  assert.equal(look({ backup: '{"statusLine":null}' }).backup.usable, true);
+  assert.equal(look({ backup: '{"statusLine":{"command":"x"}}' }).backup.usable, true);
+  for (const b of ['{"statusLine":"x"}', '"x"', '5', '{', '{}']) {
+    const { there, usable } = look({ backup: b }).backup;
+    assert.deepEqual([there, usable], [true, false], b);
   }
 });

@@ -7,7 +7,7 @@ import { tmpdir, homedir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { main, friendly } from '../plugin/src/cli.js';
-import { isJuice } from '../plugin/src/setup.js';
+import { isJuice } from '../plugin/src/install.js';
 import { CUSTOMIZER_URL, LOOKS } from '../plugin/src/schema.js';
 
 // main() and install() look for project settings above process.cwd(): start in a folder of our own, so the runner's cwd can't change a result.
@@ -143,7 +143,7 @@ test('a settings.json with a mistake in it says try again, not run setup, so res
 test('settings.json is read once, so a save between two reads is not called a mistake', async (t) => {
   const d = env();
   writeFileSync(join(d, 'settings.json'), JSON.stringify(OLD));
-  const { readClaudeSettings } = await import('../plugin/src/setup.js');
+  const { inspectInstall } = await import('../plugin/src/install.js');
   const { paths } = await import('../plugin/src/paths.js');
   const real = fs.readFileSync;
   let reads = 0;
@@ -152,7 +152,7 @@ test('settings.json is read once, so a save between two reads is not called a mi
     return real.call(this, file, ...rest);
   });
   syncBuiltinESMExports(); // named imports of node:fs follow the mock only after this
-  try { assert.deepEqual(readClaudeSettings(paths({ CLAUDE_CONFIG_DIR: d })), OLD); }
+  try { assert.deepEqual(inspectInstall(paths({ CLAUDE_CONFIG_DIR: d })).settings, OLD); }
   finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
 });
 
@@ -1137,6 +1137,16 @@ test('a backup whose statusLine is no object is damaged: it is never written int
   assert.match(r.out, /damaged/);
   assert.equal(json(join(d, 'settings.json')).statusLine, undefined);
   assert.ok(existsSync(join(d, 'juice-backup.json')), 'kept for a look by hand');
+});
+
+// Restore never writes a statusLine that is no object back (above), so setup must not promise it will.
+test('setup over a statusLine that is no object keeps it but does not promise restore brings it back', async () => {
+  const d = env();
+  writeFileSync(join(d, 'settings.json'), JSON.stringify({ statusLine: 'echo hi' }));
+  const r = await run(d, ['setup']);
+  assert.doesNotMatch(r.out, /so you can get it back/);
+  assert.match(r.out, /wasn't valid for Claude Code, so \/juice restore won't put it back\. It is kept in juice-backup\.json/);
+  assert.equal(json(join(d, 'juice-backup.json')).statusLine, 'echo hi', 'kept for a look by hand');
 });
 
 test('help, --help and -h print the usage and succeed; other words still fail', async () => {
