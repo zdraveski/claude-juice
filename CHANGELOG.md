@@ -6,7 +6,7 @@ To update, type `/plugin`, update juice, then restart Claude Code.
 
 ## Unreleased
 
-Tidier code behind the numbers juice remembers between redraws. Nothing you see changes.
+Tidier code behind the numbers juice remembers between redraws, and behind when the Fable battery tries again after a failed check. Nothing you see changes.
 
 ## 1.5.5 (2026-11-25)
 

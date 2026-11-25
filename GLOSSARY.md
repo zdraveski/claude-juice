@@ -15,6 +15,9 @@ _Avoid_: lastSeen record
 **Saved reading**:
 The best Session or Weekly number any chat has sent, kept in Last seen until its window ends. A chat that only redraws its old numbers never replaces it.
 
+**Refresher**:
+A background juice process a draw starts, so the draw never waits: one asks Anthropic for the Fetched reading, one runs badge commands. A lock stops a second one starting while it runs.
+
 **Install**:
 How juice is wired into Claude Code on this computer: whose status line is set, the launcher it runs, and the version that launcher starts. `/juice setup` is the action that changes it.
 _Avoid_: setup state, hookup

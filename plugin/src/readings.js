@@ -55,13 +55,6 @@ export function toShow({ own, saved, fetched, sent = [] }, now) {
   return ended(early, now) ? late : ours;
 }
 
-// After a failed fetch, wait this long before asking again.
-export const BACKOFF_MS = 900000;
-// After macOS refused the Keychain read: asking again would show its dialog again.
-export const DENIED_MS = 12 * 3600000;
-// The Fable refresher may wait on a macOS Keychain dialog, then fetch; its lock must outlast both, with margin.
-export const KEYCHAIN_TIMEOUT_MS = 25000, FETCH_TIMEOUT_MS = 5000, FABLE_LOCK_MS = 60000;
-
 // prompt_cache arrived in Claude Code 2.1.251. A missing or odd version counts as new: current versions send it.
 export function sendsPromptCache(version) {
   const m = /^(\d+)\.(\d+)\.(\d+)/.exec(typeof version === 'string' ? version : '');

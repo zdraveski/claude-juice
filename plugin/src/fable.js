@@ -2,9 +2,8 @@ import { execFileSync as realExec } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readJson, writeJsonAtomic, removeOld, holdLock, FABLE_REFRESH } from './cache.js';
-import { BACKOFF_MS, DENIED_MS, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS } from './readings.js';
-import { FRESH_MS } from './fetched.js';
+import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
+import { FABLE_REFRESH, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS, waitAfter } from './fetched.js';
 
 // Claude Code's own name for the Keychain entry: with CLAUDE_CONFIG_DIR (or its storage override) set, each
 // config folder has its own login, named after a hash of the folder. The plain name would be another account's.
@@ -76,10 +75,6 @@ export async function fetchFable(token, fetchImpl, version, timeoutMs = FETCH_TI
   } catch { return 'offline'; } finally { clearTimeout(timer); } // no answer, or a page (a proxy's, a hotel's) instead of one
 }
 
-// Claude Code renews an expired login on its next request, so look again soon rather than in 15 minutes. Not sooner
-// than a working login is asked (FRESH_MS): an idle window's login stays expired, and each look starts a process.
-const EXPIRED_MS = FRESH_MS;
-
 export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fetch, execFileSync = realExec, now, version }) {
   const t = +now; // accepts a Date or epoch ms
   const file = p.fableFile;
@@ -92,9 +87,9 @@ export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fe
     }
     const { used, resetsAt, session, week, fetchedAt } = readJson(file) ?? {};
     const keep = fetchedAt === undefined ? {} : { used, resetsAt, session, week, fetchedAt };
-    writeJsonAtomic(file, { ...keep, backoffUntil: t + (fresh === 'expired' ? EXPIRED_MS : fresh === 'denied' ? DENIED_MS : BACKOFF_MS), why: fresh });
+    writeJsonAtomic(file, { ...keep, backoffUntil: t + waitAfter(fresh), why: fresh });
   } catch {
-    holdLock(p, FABLE_REFRESH.lock, now, BACKOFF_MS); // the backoff could not be saved, so the lock carries it
+    holdLock(p, FABLE_REFRESH.lock, now, waitAfter('offline')); // the backoff could not be saved, so the lock carries it
   } finally {
     // Runs about every 5 minutes, so stray temp files go even for people without badges (whose refresher sweeps too).
     // An hour old at least: another window may be writing one right now.

@@ -7,7 +7,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { paths } from '../plugin/src/paths.js';
-import { readFetched, FRESH_MS } from '../plugin/src/fetched.js';
+import { readFetched, FRESH_MS, WAIT_MS } from '../plugin/src/fetched.js';
 
 const T = NOW.getTime(), MIN = 60000, HOUR = 60 * MIN;
 const at = (ms) => new Date(T + ms);
@@ -88,6 +88,15 @@ test('a wait longer than any juice sets can only come from a clock that was ahea
   // A refused Keychain read waits half a day on purpose.
   const denied = readFetched(folder({ backoffUntil: T + 10 * HOUR, why: 'denied' }), 'on', 'darwin', NOW);
   assert.equal(denied.failed?.why, 'denied');
+  // Each reason is held to its own wait: an expired login waits 5 minutes, so 10 is a clock that was ahead.
+  assert.equal(readFetched(folder({ backoffUntil: T + 10 * MIN, why: 'expired' }), 'on', 'linux', NOW).failed, null);
+  assert.equal(readFetched(folder({ backoffUntil: T + 10 * MIN, why: 'something new' }), 'on', 'linux', NOW).failed?.why, 'something new', 'an unknown reason waits like a failed fetch');
+});
+
+test('every wait in the table is one readFetched keeps, to the millisecond', () => {
+  for (const [why, ms] of Object.entries(WAIT_MS)) {
+    assert.deepEqual(readFetched(folder({ backoffUntil: T + ms, why }), 'on', 'darwin', NOW).failed, { why, retryAt: at(ms) }, why);
+  }
 });
 
 test('a failed check keeps the last good reading on show while it still counts', () => {
