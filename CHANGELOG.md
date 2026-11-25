@@ -4,7 +4,9 @@ This page lists what changed in each version of juice, newest first.
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
-## Unreleased
+## 1.5.6 (2026-11-25)
+
+[Changes since 1.5.5](https://github.com/zdraveski/claude-juice/compare/v1.5.5...v1.5.6)
 
 Tidier code behind the numbers juice remembers between redraws, and behind when the Fable battery tries again after a failed check. Nothing you see changes.
 
