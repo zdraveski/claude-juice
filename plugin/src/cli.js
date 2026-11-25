@@ -10,7 +10,7 @@ import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
 import { refreshFable } from './fable.js';
 import { readFetched, FABLE_REFRESH } from './fetched.js';
-import { refreshBadges, addBadge, checkEnv, listBadges, badgeList, removeBadge } from './badges.js';
+import { refreshBadges, addBadge, checkEnv, badgeList, removeBadge } from './badges.js';
 import { install, restore, matchRefresh, refreshWords, NeedsConfirm } from './setup.js';
 import { Unreadable } from './install.js';
 import { fwd } from './launcher-file.js';
@@ -119,7 +119,7 @@ export async function main(argv, io) {
           return 0;
         }
         if (sub === 'list') {
-          const list = badgeList(p);
+          const { settings, warnings } = loadSettings(p), list = badgeList(p, settings);
           const name = (c) => (all.includes('--show') ? strip(c) : hidden(c));
           const why = (b, n) => (b.approved ? (b.first !== n ? ` (a second copy of badge ${b.first}: remove it)` : '')
             : b.first ? ` (a copy of badge ${b.first} that never runs: remove it)`
@@ -127,13 +127,13 @@ export async function main(argv, io) {
           // Names only, never values, so this is safe in the chat.
           const env = (b) => (b.env.length ? ` (also sees ${b.env.join(', ')})` : '');
           io.out(list.length ? list.map((b, i) => `${i + 1}. ${name(b.command)}${env(b)}${why(b, i + 1)}`).join('\n') : 'No badges.');
-          loadSettings(p).warnings.forEach((w) => io.out(`Warning: ${w}`));
+          warnings.forEach((w) => io.out(`Warning: ${w}`));
           return 0;
         }
         if (sub === 'remove') {
           // remove takes only a number, so --yes may come before or after it.
           const n = Number(all.find((a) => a !== '--yes'));
-          const command = listBadges(p)[n - 1];
+          const command = badgeList(p)[n - 1]?.command;
           if (!Number.isInteger(n) || command === undefined) { io.err('No badge with that number. Run badges list to see them.'); return 1; }
           if (!all.includes('--yes')) { io.out(`This would remove badge ${n}: ${hidden(command)}`); io.out('Run again with --yes to remove it.'); return 2; }
           removeBadge(p, n);

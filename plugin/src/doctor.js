@@ -10,7 +10,7 @@ import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 import { LABELS } from './render/words.js';
 import { SAMPLES } from './samples.js';
-import { listBadges, unapprovedBadges } from './badges.js';
+import { badgeList } from './badges.js';
 import { readFetched } from './fetched.js';
 import { recall } from './lastseen.js';
 import { overrides, refreshes, refreshFor, refreshWords } from './setup.js';
@@ -129,7 +129,7 @@ export function doctor(p, { env, platform, now, cwd, version, node = process.ver
   }
 
   // 4. Badges, counted, never shown.
-  const badges = listBadges(p).length, off = unapprovedBadges(p).length;
+  const list = badgeList(p, mine), badges = list.length, off = list.filter((b) => !b.approved).length;
   if (badges) out.push(info(`${badges} badge${badges === 1 ? '' : 's'}`));
   if (off) out.push(bad(`${off} badge${off === 1 ? " isn't" : "s aren't"} approved on this computer, so ${off === 1 ? 'it never runs' : 'they never run'}. See /juice badges list.`));
 

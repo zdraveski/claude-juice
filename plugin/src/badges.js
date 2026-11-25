@@ -183,20 +183,12 @@ export function addBadge(p, command, env = []) {
   });
 }
 
-export const listBadges = (p) => loadSettings(p).settings.badges.map((b) => b.command);
-
 // Each badge, whether this computer approved it, and the first approved badge running the same command
-// (from 1, 0 if none): 1.4.0 could leave a second copy of one.
-export function badgeList(p) {
-  const { badges } = loadSettings(p).settings, ok = new Set(approved(p, badges));
+// (from 1, 0 if none): 1.4.0 could leave a second copy of one. settings: juice.json as the caller already read it.
+export function badgeList(p, settings = loadSettings(p).settings) {
+  const { badges } = settings, ok = new Set(approved(p, badges));
   const first = (c) => badges.findIndex((b) => b.command === c && ok.has(b)) + 1;
   return badges.map((b) => ({ command: b.command, env: b.env ?? [], approved: ok.has(b), first: first(b.command) }));
-}
-
-// Positions (from 1) of badges this computer has not approved, so the list can say why they don't run.
-export function unapprovedBadges(p) {
-  const { badges } = loadSettings(p).settings, ok = new Set(approved(p, badges));
-  return badges.flatMap((b, i) => (ok.has(b) ? [] : [i + 1]));
 }
 
 export function removeBadge(p, n) {
