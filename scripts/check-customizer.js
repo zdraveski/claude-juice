@@ -402,8 +402,14 @@ test('the Fable row reads as sentences, says it needs /juice set fable=on, and n
 test('the Motion choice reaches the copied command, once the person makes it', async () => {
   const { page } = await open();
   assert.doesNotMatch(await cmd(page), /motion=/, 'a page left at Still keeps the motion they set before');
+  await page.waitForFunction(() => location.hash.startsWith('#c='));
+  const first = await page.evaluate(() => location.hash);
   await page.click('[data-key=motion][data-v=on]');
   assert.match(await cmd(page), / motion=on$/);
+  // A link pasted afterwards brings its own settings, but the person's choice to name motion stays.
+  await page.waitForFunction((h) => location.hash !== h, first);
+  await page.evaluate((h) => { location.hash = h; }, first);
+  await page.waitForFunction(() => / motion=off$/.test(document.getElementById('cmd').textContent));
 });
 
 test('the control cards keep a side gutter, and a short window lets the preview scroll', async () => {
