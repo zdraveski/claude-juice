@@ -109,5 +109,5 @@ function tryOn(s, hover) {
 export function previewOf(s, view) {
   const tried = tryOn(s, view.hover), columns = WIDTHS[view.width];
   const { text, dropped } = render(sampleOf(view), tried.settings, terminalOf(tried.settings, view, columns - RESERVE));
-  return { text, dropped, columns, term: termOf(s, view), previewing: tried.name, blank: !strip(text).trim() };
+  return { text, dropped, columns, term: termOf(tried.settings, view), previewing: tried.name, blank: !strip(text).trim() };
 }

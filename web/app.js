@@ -49,7 +49,7 @@ const apply = (next) => { st = next; ({ s, order, customs } = st); };
 const SAVED = 'juice-settings';
 
 // ---------- preview ----------
-// The terminal colour the preview draws with (state.js termOf: a chosen one beats the Dark/Light switch).
+// The terminal colour the page shows: preview, chips, colour pickers and ratios (state.js termOf: a chosen one beats the Dark/Light switch).
 const term = () => termOf(s, view);
 const LOOK = Object.fromEntries(LOOKS.map((l) => [l.id, l]));
 
