@@ -9,6 +9,11 @@ import { PRESETS, NEUTRAL, palette, makeCtx } from '../plugin/src/render/palette
 import { battery, batteryPct, batterySeg, batteryLow, ramp, chip, form, CLIMB_MS } from '../plugin/src/render/pieces.js';
 import { EFFORT } from '../plugin/src/render/words.js';
 import { SAMPLES, withAccount } from '../plugin/src/samples.js';
+import { refreshFor } from '../plugin/src/setup.js';
+
+test('a climb frame lasts two of the refreshes motion=on asks for, so no frame is ever skipped', () => {
+  assert.equal(CLIMB_MS, 2 * refreshFor(null, 'on') * 1000);
+});
 
 // The checks that name the casing or the tick are about the classic cells.
 const mk = (round = false) => makeCtx(SAMPLES.busy, { ...DEFAULTS, battery: 'classic' }, { theme: 'dark', ends: round ? 'round' : 'plain' });
