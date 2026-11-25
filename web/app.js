@@ -1,16 +1,13 @@
 // The customizer page. All drawing of the status line is done by ../plugin/src/render; this file only builds controls and converts its ANSI to HTML.
 import { render } from '../plugin/src/render/index.js';
-import { RESERVE } from '../plugin/src/render/fit.js';
 import { STYLE_LAYOUTS, STYLE_WHERE, LOOKS, NAMES, CHOICES, DEFAULTS, applySet, toCommand, encodeLink, hidesStyle, readability } from '../plugin/src/schema.js';
-import { FIXED, BATTERIES, startFrom, reset, chooseLook, choose, toggleBattery, moveBattery, dropBattery, choosePreset, setCustom } from './state.js';
+import { FIXED, BATTERIES, startFrom, reset, chooseLook, choose, toggleBattery, moveBattery, dropBattery, choosePreset, setCustom, termOf, terminalOf, sampleOf, offered, previewOf } from './state.js';
 import { PRESETS, NEUTRAL } from '../plugin/src/render/palette.js';
-import { SAMPLES, withAccount } from '../plugin/src/samples.js';
 import { ansiToHtml } from '../plugin/src/render/html.js';
 import { LABELS } from '../plugin/src/render/words.js';
 
 // Model and effort stay on top and budget at the bottom (FIXED); the batteries between them can be reordered.
 const COLOR_NAMES = ['Plenty left', 'Going fast', 'Almost empty', 'Accent'];
-const WIDTHS = { small: 80, medium: 120, wide: 400 };
 // Each choice's buttons come from the settings rules (plugin/src/schema.js), so a new value shows up here by itself.
 const opts = (key) => CHOICES[key].map((id) => [id, NAMES[key][id]]);
 const LAYOUT_NOTES = {
@@ -52,15 +49,9 @@ const apply = (next) => { st = next; ({ s, order, customs } = st); };
 const SAVED = 'juice-settings';
 
 // ---------- preview ----------
-const terminal = (columns, st = s) => ({ columns, theme: view.term, ends: st.ends === 'plain' ? 'plain' : 'round', colorDepth: 'truecolor' });
-const sample = () => withAccount({ ...SAMPLES[view.state], model: { name: view.model, isFable: view.model.startsWith('Fable') } }, view.plan);
-// A real status line keeps a few columns free for Claude Code's indent, so the preview of an 80-column window does too.
-const drawn = (settings, columns) => render(sample(), settings, terminal(columns - RESERVE, settings));
+// The terminal colour the page shows: preview, chips, colour pickers and ratios (state.js termOf: a chosen one beats the Dark/Light switch).
+const term = () => termOf(s, view);
 const LOOK = Object.fromEntries(LOOKS.map((l) => [l.id, l]));
-// What a hovered card previews: view.hover is 'look:<id>' or 'layout:<id>'.
-const peek = (key) => { const [kind, id] = (key || '').split(':'); return kind === 'look' ? LOOK[id] : kind === 'layout' ? { name: NAMES.layout[id], set: { layout: id } } : null; };
-// A battery the preview's plan has no limit for can't be switched on; memory is every plan's.
-const offered = (id) => id === 'memory' || id in sample().limits;
 
 // ---------- the page ----------
 const $ = (id) => document.getElementById(id);
@@ -86,21 +77,17 @@ $('details').innerHTML = DETAILS.map(([k, t, d]) => `<div class="drow"><div><div
 
 // The preview alone. Hovering a card redraws only this, since nothing chosen has changed.
 function preview() {
-  // A chosen terminal colour wins, as in the real line (terminal.js): the preview's Dark/Light only stands in for Automatic.
-  if (s.terminal !== 'auto') view.term = s.terminal;
   const fixed = s.terminal !== 'auto'; // so the Dark/Light switch says why it does nothing
   document.querySelectorAll('[data-view=term] button').forEach((b) => { b.disabled = fixed; b.setAttribute('aria-disabled', fixed); });
   $('termfixed').textContent = fixed ? "Fixed by Your terminal's theme below" : '';
-  const cols = WIDTHS[view.width], p = peek(view.hover);
-  const { text, dropped } = drawn(p?.id && LOOK[p.id] === p ? applySet(s, [`look=${p.id}`]).settings : { ...s, ...p?.set }, cols);
-  $('out').innerHTML = ansiToHtml(text, NEUTRAL[view.term].fg);
+  const { text, dropped, columns: cols, term: shown, previewing, blank } = previewOf(s, view);
+  $('out').innerHTML = ansiToHtml(text, NEUTRAL[shown].fg);
   // The glyph bars read as noise to a screen reader, so name the preview by its words only.
   $('out').setAttribute('aria-label', text.replace(/\x1b\[[0-9;]*m/g, '').replace(/\s+│\s+/g, ', ').replace(/[^\p{L}\p{N}%!:.,$\-+\/~ \n]/gu, ' ').split('\n').map((l) => l.replace(/\s+/g, ' ').replace(/ ,/g, ',').trim()).join('. '));
-  $('win').classList.toggle('light', view.term === 'light');
+  $('win').classList.toggle('light', shown === 'light');
   $('win').style.maxWidth = view.width === 'wide' ? '100%' : `calc(${cols}ch * 13.5 / 15 + 40px)`;
   $('cols').textContent = view.width === 'wide' ? '' : `${cols} columns`;
-  const blank = !text.replace(/\x1b\[[0-9;]*m/g, '').trim();
-  $('fitnote').innerHTML = (blank ? 'Nothing is switched on, so the status line would be <b>empty</b>. ' : '') + (p ? `Previewing <b>${p.name}</b>. ${view.hoverBy === 'focus' ? 'Press Enter' : 'Click it'} to use it. ` : '')
+  $('fitnote').innerHTML = (blank ? 'Nothing is switched on, so the status line would be <b>empty</b>. ' : '') + (previewing ? `Previewing <b>${previewing}</b>. ${view.hoverBy === 'focus' ? 'Press Enter' : 'Click it'} to use it. ` : '')
     + (dropped.length ? `Too narrow for everything, so it drops or shrinks <b>${dropped.join(', ')}</b>.` : view.width === 'wide' ? '' : 'Everything fits at this width.');
   edge();
 }
@@ -120,8 +107,8 @@ function update() {
   // Layout cards show just the batteries; look cards show the whole look, because what shows is part of it.
   const thumb = (el, over, whole) => {
     const m = { ...s, ...over }, full = whole && !phone.matches, t = full ? m : { ...m, cost: 'off', show: m.show.filter((id) => id !== 'model' && id !== 'effort') };
-    el.innerHTML = `<div>${ansiToHtml(render(full ? sample() : { ...sample(), model: null }, t, terminal(999, t)).text, NEUTRAL[view.term].fg)}</div>`;
-    el.classList.toggle('light', view.term === 'light');
+    el.innerHTML = `<div>${ansiToHtml(render(full ? sampleOf(view) : { ...sampleOf(view), model: null }, t, terminalOf(t, view, 999)).text, NEUTRAL[term()].fg)}</div>`;
+    el.classList.toggle('light', term() === 'light');
   };
   document.querySelectorAll('[data-thumb]').forEach((el) => thumb(el, { layout: el.dataset.thumb }));
   document.querySelectorAll('[data-lookthumb]').forEach((el) => thumb(el, applySet(s, [`look=${el.dataset.lookthumb}`]).settings, true));
@@ -129,28 +116,28 @@ function update() {
   document.querySelectorAll('[data-layout]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.layout === s.layout));
   document.querySelectorAll('[data-show]').forEach((b) => {
     const k = b.dataset.show;
-    b.setAttribute('aria-checked', s.show.includes(k)); b.setAttribute('aria-disabled', BATTERIES.includes(k) && !offered(k));
+    b.setAttribute('aria-checked', s.show.includes(k)); b.setAttribute('aria-disabled', BATTERIES.includes(k) && !offered(view, k));
   });
   document.querySelectorAll('[data-noton]').forEach((el) => { const why = (NOT_ON[el.dataset.noton] || {})[view.plan]; el.textContent = why ? ` · ${why}` : ''; });
   // Pro may have Fable, which the preview only hides; API keys have no Fable limit, so there is nothing to turn on.
   const tail = $('fabletail');
   if (tail) tail.textContent = view.plan === 'payg' ? '' : ". Shows only after you run /juice set fable=on in Claude Code.";
   document.querySelectorAll('[data-preset]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.preset === (typeof s.colors === 'string' ? s.colors : 'custom')));
-  document.querySelectorAll('[data-chips]').forEach((el) => { const set = el.dataset.chips === 'custom' ? customs[view.term] : PRESETS[el.dataset.chips][view.term]; el.innerHTML = set.map((c) => `<i style="background:${c}"></i>`).join(''); });
+  document.querySelectorAll('[data-chips]').forEach((el) => { const set = el.dataset.chips === 'custom' ? customs[term()] : PRESETS[el.dataset.chips][term()]; el.innerHTML = set.map((c) => `<i style="background:${c}"></i>`).join(''); });
   document.querySelectorAll('[data-key]').forEach((b) => b.setAttribute('aria-pressed', s[b.dataset.key] === b.dataset.v));
   // Only Status bar and Tightest first draw the style; say so in the others once one is picked, as /juice set does.
   $('details').querySelector('[data-hint=battery]').textContent = DETAILS.find(([k]) => k === 'battery')[2]
     + (hidesStyle(s) ? `. ${NAMES.layout[s.layout]} keeps its own shapes: ${STYLE_WHERE}` : '');
   $('details').querySelector('[data-key=battery]').closest('.seg').classList.toggle('dim', !STYLE_LAYOUTS.includes(s.layout));
-  document.querySelectorAll('[data-view]').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', view[seg.dataset.view] === b.dataset.v)));
+  document.querySelectorAll('[data-view]').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', (seg.dataset.view === 'term' ? term() : view[seg.dataset.view]) === b.dataset.v)));
   $('model').value = view.model;
   // Custom colours: one set per terminal colour, each checked against that terminal's background.
-  const set = customs[view.term];
-  $('customfor').textContent = `Your own colours for the ${view.term} terminal`;
+  const set = customs[term()];
+  $('customfor').textContent = `Your own colours for the ${term()} terminal`;
   document.querySelectorAll('[data-custom]').forEach((inp) => { inp.value = set[inp.dataset.custom]; });
   document.querySelectorAll('[data-ratio]').forEach((el) => {
     // The same bar juice holds its own colours to, and /juice set warns below.
-    const { ratio, level } = readability(set[el.dataset.ratio], view.term);
+    const { ratio, level } = readability(set[el.dataset.ratio], term());
     el.textContent = `${{ hard: 'Hard to read here', faint: 'A little faint', ok: 'Easy to read' }[level]} (${ratio.toFixed(1)}:1)`;
     el.title = ratio.toFixed(1) + ':1';
     el.classList.toggle('bad', level === 'hard');
@@ -208,7 +195,6 @@ document.addEventListener('click', (e) => {
     apply(choosePreset(st, t.dataset.preset));
   } else if (t.dataset.key) {
     apply(choose(st, t.dataset.key, t.dataset.v)); say(`${t.textContent.trim()} chosen`);
-    if (t.dataset.key === 'terminal' && t.dataset.v !== 'auto') view.term = t.dataset.v; // preview what was just chosen
   }
   else if (t.closest('[data-view]')) { view[t.closest('[data-view]').dataset.view] = t.dataset.v; say(`${t.textContent.trim()} chosen`); }
   else if (t.dataset.copy) return copy($(t.dataset.copy).textContent, 'Copied. Paste it into Claude Code and press Enter.', t);
@@ -220,7 +206,7 @@ document.addEventListener('click', (e) => {
 $('model').addEventListener('change', (e) => { view.model = e.target.value; update(); });
 document.addEventListener('input', (e) => {
   if (e.target.dataset.custom === undefined) return;
-  apply(setCustom(st, view.term, Number(e.target.dataset.custom), e.target.value)); update();
+  apply(setCustom(st, term(), Number(e.target.dataset.custom), e.target.value)); update();
 });
 // Hovering a look or layout card with a mouse, or reaching it with the keyboard, previews it without choosing it.
 // A tap on a phone sends a fake hover first, so touch screens skip the preview and the tap simply chooses.
@@ -281,7 +267,6 @@ const fromHash = () => {
   // A link that was cut short or mangled in a chat app should say so, not quietly show something else.
   $('linknote').textContent = damaged ? 'This settings link is damaged, so the page opened with your last settings instead.' : '';
   $('linknote').hidden = !damaged;
-  if (next.s.terminal !== 'auto') view.term = next.s.terminal; // a link made for a light terminal previews as light
   apply(next); buildShow(); update();
 };
 addEventListener('hashchange', fromHash);

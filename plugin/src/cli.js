@@ -3,14 +3,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paths, hideHome } from './paths.js';
 import { loadSettings, setSettings } from './settings.js';
-import { BADGE_REFRESH } from './cache.js';
 import { applySet, encodeLink, CUSTOMIZER_URL, LOOKS, NOTHING_SHOWN } from './schema.js';
 import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
 import { SAMPLES } from './samples.js';
 import { refreshFable } from './fable.js';
 import { readFetched, FABLE_REFRESH } from './fetched.js';
-import { refreshBadges, addBadge, checkEnv, badgeList, removeBadge } from './badges.js';
+import { refreshBadges, addBadge, checkEnv, badgeList, removeBadge, isBadgeKey, BADGE_REFRESH } from './badges.js';
 import { install, restore, matchRefresh, refreshWords, NeedsConfirm } from './setup.js';
 import { Unreadable } from './install.js';
 import { fwd } from './launcher-file.js';
@@ -151,7 +150,7 @@ export async function main(argv, io) {
       }
       case BADGE_REFRESH.command: {
         const key = args[0];
-        if (!/^[0-9a-f]{16}$/.test(key ?? '')) { io.err('refresh-badges needs a 16-character key.'); return 1; }
+        if (!isBadgeKey(key)) { io.err('refresh-badges needs a 16-character key.'); return 1; }
         let stdinText;
         // Deleted once read: it holds the chat's project folder and transcript path, and nothing reads it again.
         const stash = BADGE_REFRESH.stash(p, key);

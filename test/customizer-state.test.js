@@ -2,8 +2,10 @@
 // The page's wiring of each one is checked by scripts/check-customizer.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reset, chooseLook, choose, toggleBattery, moveBattery, dropBattery, choosePreset, setCustom, startFrom } from '../web/state.js';
-import { toCommand, hidesStyle, readability, applySet, encodeLink, DEFAULTS } from '../plugin/src/schema.js';
+import { reset, chooseLook, choose, toggleBattery, moveBattery, dropBattery, choosePreset, setCustom, startFrom, previewOf, offered, sampleOf, terminalOf } from '../web/state.js';
+import { render } from '../plugin/src/render/index.js';
+import { RESERVE } from '../plugin/src/render/fit.js';
+import { toCommand, hidesStyle, readability, applySet, encodeLink, DEFAULTS, LOOKS } from '../plugin/src/schema.js';
 import { PRESETS } from '../plugin/src/render/palette.js';
 
 const cmd = (st) => toCommand(st.s, st);
@@ -91,4 +93,46 @@ test('the page starts from a valid link, else the saved settings, else the defau
   assert.deepEqual(startFrom('', JSON.stringify({ ...saved, badges: [{ command: 'echo hi' }] })).st.s.badges, [], 'saved settings never bring badges');
   // What was chosen stays chosen across an address change.
   assert.equal(startFrom(hash, null, choose(reset(), 'motion', 'on')).st.motionChosen, true);
+});
+
+// ---------- the preview ----------
+const VIEW = { state: 'busy', term: 'dark', width: 'wide', plan: 'max', model: 'Opus 5.5', hover: null };
+
+test('the preview draws with a chosen terminal colour; Automatic follows the Dark/Light switch again', () => {
+  const light = choose(reset(), 'terminal', 'light');
+  assert.equal(previewOf(light.s, VIEW).term, 'light', 'a chosen colour beats the switch');
+  assert.equal(previewOf(light.s, VIEW).text, previewOf(light.s, { ...VIEW, term: 'light' }).text, 'and the line is drawn for it');
+  assert.notEqual(previewOf(light.s, VIEW).text, previewOf(reset().s, VIEW).text);
+  assert.equal(previewOf(choose(light, 'terminal', 'auto').s, VIEW).term, 'dark', 'back on Automatic, the switch decides');
+  assert.equal(previewOf(reset().s, { ...VIEW, term: 'light' }).term, 'light');
+  assert.equal(previewOf(startFrom(encodeLink(light.s), null).st.s, VIEW).term, 'light', 'a link made for a light terminal previews as light');
+});
+
+test('a hovered look or layout is tried on top of the chosen settings and named', () => {
+  const s = reset().s, plain = previewOf(s, VIEW);
+  assert.equal(plain.previewing, null);
+  const look = previewOf(s, { ...VIEW, hover: 'look:sand' });
+  assert.equal(look.previewing, LOOKS.find((l) => l.id === 'sand').name);
+  assert.notEqual(look.text, plain.text);
+  assert.equal(previewOf(s, { ...VIEW, hover: 'layout:panel' }).previewing, 'Panel');
+  assert.equal(previewOf(s, { ...VIEW, hover: 'look:nope' }).text, plain.text, 'an unknown card tries nothing on');
+  // Works everywhere sets plain ends: the hovered look's ends are drawn, not the chosen ones.
+  const anywhere = applySet(s, ['look=anywhere']).settings;
+  assert.equal(previewOf(s, { ...VIEW, hover: 'look:anywhere' }).text, render(sampleOf(VIEW), anywhere, terminalOf(anywhere, VIEW, 400 - RESERVE)).text);
+});
+
+test('the preview says when the line is blank or too narrow', () => {
+  assert.equal(previewOf({ ...reset().s, show: [] }, VIEW).blank, true);
+  const s = reset().s, small = previewOf(s, { ...VIEW, width: 'small' });
+  assert.equal(previewOf(s, VIEW).blank, false);
+  assert.deepEqual(previewOf(s, VIEW).dropped, [], 'wide fits everything');
+  assert.ok(small.dropped.includes('the model name'), small.dropped.join());
+  assert.equal(small.columns, 80);
+  assert.equal(small.text, render(sampleOf(VIEW), s, terminalOf(s, VIEW, 80 - RESERVE)).text, 'a real line keeps RESERVE columns free');
+});
+
+test('the preview offers only the batteries its plan has', () => {
+  assert.equal(offered(VIEW, 'session'), true);
+  assert.equal(offered({ ...VIEW, plan: 'payg' }, 'session'), false);
+  assert.equal(offered({ ...VIEW, plan: 'payg' }, 'memory'), true);
 });

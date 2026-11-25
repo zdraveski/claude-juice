@@ -1,9 +1,13 @@
 // The customizer's state without the page: the settings chosen, the battery order (hidden ones too, so one switched
 // back on returns to its place), the colour-picker values per terminal, and whether the command must name terminal=
 // and motion= even at their defaults. Each change returns a new state; every setting goes through schema's applySet,
-// so the page follows the same rules as /juice set. app.js draws it.
-import { SHOW_IDS, COLOR_KEYS as KEYS, sanitize, applySet, toPair, parseLink } from '../plugin/src/schema.js';
+// so the page follows the same rules as /juice set. app.js draws it. The preview's own rules are at the end.
+import { SHOW_IDS, COLOR_KEYS as KEYS, LOOKS, NAMES, sanitize, applySet, toPair, parseLink } from '../plugin/src/schema.js';
 import { PRESETS } from '../plugin/src/render/palette.js';
+import { render } from '../plugin/src/render/index.js';
+import { RESERVE } from '../plugin/src/render/fit.js';
+import { strip } from '../plugin/src/render/ansi.js';
+import { SAMPLES, withAccount } from '../plugin/src/samples.js';
 
 export const FIXED = ['model', 'effort', 'budget'];
 export const BATTERIES = SHOW_IDS.filter((id) => !FIXED.includes(id));
@@ -75,4 +79,35 @@ export function choosePreset(st, id) {
 export function setCustom(st, term, i, hex) {
   const customs = { ...st.customs, [term]: st.customs[term].map((c, n) => (n === i ? hex : c)) };
   return put({ ...st, customs }, 'colors', asColors(customs));
+}
+
+// ---------- the preview ----------
+// The view is what the preview shows besides the settings: the sample (state), the Dark/Light switch (term), the
+// width, the plan, the model, and a hovered card (hover: 'look:<id>' or 'layout:<id>'). app.js keeps it and its
+// events; these work out what it draws.
+export const WIDTHS = { small: 80, medium: 120, wide: 400 };
+
+// A chosen terminal colour wins, as in the real line (terminal.js): the Dark/Light switch only stands in for Automatic.
+export const termOf = (s, view) => (s.terminal === 'auto' ? view.term : s.terminal);
+export const terminalOf = (s, view, columns) => ({ columns, theme: termOf(s, view), ends: s.ends === 'plain' ? 'plain' : 'round', colorDepth: 'truecolor' });
+export const sampleOf = (view) => withAccount({ ...SAMPLES[view.state], model: { name: view.model, isFable: view.model.startsWith('Fable') } }, view.plan);
+// A battery the preview's plan has no limit for can't be switched on; memory is every plan's.
+export const offered = (view, id) => id === 'memory' || id in sampleOf(view).limits;
+
+const LOOK = Object.fromEntries(LOOKS.map((l) => [l.id, l]));
+// What a hovered card tries on top of the chosen settings, and its name for the note.
+function tryOn(s, hover) {
+  const [kind, id] = (hover || '').split(':');
+  if (kind === 'look' && LOOK[id]) return { name: LOOK[id].name, settings: applySet(s, [`look=${id}`]).settings };
+  if (kind === 'layout' && NAMES.layout[id]) return { name: NAMES.layout[id], settings: { ...s, layout: id } };
+  return { name: null, settings: s };
+}
+
+// The preview line and the facts its note tells: which card is being tried (previewing), what didn't fit (dropped),
+// and whether nothing is switched on (blank). A real status line keeps a few columns free for Claude Code's indent,
+// so the preview of an 80-column window does too.
+export function previewOf(s, view) {
+  const tried = tryOn(s, view.hover), columns = WIDTHS[view.width];
+  const { text, dropped } = render(sampleOf(view), tried.settings, terminalOf(tried.settings, view, columns - RESERVE));
+  return { text, dropped, columns, term: termOf(tried.settings, view), previewing: tried.name, blank: !strip(text).trim() };
 }

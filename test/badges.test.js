@@ -13,7 +13,7 @@ const saveSettings = (p, changes) => updateSettings(p, () => ({ changes }));
 
 const busyText = JSON.stringify(fixture('busy'));
 import { strip, at, NOW } from './helpers.js';
-import { cleanBadge, badgeKey, readBadges, refreshBadges, addBadge, badgeList, removeBadge, run, approve, approved, badgeEnv } from '../plugin/src/badges.js';
+import { cleanBadge, badgeKey, isBadgeKey, readBadges, refreshBadges, addBadge, badgeList, removeBadge, run, approve, approved, badgeEnv } from '../plugin/src/badges.js';
 
 // process.getBuiltinModule came in Node 22.3 and 20.16. On an older Node the line still draws, so its badges must still run.
 test('a badge runs on a Node without process.getBuiltinModule', async () => {
@@ -39,7 +39,8 @@ test('cleanBadge cuts to 40 columns and keeps colour', () => {
 
 test('badgeKey differs per session', () => {
   const a = badgeKey({ session_id: 'a', workspace: { current_dir: '/x' } });
-  assert.match(a, /^[0-9a-f]{16}$/);
+  assert.ok(isBadgeKey(a), 'refresh-badges accepts every key a draw makes');
+  assert.ok(!isBadgeKey('../x') && !isBadgeKey(undefined));
   assert.notEqual(a, badgeKey({ session_id: 'b', workspace: { current_dir: '/x' } }));
 });
 

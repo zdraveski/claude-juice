@@ -4,6 +4,16 @@ This page lists what changed in each version of juice, newest first.
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.5.8 (2026-11-25)
+
+[Changes since 1.5.7](https://github.com/zdraveski/claude-juice/compare/v1.5.7...v1.5.8)
+
+### Changed
+
+- In the customizer, setting "Your terminal's theme" back to Automatic hands the preview back to the Dark/Light switch above it. Before, the preview kept the colour you had picked last.
+
+Also tidier code behind the customizer's preview and the badge refresher.
+
 ## 1.5.7 (2026-11-25)
 
 [Changes since 1.5.6](https://github.com/zdraveski/claude-juice/compare/v1.5.6...v1.5.7)

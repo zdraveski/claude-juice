@@ -200,3 +200,16 @@ test('a run that works clears the error an earlier run left', async () => {
   await run(busy);
   assert.equal(existsSync(file), false);
 });
+
+// badges.js loads node:crypto; a draw only imports it (lazily) when badges are set, so no static import may reach it.
+test('the drawing path never loads badges.js by a static import', () => {
+  const seen = new Set();
+  const visit = (url) => {
+    if (seen.has(url.href)) return;
+    seen.add(url.href);
+    for (const [, spec] of readFileSync(url, 'utf8').matchAll(/^\s*(?:(?:import|export)\s[^;]*?from|import)\s*['"](\.[^'"]+)['"]/gm)) visit(new URL(spec, url));
+  };
+  visit(new URL('../plugin/src/statusline.js', import.meta.url));
+  assert.ok(seen.size > 5, 'the walk found the imports');
+  assert.ok(![...seen].some((u) => u.endsWith('/badges.js')), [...seen].join());
+});
