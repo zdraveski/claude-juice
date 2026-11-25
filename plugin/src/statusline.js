@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, chmodSync, unlinkSync } from 'node:fs';
 import { paths, hideHome } from './paths.js';
-import { takeLock, writeAtomic, writeJsonAtomic, sweepTemp, HOT_WRITE, BADGE_REFRESH } from './cache.js';
+import { takeLock, writeAtomic, writeJsonAtomic, sweepTemp, HOT_WRITE } from './cache.js';
 import { loadSettings } from './settings.js';
 import { readFetched, FABLE_REFRESH } from './fetched.js';
 import { detectTerminal, readClaudeTheme, columnsOf } from './terminal.js';
@@ -32,9 +32,9 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     if (fetched.reading) extras.fetched = fetched.reading;
 
     // A badge that fails to load costs the badges, never the line.
-    let key = null, badges = null;
+    let key = null, badges = null, bd = null;
     try {
-      const bd = stdin && settings.badges.length > 0 ? await import('./badges.js') : null;
+      bd = stdin && settings.badges.length > 0 ? await import('./badges.js') : null;
       const mine = bd ? bd.approved(p, settings.badges) : []; // only badges this computer approved ever run
       key = mine.length ? bd.badgeKey(stdin) : null;
       badges = mine.length ? bd.readBadges(p, key, now, mine.map((b) => b.command)) : null;
@@ -50,10 +50,10 @@ export async function runStatusLine({ stdinText, env, now, platform, spawnDetach
     if (data.account === 'subscriber' && fetched.due && takeLock(p, FABLE_REFRESH.lock, now, FABLE_REFRESH.holdMs)) {
       quiet(() => spawnDetached([FABLE_REFRESH.command]));
     }
-    if (badges?.stale && takeLock(p, BADGE_REFRESH.lock(key), now, BADGE_REFRESH.holdMs)) {
+    if (badges?.stale && takeLock(p, bd.BADGE_REFRESH.lock(key), now, bd.BADGE_REFRESH.holdMs)) {
       quiet(() => {
-        writeAtomic(BADGE_REFRESH.stash(p, key), stdinText, HOT_WRITE); // raw text: the refresher pipes it to each command
-        spawnDetached([BADGE_REFRESH.command, key]);
+        writeAtomic(bd.BADGE_REFRESH.stash(p, key), stdinText, HOT_WRITE); // raw text: the refresher pipes it to each command
+        spawnDetached([bd.BADGE_REFRESH.command, key]);
       });
     }
     // Keeps the launcher setup wrote up to date with the juice now running. Once per update, the refresh time

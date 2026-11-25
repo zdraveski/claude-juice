@@ -20,14 +20,6 @@ export function readOwnJson(file) {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? { state: 'ok', value } : { state: 'broken', value: null };
 }
 
-// The badge refresher a draw starts: the lock that stops a second one starting, how long it holds, the juice.js
-// command it runs, and the file that hands it the draw's stdin. The Fable refresher's is in fetched.js.
-export const BADGE_REFRESH = {
-  lock: (key) => `badges-${key}`, holdMs: 6000, command: 'refresh-badges',
-  stash: (p, key) => join(p.cacheDir, 'badges', `${key}.stdin.json`),
-  isLock: (f) => /^badges-.*\.(lock|steal)$/.test(f), // its locks and their stale-lock markers
-};
-
 const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 export const HOT_WRITE = { maxWaitMs: 30 };

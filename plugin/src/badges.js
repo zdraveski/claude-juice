@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync, renameSync, statSync, rmSync } 
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { cut, strip, ESCAPES } from './render/ansi.js';
-import { readJson, writeJsonAtomic, removeOld, holdLock, BADGE_REFRESH } from './cache.js';
+import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
 import { loadSettings, updateSettings } from './settings.js';
 import { sanitize, ENV_NAME, MAX_ENV } from './schema.js';
 
@@ -35,10 +35,20 @@ export function cleanBadge(raw) {
   return clean.includes('\x1b') ? out : out.slice(0, -4); // cut's reset is only needed after colour
 }
 
+// The badge refresher a draw starts: the lock that stops a second one starting, how long it holds, the juice.js
+// command it runs, and the file that hands it the draw's stdin. Its key is badgeKey; the Fable refresher's is in fetched.js.
+export const BADGE_REFRESH = {
+  lock: (key) => `badges-${key}`, holdMs: 6000, command: 'refresh-badges',
+  stash: (p, key) => join(p.cacheDir, 'badges', `${key}.stdin.json`),
+  isLock: (f) => /^badges-.*\.(lock|steal)$/.test(f), // its locks and their stale-lock markers
+};
+
 export function badgeKey(stdin) {
   const text = `${stdin?.session_id}\0${stdin?.workspace?.current_dir}`;
   return createHash('sha256').update(text).digest('hex').slice(0, 16);
 }
+// What refresh-badges accepts as a key: what badgeKey makes, and nothing that could reach outside the cache folder.
+export const isBadgeKey = (key) => /^[0-9a-f]{16}$/.test(key ?? '');
 
 const file = (p, key) => join(p.cacheDir, 'badges', `${key}.json`);
 
