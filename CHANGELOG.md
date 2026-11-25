@@ -6,7 +6,7 @@ To update, type `/plugin`, update juice, then restart Claude Code.
 
 ## Unreleased
 
-Tidier code behind the doctor and the customizer's shared links. Nothing you see changes.
+Tidier code behind the doctor, badges and the customizer's shared links. Nothing you see changes.
 
 ## 1.5.6 (2026-11-25)
 
