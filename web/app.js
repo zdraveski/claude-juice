@@ -1,8 +1,8 @@
 // The customizer page. All drawing of the status line is done by ../plugin/src/render; this file only builds controls and converts its ANSI to HTML.
 import { render } from '../plugin/src/render/index.js';
 import { RESERVE } from '../plugin/src/render/fit.js';
-import { STYLE_LAYOUTS, STYLE_WHERE, LOOKS, NAMES, CHOICES, DEFAULTS, sanitize, applySet, toCommand, encodeLink, parseLink, hidesStyle, readability } from '../plugin/src/schema.js';
-import { FIXED, BATTERIES, fromSettings, reset, chooseLook, choose, toggleBattery, moveBattery, dropBattery, choosePreset, setCustom } from './state.js';
+import { STYLE_LAYOUTS, STYLE_WHERE, LOOKS, NAMES, CHOICES, DEFAULTS, applySet, toCommand, encodeLink, hidesStyle, readability } from '../plugin/src/schema.js';
+import { FIXED, BATTERIES, startFrom, reset, chooseLook, choose, toggleBattery, moveBattery, dropBattery, choosePreset, setCustom } from './state.js';
 import { PRESETS, NEUTRAL } from '../plugin/src/render/palette.js';
 import { SAMPLES, withAccount } from '../plugin/src/samples.js';
 import { ansiToHtml } from '../plugin/src/render/html.js';
@@ -273,17 +273,16 @@ new ResizeObserver(() => {
   document.documentElement.style.scrollPaddingTop = getComputedStyle(st).position === 'sticky' ? `${st.offsetHeight + 8}px` : '0px';
 }).observe(document.querySelector('.stage'));
 
-// On load and whenever the hash changes: a valid shared link wins, then the settings saved last time, then the defaults.
+// On load and whenever the hash changes; state.js startFrom decides where the page starts.
 const fromHash = () => {
-  let next;
-  $('linknote').hidden = true;
-  try { next = parseLink(location.hash); } catch {
-    // A link that was cut short or mangled in a chat app should say so, not quietly show something else.
-    if (location.hash.startsWith('#c=')) { $('linknote').textContent = 'This settings link is damaged, so the page opened with your last settings instead.'; $('linknote').hidden = false; }
-    try { next = sanitize(JSON.parse(localStorage.getItem(SAVED)), { allowBadges: false }).settings; } catch { next = sanitize({}, { allowBadges: false }).settings; }
-  }
-  if (next.terminal !== 'auto') view.term = next.terminal; // a link made for a light terminal previews as light
-  apply(fromSettings(next, st)); buildShow(); update();
+  let savedText = null;
+  try { savedText = localStorage.getItem(SAVED); } catch {}
+  const { st: next, damaged } = startFrom(location.hash, savedText, st);
+  // A link that was cut short or mangled in a chat app should say so, not quietly show something else.
+  $('linknote').textContent = damaged ? 'This settings link is damaged, so the page opened with your last settings instead.' : '';
+  $('linknote').hidden = !damaged;
+  if (next.s.terminal !== 'auto') view.term = next.s.terminal; // a link made for a light terminal previews as light
+  apply(next); buildShow(); update();
 };
 addEventListener('hashchange', fromHash);
 fromHash();
