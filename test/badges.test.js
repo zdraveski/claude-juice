@@ -8,7 +8,8 @@ import { paths } from '../plugin/src/paths.js';
 import { runStatusLine } from '../plugin/src/statusline.js';
 import { fixture } from './helpers.js';
 import { writeJsonAtomic, takeLock, readJson } from '../plugin/src/cache.js';
-import { loadSettings, saveSettings } from '../plugin/src/settings.js';
+import { loadSettings, updateSettings } from '../plugin/src/settings.js';
+const saveSettings = (p, changes) => updateSettings(p, () => ({ changes }));
 
 const busyText = JSON.stringify(fixture('busy'));
 import { strip, at, NOW } from './helpers.js';

@@ -1149,6 +1149,14 @@ test('setup over a statusLine that is no object keeps it but does not promise re
   assert.equal(json(join(d, 'juice-backup.json')).statusLine, 'echo hi', 'kept for a look by hand');
 });
 
+// A read error juice doesn't know (a folder in its place, a file held open) may hide a good file: never "fix or delete it".
+test('a juice.json that fails to read for an unknown reason is called locked, not broken', async () => {
+  const d = env();
+  mkdirSync(join(d, 'juice.json')); // EISDIR
+  assert.match((await run(d, ['get'])).out, /Warning: juice isn't allowed to read juice\.json/);
+  assert.doesNotMatch((await run(d, ['get'])).out, /unreadable/);
+});
+
 test('help, --help and -h print the usage and succeed; other words still fail', async () => {
   const d = env();
   for (const a of ['help', '--help', '-h']) {

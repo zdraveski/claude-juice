@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { cut, strip, ESCAPES } from './render/ansi.js';
 import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
-import { loadSettings, saveSettings } from './settings.js';
+import { loadSettings, updateSettings } from './settings.js';
 import { sanitize, ENV_NAME, MAX_ENV } from './schema.js';
 
 const TIMEOUT_MS = 2000;
@@ -161,25 +161,26 @@ export function checkEnv(env) {
 
 // The badges as juice.json holds them, and where each one this version can read sits: add and remove edit these, so an
 // entry it can't read (a newer juice's, or one gone wrong) and any field it doesn't know stay as they are.
-function rawBadges(p) {
-  const raw = readJson(p.settingsFile)?.badges, all = Array.isArray(raw) ? raw : [];
+function rawBadges(file) {
+  const all = Array.isArray(file.badges) ? file.badges : [];
   return { all, valid: all.flatMap((b, i) => (sanitize({ badges: [b] }, { allowBadges: true }).settings.badges.length ? [i] : [])) };
 }
 
 export function addBadge(p, command, env = []) {
-  const { settings } = loadSettings(p);
-  if (typeof command !== 'string' || command.length < 1 || command.length > 500) throw new Error('A badge command must be 1 to 500 characters.');
-  checkEnv(env);
-  const badge = { ...approve(p, command), ...(env.length ? { env } : {}) };
-  // The same command again takes its new variables in place. A copy this computer never approved (from a copied
-  // juice.json) is approved where it stands, so it keeps its place.
-  const ok = new Set(approved(p, settings.badges)), same = (b) => b.command === command;
-  const i = [settings.badges.findIndex((b) => same(b) && ok.has(b)), settings.badges.findIndex(same)].find((n) => n >= 0) ?? -1;
-  const { all, valid } = rawBadges(p);
-  const badges = [...all];
-  if (i < 0) badges.push(badge);
-  else { badges[valid[i]] = { ...all[valid[i]], ...badge }; if (!env.length) delete badges[valid[i]].env; }
-  saveSettings(p, { badges });
+  updateSettings(p, ({ file, settings }) => {
+    if (typeof command !== 'string' || command.length < 1 || command.length > 500) throw new Error('A badge command must be 1 to 500 characters.');
+    checkEnv(env);
+    const badge = { ...approve(p, command), ...(env.length ? { env } : {}) };
+    // The same command again takes its new variables in place. A copy this computer never approved (from a copied
+    // juice.json) is approved where it stands, so it keeps its place.
+    const ok = new Set(approved(p, settings.badges)), same = (b) => b.command === command;
+    const i = [settings.badges.findIndex((b) => same(b) && ok.has(b)), settings.badges.findIndex(same)].find((n) => n >= 0) ?? -1;
+    const { all, valid } = rawBadges(file);
+    const badges = [...all];
+    if (i < 0) badges.push(badge);
+    else { badges[valid[i]] = { ...all[valid[i]], ...badge }; if (!env.length) delete badges[valid[i]].env; }
+    return { changes: { badges } };
+  });
 }
 
 export const listBadges = (p) => loadSettings(p).settings.badges.map((b) => b.command);
@@ -199,8 +200,10 @@ export function unapprovedBadges(p) {
 }
 
 export function removeBadge(p, n) {
-  const { all, valid } = rawBadges(p);
-  saveSettings(p, { badges: all.filter((_, i) => i !== valid[n - 1]) });
+  updateSettings(p, ({ file }) => {
+    const { all, valid } = rawBadges(file);
+    return { changes: { badges: all.filter((_, i) => i !== valid[n - 1]) } };
+  });
   // Only approved badges refresh, and only a refresh runs the sweep: the saved outputs hold the command text (a key
   // typed into it too) and session details, so they go at once, not when the last badge goes. The next refresh makes them anew.
   // Best effort: the badge is already removed, and a file a refresher still holds open on Windows must not fail that.

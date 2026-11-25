@@ -2,8 +2,7 @@ import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paths, hideHome } from './paths.js';
-import { readJson } from './cache.js';
-import { loadSettings, saveSettings } from './settings.js';
+import { loadSettings, setSettings } from './settings.js';
 import { applySet, encodeLink, CUSTOMIZER_URL, LOOKS, NOTHING_SHOWN } from './schema.js';
 import { render } from './render/index.js';
 import { strip } from './render/ansi.js';
@@ -37,16 +36,7 @@ export async function main(argv, io) {
     const [cmd, ...args] = argv;
     switch (cmd) {
       case 'set': {
-        const loaded = loadSettings(p);
-        const { settings, warnings, chosen, changed: moved } = applySet(loaded.settings, args);
-        // Only what was asked for is written, and only where the file says otherwise (a value juice couldn't use reads
-        // as its default, so choosing that default still has to be written). Everything else stays as it was.
-        const file = readJson(p.settingsFile) ?? {};
-        const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-        const write = chosen.filter((k) => !same(file[k], settings[k]));
-        // Said changed when what juice uses changed (applySet's list), or a value it couldn't use was replaced.
-        const changed = write.filter((k) => moved.includes(k) || Object.hasOwn(file, k));
-        if (write.length) saveSettings(p, Object.fromEntries(write.map((k) => [k, settings[k]])));
+        const { settings, warnings, chosen, changed } = setSettings(p, args);
         io.out(changed.length ? `Changed: ${changed.join(', ')}` : 'Nothing changed.');
         if (chosen.includes('motion')) {
           try {
@@ -60,8 +50,7 @@ export async function main(argv, io) {
               : 'Warning: motion is saved, but your Claude Code settings file (settings.json) has a mistake in it, so the refresh time stays as it is. Ask Claude to fix it, then try again.');
           }
         }
-        // The file's warnings were read before this write: drop the ones about values just replaced.
-        [...loaded.warnings.filter((w) => !write.some((k) => w.startsWith(`${k}:`))), ...warnings].forEach((w) => io.out(`Warning: ${w}`));
+        warnings.forEach((w) => io.out(`Warning: ${w}`));
         if (!settings.show.length) io.out(`Warning: ${NOTHING_SHOWN}`);
         return 0;
       }

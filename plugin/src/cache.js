@@ -6,6 +6,20 @@ export function readJson(file) {
   try { return JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, '')); } catch { return null; }
 }
 
+// A settings file the person owns (settings.json, juice.json), read once, saying why it gave nothing: 'missing' (or
+// empty: a crash, a full disk), 'locked' (any read error but a missing file: one juice can't open may still be fine,
+// so it is never called broken, and never overwritten), 'broken' (not JSON, or JSON that is no settings object), or 'ok'.
+export function readOwnJson(file) {
+  let text;
+  try { text = readFileSync(file, 'utf8').replace(/^﻿/, ''); } catch (e) {
+    return { state: e.code === 'ENOENT' || e.code === 'ENOTDIR' ? 'missing' : 'locked', value: null };
+  }
+  if (!text.trim()) return { state: 'missing', value: null };
+  let value = null;
+  try { value = JSON.parse(text); } catch {}
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? { state: 'ok', value } : { state: 'broken', value: null };
+}
+
 const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 export const HOT_WRITE = { maxWaitMs: 30 };
