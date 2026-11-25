@@ -1155,6 +1155,9 @@ test('a juice.json that fails to read for an unknown reason is called locked, no
   mkdirSync(join(d, 'juice.json')); // EISDIR
   assert.match((await run(d, ['get'])).out, /Warning: juice isn't allowed to read juice\.json/);
   assert.doesNotMatch((await run(d, ['get'])).out, /unreadable/);
+  const s = await run(d, ['set', 'cost=on']); // never written over: it may hold settings and badges
+  assert.equal(s.code, 1);
+  assert.match(s.err, /^juice can't read your juice settings file/);
 });
 
 test('help, --help and -h print the usage and succeed; other words still fail', async () => {

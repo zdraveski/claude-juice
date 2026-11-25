@@ -4,6 +4,12 @@ This page lists what changed in each version of juice, newest first.
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## Unreleased
+
+### Fixed
+
+- **A juice.json juice can't open:** when `juice.json` fails to open for a reason juice doesn't know (another program holding it, a folder in its place), juice now says it isn't allowed to read it, instead of calling it unreadable and suggesting you delete it. Your settings and badges in it are never overwritten either way.
+
 ## 1.5.4 (2026-11-25)
 
 [Changes since 1.5.3](https://github.com/zdraveski/claude-juice/compare/v1.5.3...v1.5.4)
