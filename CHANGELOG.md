@@ -4,7 +4,11 @@ This page lists what changed in each version of juice, newest first.
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
-## Unreleased
+## 1.5.4 (2026-11-25)
+
+[Changes since 1.5.3](https://github.com/zdraveski/claude-juice/compare/v1.5.3...v1.5.4)
+
+One fix in setup, and tidier code behind setup and the doctor.
 
 ### Fixed
 
