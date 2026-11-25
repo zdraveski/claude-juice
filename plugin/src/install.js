@@ -3,7 +3,7 @@
 // here only. Never throws: a settings.json juice can't read comes back as `error`.
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { readJson } from './cache.js';
+import { readJson, readOwnJson } from './cache.js';
 import { fwd, constant, marketOf } from './launcher-file.js';
 import { resolveTarget } from '../bin/launcher.js';
 
@@ -13,19 +13,10 @@ export class Unreadable extends Error {}
 // A missing or empty file counts as {}; anything unreadable, unparseable or not an object aborts before we write anything.
 // Read once, since Claude Code may save it in between. "Try again", not "run setup": restore shows these too.
 function readClaudeSettings(p) {
-  let text;
-  // Only the error says "missing": existsSync is false for a file in a folder juice can't enter, too.
-  try { text = readFileSync(p.claudeSettings, 'utf8').replace(/^﻿/, ''); } catch (e) { // BOM: PowerShell 5.1 writes one
-    if (e.code === 'ENOENT' || e.code === 'ENOTDIR') return {};
-    throw new Unreadable("juice can't read your Claude Code settings file (settings.json in your Claude folder), so it changed nothing. Make sure it is yours and you can read it (Claude can help), then try again.");
-  }
-  if (!text.trim()) return {};
-  let v = null;
-  try { v = JSON.parse(text); } catch {}
-  if (v === null || typeof v !== 'object' || Array.isArray(v)) {
-    throw new Error("Your Claude Code settings file (settings.json in your Claude folder) has a mistake in it, so juice changed nothing. Ask Claude to fix it, then try again.");
-  }
-  return v;
+  const { state, value } = readOwnJson(p.claudeSettings);
+  if (state === 'locked') throw new Unreadable("juice can't read your Claude Code settings file (settings.json in your Claude folder), so it changed nothing. Make sure it is yours and you can read it (Claude can help), then try again.");
+  if (state === 'broken') throw new Error("Your Claude Code settings file (settings.json in your Claude folder) has a mistake in it, so juice changed nothing. Ask Claude to fix it, then try again.");
+  return value ?? {};
 }
 
 const readText = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } };

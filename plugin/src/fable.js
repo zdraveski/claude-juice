@@ -2,7 +2,7 @@ import { execFileSync as realExec } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readJson, writeJsonAtomic, removeOld, holdLock } from './cache.js';
+import { readJson, writeJsonAtomic, removeOld, holdLock, FABLE_REFRESH } from './cache.js';
 import { BACKOFF_MS, DENIED_MS, KEYCHAIN_TIMEOUT_MS, FETCH_TIMEOUT_MS } from './readings.js';
 import { FRESH_MS } from './fetched.js';
 
@@ -94,7 +94,7 @@ export async function refreshFable({ p, platform, env, fetchImpl = globalThis.fe
     const keep = fetchedAt === undefined ? {} : { used, resetsAt, session, week, fetchedAt };
     writeJsonAtomic(file, { ...keep, backoffUntil: t + (fresh === 'expired' ? EXPIRED_MS : fresh === 'denied' ? DENIED_MS : BACKOFF_MS), why: fresh });
   } catch {
-    holdLock(p, 'fable', now, BACKOFF_MS); // the backoff could not be saved, so the lock carries it
+    holdLock(p, FABLE_REFRESH.lock, now, BACKOFF_MS); // the backoff could not be saved, so the lock carries it
   } finally {
     // Runs about every 5 minutes, so stray temp files go even for people without badges (whose refresher sweeps too).
     // An hour old at least: another window may be writing one right now.

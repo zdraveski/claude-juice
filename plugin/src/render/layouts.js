@@ -4,6 +4,8 @@ import { limitNote, memoryNote, saysOut, LABELS, EFFORT } from './words.js';
 import { tone } from './palette.js';
 import { ramp, chip, battery, batteryPct, batterySeg, batteryLow, form, isForm, climb } from './pieces.js';
 
+// The batteries that are plan limits (every battery in LABELS but Memory), in the order they are made.
+const LIMIT_IDS = Object.keys(LABELS).filter((id) => id !== 'memory');
 const lbl = (ctx, t) => fg(ctx.P.mute, t);
 const num = (ctx, t, level) => fg(level === 'ok' ? ctx.P.text : tone(ctx, level), t);
 const join = (parts, gap = '   ') => parts.filter(Boolean).join(gap);
@@ -46,7 +48,7 @@ function items(data, ctx) {
       return { id: 'memory', short: LABELS.memory[0], long: LABELS.memory[1], used: data.memoryUsed, level, note: text ? { text, tone: level === 'crit' ? 'bad' : 'watch' } : null, hot: false };
     },
   };
-  for (const id of ['session', 'week', 'fable', 'budget']) {
+  for (const id of LIMIT_IDS) {
     make[id] = () => {
       const limit = data.limits[id];
       if (!limit || (id === 'budget' && data.account !== 'gateway')) return null;
@@ -60,7 +62,7 @@ function items(data, ctx) {
   let out = settings.show.map((id) => make[id]?.()).filter(Boolean);
   // A limit that is used up blocks the person, so it shows even in a look that leaves it out
   // (Fable's only while Fable is in use: otherwise it blocks nothing).
-  for (const id of ['session', 'week', 'fable', 'budget']) {
+  for (const id of LIMIT_IDS) {
     if (settings.show.includes(id) || (id === 'fable' && !data.model?.isFable)) continue;
     const i = make[id]();
     if (i && i.used >= 100) out.push(i);

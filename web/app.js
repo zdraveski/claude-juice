@@ -1,15 +1,14 @@
 // The customizer page. All drawing of the status line is done by ../plugin/src/render; this file only builds controls and converts its ANSI to HTML.
 import { render } from '../plugin/src/render/index.js';
 import { RESERVE } from '../plugin/src/render/fit.js';
-import { DEFAULTS, STYLE_LAYOUTS, LOOKS, SHOW_IDS, NAMES, CHOICES, COLOR_KEYS as KEYS, sanitize, applySet, toCommand, encodeLink, parseLink } from '../plugin/src/schema.js';
+import { STYLE_LAYOUTS, STYLE_WHERE, LOOKS, NAMES, CHOICES, DEFAULTS, sanitize, applySet, toCommand, encodeLink, parseLink, hidesStyle, readability } from '../plugin/src/schema.js';
+import { FIXED, BATTERIES, fromSettings, reset, chooseLook, choose, toggleBattery, moveBattery, dropBattery, choosePreset, setCustom } from './state.js';
 import { PRESETS, NEUTRAL } from '../plugin/src/render/palette.js';
 import { SAMPLES, withAccount } from '../plugin/src/samples.js';
-import { contrast } from '../plugin/src/render/ansi.js';
 import { ansiToHtml } from '../plugin/src/render/html.js';
+import { LABELS } from '../plugin/src/render/words.js';
 
-// Model and effort stay on top and budget at the bottom; the batteries between them can be reordered.
-const FIXED = ['model', 'effort', 'budget'];
-const BATTERIES = SHOW_IDS.filter((id) => !FIXED.includes(id));
+// Model and effort stay on top and budget at the bottom (FIXED); the batteries between them can be reordered.
 const COLOR_NAMES = ['Plenty left', 'Going fast', 'Almost empty', 'Accent'];
 const WIDTHS = { small: 80, medium: 120, wide: 400 };
 // Each choice's buttons come from the settings rules (plugin/src/schema.js), so a new value shows up here by itself.
@@ -22,14 +21,15 @@ const LAYOUT_NOTES = {
   pills: 'Rounded capsules that fill with colour when they need you',
   tank: 'Shows what is left, like a fuel gauge',
 };
+// Battery names as the panel layout spells them, so the page and the line never disagree.
 const SHOW = {
   model: ['Model', 'Which Claude you are using'],
   effort: ['Effort', 'How hard Claude is thinking, from low to max'],
-  memory: ['Memory', 'How much of the room in this chat is used'],
-  session: ['Session', 'Your 5-hour limit'],
-  week: ['Weekly', 'Your weekly limit'],
-  fable: ['Fable weekly', 'The separate weekly limit for Fable'],
-  budget: ['Budget', "Your company's spending limit. Shows only if you have one, so the preview can't show it."],
+  memory: [LABELS.memory[1], 'How much of the room in this chat is used'],
+  session: [LABELS.session[1], 'Your 5-hour limit'],
+  week: [LABELS.week[1], 'Your weekly limit'],
+  fable: [LABELS.fable[1], 'The separate weekly limit for Fable'],
+  budget: [LABELS.budget[1], "Your company's spending limit. Shows only if you have one, so the preview can't show it."],
 };
 const NOT_ON = { session: { payg: 'API keys have no session limit' }, week: { payg: 'API keys have no weekly limit' }, fable: { payg: 'API keys have no Fable limit', pro: 'The preview hides it on Pro' } };
 const DETAILS = [
@@ -46,22 +46,10 @@ const DETAILS = [
 const phone = matchMedia('(max-width:700px)');
 // Wide on a phone too: Small still ran past a phone's edge and dropped the battery pictures. The line scrolls sideways instead.
 const view = { state: 'busy', term: 'dark', width: 'wide', plan: 'max', model: 'Opus 5.5', hover: null };
-let s, order, customs; // settings, full row order (hidden ones too), colour-picker values per terminal
-
-const arr = (c, t) => KEYS.map((k) => c[t][k]);
-const obj = (a) => Object.fromEntries(KEYS.map((k, i) => [k, a[i]]));
-const presetArrs = (id) => ({ dark: PRESETS[id].dark.slice(), light: PRESETS[id].light.slice() });
+// The page's state (state.js); s, order and customs are read from it everywhere below, and changed only through apply.
+let st, s, order, customs;
+const apply = (next) => { st = next; ({ s, order, customs } = st); };
 const SAVED = 'juice-settings';
-function adopt(next) {
-  s = next;
-  const shown = s.show.filter((id) => BATTERIES.includes(id));
-  order = [...shown, ...BATTERIES.filter((id) => !shown.includes(id))];
-  customs = typeof s.colors === 'string' ? presetArrs(s.colors) : { dark: arr(s.colors, 'dark'), light: arr(s.colors, 'light') };
-}
-// show in the page's order: model and effort, the batteries as ordered, then budget.
-const showOnly = (want) => { s = { ...s, show: [FIXED[0], FIXED[1], ...order, FIXED[2]].filter((x) => want.includes(x)) }; };
-const setShow = (id, on) => showOnly(on ? [...s.show, id] : s.show.filter((x) => x !== id));
-const reorder = () => showOnly(s.show);
 
 // ---------- preview ----------
 const terminal = (columns, st = s) => ({ columns, theme: view.term, ends: st.ends === 'plain' ? 'plain' : 'round', colorDepth: 'truecolor' });
@@ -152,7 +140,7 @@ function update() {
   document.querySelectorAll('[data-key]').forEach((b) => b.setAttribute('aria-pressed', s[b.dataset.key] === b.dataset.v));
   // Only Status bar and Tightest first draw the style; say so in the others once one is picked, as /juice set does.
   $('details').querySelector('[data-hint=battery]').textContent = DETAILS.find(([k]) => k === 'battery')[2]
-    + (STYLE_LAYOUTS.includes(s.layout) || s.battery === DEFAULTS.battery ? '' : `. ${NAMES.layout[s.layout]} keeps its own shapes: styles show in Status bar and Tightest first`);
+    + (hidesStyle(s) ? `. ${NAMES.layout[s.layout]} keeps its own shapes: ${STYLE_WHERE}` : '');
   $('details').querySelector('[data-key=battery]').closest('.seg').classList.toggle('dim', !STYLE_LAYOUTS.includes(s.layout));
   document.querySelectorAll('[data-view]').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', view[seg.dataset.view] === b.dataset.v)));
   $('model').value = view.model;
@@ -161,14 +149,14 @@ function update() {
   $('customfor').textContent = `Your own colours for the ${view.term} terminal`;
   document.querySelectorAll('[data-custom]').forEach((inp) => { inp.value = set[inp.dataset.custom]; });
   document.querySelectorAll('[data-ratio]').forEach((el) => {
-    const r = contrast(set[el.dataset.ratio], NEUTRAL[view.term].bg);
     // The same bar juice holds its own colours to, and /juice set warns below.
-    el.textContent = `${r < 3 ? 'Hard to read here' : r < 4.5 ? 'A little faint' : 'Easy to read'} (${r.toFixed(1)}:1)`;
-    el.title = r.toFixed(1) + ':1';
-    el.classList.toggle('bad', r < 3);
-    el.classList.toggle('faint', r >= 3 && r < 4.5);
+    const { ratio, level } = readability(set[el.dataset.ratio], view.term);
+    el.textContent = `${{ hard: 'Hard to read here', faint: 'A little faint', ok: 'Easy to read' }[level]} (${ratio.toFixed(1)}:1)`;
+    el.title = ratio.toFixed(1) + ':1';
+    el.classList.toggle('bad', level === 'hard');
+    el.classList.toggle('faint', level === 'faint');
   });
-  $('cmd').textContent = toCommand(s, { terminalChosen: !!view.terminalChosen, motionChosen: !!view.motionChosen });
+  $('cmd').textContent = toCommand(s, st);
   $('json').textContent = JSON.stringify(s, null, 2);
   save();
 }
@@ -200,47 +188,39 @@ const done = (b) => {
 };
 const copy = (t, ok, b, fail = 'Could not copy. Select the command and copy it by hand.') => (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { toast(ok); done(b); }, () => toast(fail));
 function move(k, dir) {
-  const i = order.indexOf(k), j = i + dir;
-  if (j < 0 || j >= order.length) return;
-  [order[i], order[j]] = [order[j], order[i]];
-  reorder(); buildShow(); update(); say(`${SHOW[k][0]} moved ${dir < 0 ? 'up' : 'down'}`);
+  const next = moveBattery(st, k, dir);
+  if (next === st) return;
+  apply(next); buildShow(); update(); say(`${SHOW[k][0]} moved ${dir < 0 ? 'up' : 'down'}`);
   const btn = document.querySelector(`[data-move="${k}"][data-dir="${dir}"]`);
   (btn && !btn.disabled ? btn : document.querySelector(`[data-move="${k}"]:not([disabled])`))?.focus();
 }
-const customColors = () => ({ dark: obj(customs.dark), light: obj(customs.light) });
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
   if (t.dataset.look) {
-    adopt(applySet(s, [`look=${t.dataset.look}`]).settings); buildShow(); view.hover = null;
+    apply(chooseLook(st, t.dataset.look)); buildShow(); view.hover = null;
     say(`${LOOK[t.dataset.look].name} chosen`); }
-  else if (t.dataset.layout) { s = { ...s, layout: t.dataset.layout }; view.hover = null; say(`${NAMES.layout[t.dataset.layout]} chosen`); }
-  else if (t.dataset.show) { if (t.getAttribute('aria-disabled') !== 'true') setShow(t.dataset.show, !s.show.includes(t.dataset.show)); }
+  else if (t.dataset.layout) { apply(choose(st, 'layout', t.dataset.layout)); view.hover = null; say(`${NAMES.layout[t.dataset.layout]} chosen`); }
+  else if (t.dataset.show) { if (t.getAttribute('aria-disabled') !== 'true') apply(toggleBattery(st, t.dataset.show)); }
   else if (t.dataset.move) return move(t.dataset.move, Number(t.dataset.dir));
   else if (t.dataset.preset) {
     say(`${t.querySelector('strong').textContent.trim()} chosen`);
-    if (t.dataset.preset === 'custom') s = { ...s, colors: customColors() };
-    else { customs = presetArrs(t.dataset.preset); s = { ...s, colors: t.dataset.preset }; }
+    apply(choosePreset(st, t.dataset.preset));
   } else if (t.dataset.key) {
-    s = { ...s, [t.dataset.key]: t.dataset.v }; say(`${t.textContent.trim()} chosen`);
-    if (t.dataset.key === 'motion') view.motionChosen = true; // from now on the command says motion=, even Still
-    if (t.dataset.key === 'terminal') {
-      view.terminalChosen = true; // from now on the command says terminal=, even Automatic
-      if (t.dataset.v !== 'auto') view.term = t.dataset.v; // preview what was just chosen
-    }
+    apply(choose(st, t.dataset.key, t.dataset.v)); say(`${t.textContent.trim()} chosen`);
+    if (t.dataset.key === 'terminal' && t.dataset.v !== 'auto') view.term = t.dataset.v; // preview what was just chosen
   }
   else if (t.closest('[data-view]')) { view[t.closest('[data-view]').dataset.view] = t.dataset.v; say(`${t.textContent.trim()} chosen`); }
   else if (t.dataset.copy) return copy($(t.dataset.copy).textContent, 'Copied. Paste it into Claude Code and press Enter.', t);
   else if (t.id === 'link') { flush(); return copy(location.href, 'Link copied. Anyone who opens it gets these settings.', t, 'Could not copy. Copy the address from the address bar.'); }
-  else if (t.id === 'reset') { adopt(sanitize({}, { allowBadges: false }).settings); buildShow(); view.terminalChosen = view.motionChosen = false; view.term = 'dark'; view.hover = null; toast('Back to the default look.'); say('Back to the default look'); }
+  else if (t.id === 'reset') { apply(reset()); buildShow(); view.term = 'dark'; view.hover = null; toast('Back to the default look.'); say('Back to the default look'); }
   else return;
   update();
 });
 $('model').addEventListener('change', (e) => { view.model = e.target.value; update(); });
 document.addEventListener('input', (e) => {
   if (e.target.dataset.custom === undefined) return;
-  customs[view.term][e.target.dataset.custom] = e.target.value;
-  s = { ...s, colors: customColors() }; update();
+  apply(setCustom(st, view.term, Number(e.target.dataset.custom), e.target.value)); update();
 });
 // Hovering a look or layout card with a mouse, or reaching it with the keyboard, previews it without choosing it.
 // A tap on a phone sends a fake hover first, so touch screens skip the preview and the tap simply chooses.
@@ -273,10 +253,9 @@ $('show').addEventListener('dragover', (e) => {
 $('show').addEventListener('drop', (e) => {
   const r = e.target.closest('[data-bat]'); if (!r || !dragged) return; e.preventDefault();
   if (r.dataset.bat === dragged) return; // dropped where it was: nothing moves
-  const to = order.indexOf(r.dataset.bat);
-  order.splice(order.indexOf(dragged), 1); order.splice(to, 0, dragged);
+  apply(dropBattery(st, dragged, r.dataset.bat));
   say(`${SHOW[dragged][0]} moved`);
-  dragged = null; reorder(); buildShow(); update();
+  dragged = null; buildShow(); update();
 });
 $('show').addEventListener('dragend', () => { dragged = null; document.querySelectorAll('.row.dragging,.row.over').forEach((x) => x.classList.remove('dragging', 'over', 'below')); });
 
@@ -304,7 +283,7 @@ const fromHash = () => {
     try { next = sanitize(JSON.parse(localStorage.getItem(SAVED)), { allowBadges: false }).settings; } catch { next = sanitize({}, { allowBadges: false }).settings; }
   }
   if (next.terminal !== 'auto') view.term = next.terminal; // a link made for a light terminal previews as light
-  adopt(next); buildShow(); update();
+  apply(fromSettings(next, st)); buildShow(); update();
 };
 addEventListener('hashchange', fromHash);
 fromHash();

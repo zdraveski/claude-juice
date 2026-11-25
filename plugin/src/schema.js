@@ -1,6 +1,7 @@
 // The one definition of a valid setting. Files, /juice set and share links all pass through here.
 import { PRESETS, NEUTRAL } from './render/palette.js';
 import { contrast } from './render/ansi.js';
+import { LABELS } from './render/words.js';
 export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank'];
 // The layouts that draw the battery style; the others keep their own shapes.
 export const STYLE_LAYOUTS = ['bar', 'focus'];
@@ -101,7 +102,7 @@ const valid = (key) => key === 'colors' ? `Use one of: ${PRESET_IDS.join(', ')}.
 const unknownShow = (v) => (Array.isArray(v) ? v.filter((id) => !SHOW_IDS.includes(id)) : []);
 // A value from a newer juice looks invalid to an older one.
 const NEWER = " If it's new, update juice: type /plugin, update juice, restart Claude Code.";
-const showWarning = (bad, then = 'so it was left out') => `show: ${bad.map(show).join(', ')} isn't a battery name (they are ${SHOW_IDS.join(', ')}; Weekly is "week"), ${then}`;
+const showWarning = (bad, then = 'so it was left out') => `show: ${bad.map(show).join(', ')} isn't a battery name (they are ${SHOW_IDS.join(', ')}; ${LABELS.week[0]} is "week"), ${then}`;
 
 // The name of an extra environment variable a badge may see (badges.js).
 export const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/, MAX_ENV = 20;
@@ -143,6 +144,11 @@ const parseColors = (text) => {
 };
 
 const PARSE = { show: (t) => t.split(',').filter(Boolean), colors: parseColors };
+
+// Only Status bar and Tightest first draw the battery style: in the others a style picked shows nothing. Said by
+// /juice set and by the customizer, each in its own words around these.
+export const hidesStyle = (s) => s.battery !== DEFAULTS.battery && !STYLE_LAYOUTS.includes(s.layout);
+export const STYLE_WHERE = `styles show in ${STYLE_LAYOUTS.map((id) => NAMES.layout[id]).join(' and ')}`;
 
 export function applySet(settings, pairs) {
   const next = { ...settings };
@@ -187,9 +193,8 @@ export function applySet(settings, pairs) {
   // Only Status bar and Tightest first draw the battery style; in the others a style picked shows nothing.
   // Warn only when this command hides a style that showed or is new: not for the default, not for one already hidden.
   // Changed, not chosen: the customizer's command always carries battery=, picked or not.
-  const draws = (s) => STYLE_LAYOUTS.includes(s.layout);
-  if (next.battery !== DEFAULTS.battery && !draws(next) && (changed.includes('battery') || draws(settings))) {
-    const where = `the ${NAMES.layout[next.layout] ?? 'current'} layout keeps its own shapes; styles show in Status bar and Tightest first (layout=bar or layout=focus)`;
+  if (hidesStyle(next) && (changed.includes('battery') || STYLE_LAYOUTS.includes(settings.layout))) {
+    const where = `the ${NAMES.layout[next.layout] ?? 'current'} layout keeps its own shapes; ${STYLE_WHERE} (${STYLE_LAYOUTS.map((id) => `layout=${id}`).join(' or ')})`;
     warnings.push(changed.includes('battery') ? `battery: saved, but ${where}` : `battery: your '${next.battery}' style won't show, as ${where}`);
   }
   return { settings: next, warnings, changed, chosen };
@@ -198,9 +203,14 @@ export function applySet(settings, pairs) {
 // Your own colours are saved as typed, but a colour that fades into the background is said out loud: juice's own sets
 // all read at 4.5:1 or more, the usual bar for small text.
 const COLOR_WORDS = { plentyLeft: 'plenty left', goingFast: 'going fast', almostEmpty: 'almost empty', accent: 'accent' };
-const faint = (c) => ['dark', 'light'].flatMap((t) => COLOR_KEYS.map((k) => [k, c[t][k], contrast(c[t][k], NEUTRAL[t].bg)])
-  .filter(([, , r]) => r < 4.5)
-  .map(([k, hex, r]) => `colors: your ${t} '${COLOR_WORDS[k]}' colour ${hex} is ${r < 3 ? 'hard to read' : 'a little faint'} on a ${t} terminal (${r.toFixed(1)}:1; 4.5:1 or more reads well). It's saved anyway.`));
+// How well a colour reads on a terminal's background, shared with the customizer's colour pickers.
+export const readability = (hex, term) => {
+  const ratio = contrast(hex, NEUTRAL[term].bg);
+  return { ratio, level: ratio < 3 ? 'hard' : ratio < 4.5 ? 'faint' : 'ok' };
+};
+const faint = (c) => ['dark', 'light'].flatMap((t) => COLOR_KEYS.map((k) => [k, c[t][k], readability(c[t][k], t)])
+  .filter(([, , r]) => r.level !== 'ok')
+  .map(([k, hex, { ratio, level }]) => `colors: your ${t} '${COLOR_WORDS[k]}' colour ${hex} is ${level === 'hard' ? 'hard to read' : 'a little faint'} on a ${t} terminal (${ratio.toFixed(1)}:1; 4.5:1 or more reads well). It's saved anyway.`));
 
 const colorWord = (c) => (typeof c === 'string' ? c
   : ['dark', 'light'].map((t) => `${t}:${COLOR_KEYS.map((k) => c[t][k]).join(',')}`).join('/'));
@@ -212,10 +222,11 @@ const COMMAND_KEYS = ['layout', 'show', 'order', 'cost', 'colors', 'ends', 'batt
 // terminal=auto and motion=off go in only when the person chose them on the page: the public page starts there,
 // and pasting a look from it must not undo the "/juice set terminal=light" or "motion=on" they chose earlier.
 const UNLESS_CHOSEN = { terminal: 'auto', motion: 'off' };
+// One setting as /juice set and applySet take it: key=value.
+export const toPair = (k, v) => `${k}=${k === 'show' ? v.join(',') : k === 'colors' ? colorWord(v) : v}`;
 export function toCommand(s, { terminalChosen = false, motionChosen = false } = {}) {
-  const v = { ...s, show: s.show.join(','), colors: colorWord(s.colors) };
   const chosen = { terminal: terminalChosen, motion: motionChosen };
-  return '/juice set ' + COMMAND_KEYS.filter((k) => v[k] !== UNLESS_CHOSEN[k] || chosen[k]).map((k) => `${k}=${v[k]}`).join(' ');
+  return '/juice set ' + COMMAND_KEYS.filter((k) => s[k] !== UNLESS_CHOSEN[k] || chosen[k]).map((k) => toPair(k, s[k])).join(' ');
 }
 
 // Badges run shell commands and fable reads the login, so neither travels in a link.

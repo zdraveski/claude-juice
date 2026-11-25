@@ -2,6 +2,7 @@
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { runStatusLine } from '../src/statusline.js';
+import { FABLE_REFRESH } from '../src/cache.js';
 
 const juice = fileURLToPath(new URL('./juice.js', import.meta.url));
 // Claude Code goes through a company proxy when HTTPS_PROXY is set; Node's own fetch only does when told to
@@ -11,7 +12,7 @@ const proxied = process.env.HTTPS_PROXY || process.env.https_proxy;
 const env = proxied ? { ...process.env, NODE_USE_ENV_PROXY: '1' } : process.env;
 // child_process is loaded only here: most refreshes start nothing. getBuiltinModule came in Node 22.3 and 20.16.
 const childProcess = () => process.getBuiltinModule?.('node:child_process') ?? createRequire(import.meta.url)('node:child_process');
-const spawnDetached = (args) => childProcess().spawn(process.execPath, [juice, ...args], { detached: true, stdio: 'ignore', windowsHide: true, env: args[0] === 'refresh-fable' ? env : process.env }).on('error', () => {}).unref();
+const spawnDetached = (args) => childProcess().spawn(process.execPath, [juice, ...args], { detached: true, stdio: 'ignore', windowsHide: true, env: args[0] === FABLE_REFRESH.command ? env : process.env }).on('error', () => {}).unref();
 
 let out = '';
 try {

@@ -4,6 +4,20 @@ This page lists what changed in each version of juice, newest first.
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.5.5 (2026-11-25)
+
+[Changes since 1.5.4](https://github.com/zdraveski/claude-juice/compare/v1.5.4...v1.5.5)
+
+One fix for a `juice.json` juice can't open, and tidier code behind `/juice set`, badges and the customizer.
+
+### Changed
+
+- **Saving settings:** `/juice set` and adding or removing a badge now read `juice.json` once instead of two or three times, so a save from another window in between can't be missed.
+
+### Fixed
+
+- **A juice.json juice can't open:** when `juice.json` fails to open for a reason juice doesn't know (another program holding it, a folder in its place), juice now says it isn't allowed to read it, instead of calling it unreadable and suggesting you delete it. Your settings and badges in it are never overwritten either way.
+
 ## 1.5.4 (2026-11-25)
 
 [Changes since 1.5.3](https://github.com/zdraveski/claude-juice/compare/v1.5.3...v1.5.4)

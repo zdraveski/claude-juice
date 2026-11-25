@@ -6,7 +6,8 @@ import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { paths } from '../plugin/src/paths.js';
 import { readJson, writeJsonAtomic, takeLock, holdLock, removeOld, HOT_WRITE } from '../plugin/src/cache.js';
-import { loadSettings, saveSettings } from '../plugin/src/settings.js';
+import { loadSettings, updateSettings } from '../plugin/src/settings.js';
+const saveSettings = (p, changes) => updateSettings(p, () => ({ changes }));
 import { DEFAULTS } from '../plugin/src/schema.js';
 import { NOW, at } from './helpers.js';
 
