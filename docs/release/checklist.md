@@ -83,7 +83,7 @@ Only a person can do this one. The Fable battery is off on a Mac until someone t
 For each, check dark and light: "rounded ends OK" and "truecolor OK". Save no screenshots.
 Run `node scripts/terminal-check.js` in the terminal and answer its six questions; it also prints what juice picks there on its own.
 
-- [x] VS Code on Windows: all five yes (1.0.0)
+- [x] VS Code on Windows: all five yes (1.0.0); all six yes, dark (1.6.0, 2026-11-27)
 - [ ] VS Code on macOS: dark / light, rounded ends OK / truecolor OK
 - [x] Windows Terminal: all five yes (1.0.0)
 - [ ] iTerm2: dark / light, rounded ends OK / truecolor OK
