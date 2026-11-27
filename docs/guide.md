@@ -125,7 +125,10 @@ The batteries keep the order you chose. To let them move instead, type `/juice p
 - `━` is what you still have, `╳` is where it runs out, `┄` is the wait, and `○` is where it refills.
 - `►2:44p` is when it runs out. `○4:25p` is when it refills.
 - Only the limit that needs you most gets the fuse, and only that one says its refill time. The reset-times setting changes nothing here.
-- On the other limits, `│` is an even pace and `◆` is you. `│━◆` means you are ahead of it, and `◆┄│` means you are behind it.
+- On the other limits, `│` is an even pace and `◆` is you. `◆` on the right of `│` (`│◆`, `│━◆`) means you are ahead of it, and on the left (`◆│`, `◆┄│`) means you are behind it. The longer the line between them, the further. `◆` alone means you are about on pace.
+- An amber limit that will run out draws a trail of `›` up to its time: `│◆››››►Sat 5:56p` means you are ahead of pace and keep going until Saturday.
+- `►now` means the limit is used up.
+- In a narrow window, `»` stands for `!!` and `›` for `!`: `MEM 91%»`.
 - Capitals mean red, a capital first letter means amber, and lowercase means fine, so it reads without colour.
 - An amber limit's `+10` or `-4` is how many points you are ahead of or behind an even pace. Amber with a minus means it is on track to end close to full.
 - Memory and Budget have no pace, so they show only a name and a number.

@@ -114,7 +114,7 @@ const barPicture = (ctx, i) => (isForm(ctx)
 // Its own narrow-window steps, least important first (fit.js reads them): names shorten before the model goes,
 // and the cost goes last. 'small' and 'shortWords' only shrink things, so they are undone when room returns.
 const FUSE_STEPS = [['badges', 'badges'], ['noRefills', 'the refill time'], ['noEffortWord', 'the effort word'], ['shortCost', 'the cost word'],
-  ['small', 'the fuse length'], ['shortWords', 'limit names'], ['noGauges', 'pace marks'], ['noEffort', 'the effort level'],
+  ['small', 'the fuse and trail length'], ['shortWords', 'limit names and marks'], ['noGauges', 'pace marks'], ['noEffort', 'the effort level'],
   ['noModel', 'the model name'], ['onlyTrouble', 'batteries that are fine'], ['onlyRed', 'batteries going a bit fast'],
   ['bare', 'the fuse'], ['noNotes', 'run-out times and pace figures'], ['noCost', 'cost']];
 // Urgency by letter case, so it reads with no colour: SESSION is red, Weekly is amber, fable is fine.

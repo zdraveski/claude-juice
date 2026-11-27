@@ -33,17 +33,17 @@ test('fuse: calm, busy and trouble at full width', () => {
 
 test('fuse: what a narrow window drops, step by step (trouble)', () => {
   const at = (w, text, dropped, over) => { const r = draw(T, w, over); assert.equal(r.text, text, String(w)); assert.deepEqual(r.dropped, dropped, String(w)); };
-  at(96, '◆ Opus 5.5  ▂▃▅▆█  MEM 91%»  SES 88%» ━━╳┄┄┄┄┄┄○ ►2:44p  fab 62% ◆┄┄│  WK 95%» │━◆►9:48p', ['the refill time', 'the effort word', 'limit names']);
-  at(76, '◆ Opus 5.5  ▂▃▅▆█  MEM 91%»  SES 88%» ━╳┄┄┄○ ►2:44p  fab 62%  WK 95%» ►9:48p', ['the refill time', 'the effort word', 'the fuse length', 'limit names', 'pace marks']);
+  at(96, '◆ Opus 5.5  ▂▃▅▆█  MEM 91%»  SES 88%» ━━╳┄┄┄┄┄┄○ ►2:44p  fab 62% ◆┄┄│  WK 95%» │━◆►9:48p', ['the refill time', 'the effort word', 'limit names and marks']);
+  at(76, '◆ Opus 5.5  ▂▃▅▆█  MEM 91%»  SES 88%» ━╳┄┄┄○ ►2:44p  fab 62%  WK 95%» ►9:48p', ['the refill time', 'the effort word', 'the fuse and trail length', 'limit names and marks', 'pace marks']);
   // A 60-column window: the fuse, every red limit as short capitals, the fine one gone. The fuse is long again: room came back.
-  at(56, 'MEM 91%»  SES 88%» ━━╳┄┄┄┄┄┄○ ►2:44p  WK 95%» ►9:48p', ['the refill time', 'limit names', 'pace marks', 'the effort level', 'the model name', 'batteries that are fine']);
-  at(44, 'MEM 91%»  SES 88%» ►2:44p  WK 95%» ►9:48p', ['the refill time', 'limit names', 'pace marks', 'the effort level', 'the model name', 'the fuse']);
-  at(28, 'MEM 91%»  SES 88%»  WK 95%»', ['limit names', 'pace marks', 'the effort level', 'the model name', 'the fuse', 'run-out times and pace figures']);
-  at(24, 'SES 88%»  WK 95%» …', ['limit names', 'pace marks', 'the effort level', 'the model name', 'the fuse', 'run-out times and pace figures', 'the end of the line']);
+  at(56, 'MEM 91%»  SES 88%» ━━╳┄┄┄┄┄┄○ ►2:44p  WK 95%» ►9:48p', ['the refill time', 'limit names and marks', 'pace marks', 'the effort level', 'the model name', 'batteries that are fine']);
+  at(44, 'MEM 91%»  SES 88%» ►2:44p  WK 95%» ►9:48p', ['the refill time', 'limit names and marks', 'pace marks', 'the effort level', 'the model name', 'the fuse']);
+  at(28, 'MEM 91%»  SES 88%»  WK 95%»', ['limit names and marks', 'pace marks', 'the effort level', 'the model name', 'the fuse', 'run-out times and pace figures']);
+  at(24, 'SES 88%»  WK 95%» …', ['limit names and marks', 'pace marks', 'the effort level', 'the model name', 'the fuse', 'run-out times and pace figures', 'the end of the line']);
   // The cost loses its word first and is the last thing to go.
   at(116, '◆ Opus 5.5  ▂▃▅▆█  MEMORY 91%!!  SESSION 88%!! ━━╳┄┄┄┄┄┄○ ►2:44p  fable 62% ◆┄┄│  WEEKLY 95%!! │━◆►9:48p  $11.20', ['the refill time', 'the effort word', 'the cost word'], { cost: 'on' });
-  at(56, 'MEM 91%»  SES 88%» ━╳┄┄┄○ ►2:44p  WK 95%» ►9:48p  $11.20', ['the refill time', 'the cost word', 'the fuse length', 'limit names', 'pace marks', 'the effort level', 'the model name', 'batteries that are fine'], { cost: 'on' });
-  at(36, 'MEM 91%»  SES 88%»  WK 95%»  $11.20', ['the cost word', 'limit names', 'pace marks', 'the effort level', 'the model name', 'the fuse', 'run-out times and pace figures'], { cost: 'on' });
+  at(56, 'MEM 91%»  SES 88%» ━╳┄┄┄○ ►2:44p  WK 95%» ►9:48p  $11.20', ['the refill time', 'the cost word', 'the fuse and trail length', 'limit names and marks', 'pace marks', 'the effort level', 'the model name', 'batteries that are fine'], { cost: 'on' });
+  at(36, 'MEM 91%»  SES 88%»  WK 95%»  $11.20', ['the cost word', 'limit names and marks', 'pace marks', 'the effort level', 'the model name', 'the fuse', 'run-out times and pace figures'], { cost: 'on' });
   assert.equal(line(T, 28, { cost: 'on' }), 'MEM 91%»  SES 88%»  WK 95%»');
 });
 
