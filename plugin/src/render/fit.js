@@ -20,6 +20,10 @@ export const RESERVE = 4;
 // Steps that make things smaller without hiding any of them.
 const SQUEEZES = ['tight', 'small', 'shortWords', 'bare'];
 
+// A limit's name, number and mark, the least the cut keeps of an item. The Fuse layout's one-column marks are
+// built from code points: src/ never holds them as raw characters.
+const HEAD = new RegExp(String.raw`^(?: [│·] | *)(?:\S+ )?\d+%(?: used| left)?(?: ?!!| ?!|[${String.fromCharCode(0x203a, 0xbb)}])?`);
+
 const widest = (t) => Math.max(...t.split('\n').map(vis));
 
 // The last resort cuts between items, never through a number or a time. Items are two or more spaces apart, or
@@ -32,7 +36,7 @@ function wholeItems(ln, columns) {
   const gap = Math.max(0, ...[...plain.matchAll(GAP)].map((m) => m.index).filter((i) => i > 0 && i <= columns - 2));
   // The name may sit before the gap (the panel pads between "Session" and "88% used !!"), so it is optional.
   // " left" stays with its number (the tank layout): "12%" alone would read as used.
-  const head = /^(?: [│·] | *)(?:\S+ )?\d+%(?: used| left)?(?: ?!!| ?!)?/.exec(plain.slice(gap))?.[0];
+  const head = HEAD.exec(plain.slice(gap))?.[0];
   const end = head && vis(plain.slice(0, gap + head.length)) <= columns - 2 ? gap + head.length : gap;
   if (!end && head?.includes(' left')) return 0; // a number cut off from its "left" would read as used
   return end ? vis(plain.slice(0, end)) + 1 : columns - 1; // keeps the space after it, before the '…'
@@ -41,9 +45,11 @@ function wholeItems(ln, columns) {
 const without = (flags, flag) => { const rest = { ...flags }; delete rest[flag]; return rest; };
 
 export function fit(layoutFn, data, ctx, columns) {
+  // A layout may bring its own steps and squeezes (Fuse does); the others share the ones above.
+  const steps = layoutFn.steps ?? FIT_STEPS, squeezes = layoutFn.squeezes ?? SQUEEZES;
   const draw = (flags) => layoutFn(data, { ...ctx, fit: flags });
   let flags = {}, text = draw(flags);
-  for (const [flag] of FIT_STEPS) {
+  for (const [flag] of steps) {
     if (widest(text) <= columns) break;
     flags = { ...flags, [flag]: true };
     text = draw(flags);
@@ -52,8 +58,8 @@ export function fit(layoutFn, data, ctx, columns) {
   // more important is hidden. Squeezing hides nothing, so once a later step has freed room, each squeeze that
   // still fits is undone, most important first.
   if (widest(text) <= columns) {
-    for (const [flag] of [...FIT_STEPS].reverse()) {
-      if (!flags[flag] || !SQUEEZES.includes(flag)) continue;
+    for (const [flag] of [...steps].reverse()) {
+      if (!flags[flag] || !squeezes.includes(flag)) continue;
       const next = draw(without(flags, flag));
       if (widest(next) <= columns) { flags = without(flags, flag); text = next; }
     }
@@ -65,7 +71,7 @@ export function fit(layoutFn, data, ctx, columns) {
   }
   let dropped;
   return { text, get dropped() {
-    dropped ??= FIT_STEPS.filter(([flag]) => flags[flag] && draw(without(flags, flag)) !== fitted).map(([, label]) => label)
+    dropped ??= steps.filter(([flag]) => flags[flag] && draw(without(flags, flag)) !== fitted).map(([, label]) => label)
       .concat(cutEnd ? ['the end of the line'] : []);
     return dropped;
   } };
