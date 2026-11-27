@@ -7,7 +7,7 @@ const A = { plentyLeft: '#11AA22', goingFast: '#223344', almostEmpty: '#abcdef',
 const custom = { dark: A, light: { ...A, accent: '#ffffff' } };
 
 test('ids and url', () => {
-  assert.deepEqual(LAYOUT_IDS, ['bar', 'segments', 'focus', 'panel', 'pills', 'tank']);
+  assert.deepEqual(LAYOUT_IDS, ['bar', 'segments', 'focus', 'panel', 'pills', 'tank', 'fuse']);
   assert.deepEqual(PRESET_IDS, ['claude', 'frost', 'calm', 'safe', 'bold', 'ocean', 'midnight', 'vampire', 'candy', 'forest', 'sunset', 'solar', 'rose', 'terminal']);
   assert.match(CUSTOMIZER_URL, /^https:\/\//);
 });
@@ -296,7 +296,7 @@ test('battery setting: default glossy, all fourteen ids accepted, junk falls bac
 
 // A style picked in a layout that draws its own shapes changed nothing on screen, with no word why (1.1.0).
 test('battery set in a layout that keeps its own shapes says so; bar and focus say nothing', () => {
-  for (const layout of ['segments', 'panel', 'pills', 'tank']) {
+  for (const layout of ['segments', 'panel', 'pills', 'tank', 'fuse']) {
     const { warnings, settings } = applySet({ ...DEFAULTS, layout }, ['battery=outline']);
     assert.equal(settings.battery, 'outline', layout);
     assert.equal(warnings.length, 1, layout);

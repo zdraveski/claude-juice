@@ -1,8 +1,8 @@
-import { fg, bg, bold, inkOn, readable } from './ansi.js';
+import { fg, bg, bold, inkOn, readable, vis } from './ansi.js';
 import { assess, memLevel } from './limits.js';
-import { limitNote, memoryNote, saysOut, LABELS, EFFORT } from './words.js';
+import { limitNote, memoryNote, saysOut, LABELS, EFFORT, SHORT_LABELS, shortClock, paceOf, paceFigure } from './words.js';
 import { tone } from './palette.js';
-import { ramp, chip, battery, batteryPct, batterySeg, batteryLow, form, isForm, climb } from './pieces.js';
+import { ramp, chip, battery, batteryPct, batterySeg, batteryLow, form, isForm, climb, FUSE, ink, fuseTrack, paceGauge } from './pieces.js';
 
 // The batteries that are plan limits (every battery in LABELS but Memory), in the order they are made.
 const LIMIT_IDS = Object.keys(LABELS).filter((id) => id !== 'memory');
@@ -110,6 +110,49 @@ const barPicture = (ctx, i) => (isForm(ctx)
   ? form(ctx, i.used, paint(i), ctx.fit.small, i.assessed?.elapsed) + ' ' + num(ctx, `${i.used}%`, i.level)
   : batteryPct(ctx, i.used, paint(i), ctx.fit.small ? 5 : 7, i.assessed?.elapsed));
 
+// ---------- Fuse: when each limit runs out, and how long the wait is ----------
+// Its own narrow-window steps, least important first (fit.js reads them): names shorten before the model goes,
+// and the cost goes last. 'small' and 'shortWords' only shrink things, so they are undone when room returns.
+const FUSE_STEPS = [['badges', 'badges'], ['noRefills', 'the refill time'], ['noEffortWord', 'the effort word'], ['shortCost', 'the cost word'],
+  ['small', 'the fuse length'], ['shortWords', 'limit names'], ['noGauges', 'pace marks'], ['noEffort', 'the effort level'],
+  ['noModel', 'the model name'], ['onlyTrouble', 'batteries that are fine'], ['onlyRed', 'batteries going a bit fast'],
+  ['bare', 'the fuse'], ['noNotes', 'run-out times'], ['noCost', 'cost']];
+// Urgency by letter case, so it reads with no colour: SESSION is red, Weekly is amber, fable is fine.
+const VOICE = { crit: (w) => bold(w.toUpperCase()), warn: (w) => w, ok: (w) => w.toLowerCase() };
+const NARROW_MARK = { ok: '', warn: FUSE.fast, crit: FUSE.faster };
+// Memory and Budget have no window, so no pace: no fuse and no gauge for them.
+const hasPace = (i) => i.assessed?.elapsed !== undefined && !!i.assessed.resetsAt;
+
+function fuse(data, ctx) {
+  const f = ctx.fit, { P, now } = ctx, it = items(data, ctx);
+  // The one limit that gets the fuse: the first by need that is red or runs out. A calm line has none.
+  const focal = it.slice().sort(byNeed).find((i) => hasPace(i) && (i.level === 'crit' || i.runsOut));
+  // Where a run-out falls between now and the focal limit's refill: 0 = used up, null = it lasts.
+  const share = (i) => (i.used >= 100 ? 0 : i.runsOut ? (i.runsOut - now) / (focal.assessed.resetsAt - now) : null);
+  // Another limit that runs out during the focal one's dry wait gets its mark on the same fuse.
+  const next = focal && share(focal) !== null
+    && it.filter((i) => i !== focal && i.runsOut && share(i) > share(focal) && share(i) < 1).sort((a, b) => a.runsOut - b.runsOut)[0];
+  const draw = (i) => {
+    const c = i.level === 'ok' ? null : ink(ctx, i.level);
+    const word = VOICE[i.level](f.shortWords ? SHORT_LABELS[i.id] : LABELS[i.id][0]);
+    const base = fg(c ?? (i.hot ? P.accent : P.mute), word) + ' ' + fg(c ?? P.text, `${i.used}%` + (f.shortWords ? NARROW_MARK : MARK)[i.level]);
+    const out = f.noNotes ? '' : i.used >= 100 ? fg(c, FUSE.at + 'now') : i.runsOut ? fg(c, FUSE.at + shortClock(i.runsOut, now)) : '';
+    if (i === focal) {
+      return base + (f.bare ? '' : ' ' + fuseTrack(ctx, f.small ? 6 : 10, c, share(i), next ? [share(next), ink(ctx, next.level)] : null))
+        + (out && ' ' + out) + (f.noRefills || f.noNotes ? '' : ' ' + fg(P.sub, FUSE.refill + shortClock(i.assessed.resetsAt, now)));
+    }
+    if (!hasPace(i)) return base + (out && ' ' + out);
+    const pace = paceOf(i.assessed), gauge = f.noGauges ? '' : paceGauge(ctx, pace, i.level, ink(ctx, paint(i)));
+    // An amber limit that runs out draws its overshoot: gauge and trail fill six cells up to the time.
+    const trail = gauge && out && i.level === 'warn' && !f.small ? fg(c, FUSE.fast.repeat(6 - vis(gauge))) : '';
+    // Squeezed to one slot, an amber limit says its run-out time or its pace, never both.
+    const figure = i.level === 'warn' && !f.noNotes && !(f.noGauges && out) ? paceFigure(pace) : '';
+    return base + (gauge && ' ' + gauge) + trail + (out && (gauge ? '' : ' ') + out) + (figure && ' ' + fg(c, figure) + ' '.repeat(3 - figure.length));
+  };
+  const spent = !costShown(data, ctx) ? '' : f.shortCost ? fg(P.text, money(data.costUsd)) : cost(data, ctx);
+  return join([badges(data, ctx), head(data, ctx), ...it.map(draw), spent], '  ').replace(/ +$/, '');
+}
+
 export const LAYOUTS = {
   bar: (data, ctx) => join([badges(data, ctx), head(data, ctx),
     ...items(data, ctx).map((i) => (ctx.fit.bare ? bare(ctx, i, ' ')
@@ -172,4 +215,5 @@ export const LAYOUTS = {
       }),
       cost(data, ctx)], ctx.fit.tight ? '  ' : '   ');
   },
+  fuse: Object.assign(fuse, { steps: FUSE_STEPS, squeezes: ['small', 'shortWords'] }),
 };
