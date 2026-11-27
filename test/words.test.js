@@ -1,7 +1,7 @@
 import { NOW, at } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { countdown, clock, resetWhen, limitNote, memoryNote, LABELS, EFFORT } from '../plugin/src/render/words.js';
+import { countdown, clock, resetWhen, limitNote, memoryNote, LABELS, EFFORT, shortClock, paceOf, paceFigure, SHORT_LABELS } from '../plugin/src/render/words.js';
 import { assess } from '../plugin/src/render/limits.js';
 
 test('countdown: minutes, hours and minutes, or days and hours', () => {
@@ -118,4 +118,23 @@ test('memoryNote and tables', () => {
 test('limitNote: a limit that is 100% used with no reset time says it is used up', () => {
   assert.equal(limitNote({ used: 100, level: 'crit' }, NOW).text, 'used up');
   assert.equal(limitNote({ used: 95, level: 'crit' }, NOW).text, 'almost empty');
+});
+
+test('shortClock is clock() without the space and the M', () => {
+  assert.equal(shortClock(at(24 * 60), NOW), '2:44p');
+  assert.equal(shortClock(new Date(2026, 9, 31, 19, 20), NOW), 'Sat 7:20p');
+  assert.equal(shortClock(new Date(2026, 9, 29, 9, 5), NOW), 'Thu 9:05a');
+});
+
+test('paceOf counts points ahead of an even pace, and paceFigure never passes three columns', () => {
+  assert.equal(paceOf({ used: 88, elapsed: 0.583 }), 30);
+  assert.equal(paceOf({ used: 50, elapsed: 0.542 }), -4);
+  assert.equal(paceOf(assess({ used: 88, resetsAt: at(125 * 60), windowSec: 18000 }, NOW)), 30);
+  assert.deepEqual([30, -23, -4, 0, 150, -150].map(paceFigure), ['+30', '-23', '-4', '+0', '+99', '-99']);
+  assert.equal(paceFigure(paceOf({ used: 50, elapsed: 0.504 })), '+0'); // never "-0"
+});
+
+test('every battery has a short name for the Fuse layout', () => {
+  assert.deepEqual(Object.keys(SHORT_LABELS), Object.keys(LABELS));
+  for (const s of Object.values(SHORT_LABELS)) assert.ok(s.length <= 3, s);
 });

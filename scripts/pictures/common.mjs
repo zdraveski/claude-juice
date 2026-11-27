@@ -11,7 +11,7 @@ const { NEUTRAL, PRESETS } = await imp('plugin/src/render/palette.js');
 const { SAMPLES } = await imp('plugin/src/samples.js');
 const { ansiToHtml } = await imp('plugin/src/render/html.js');
 
-export { LOOKS, PRESETS, NEUTRAL };
+export { LOOKS, PRESETS, NEUTRAL, SAMPLES };
 export const busy = SAMPLES.busy;
 export const THEMES = ['dark', 'light'];
 const settings = (o = {}) => ({ ...DEFAULTS, show: [...SHOW_IDS], badges: [], ...o });

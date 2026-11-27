@@ -130,9 +130,9 @@ test('nothing is ever wider than 20 columns', () => {
 });
 
 test('steps run in order and are all tried before a cut', () => {
-  const labels = FIT_STEPS.map(([, label]) => label);
   let cuts = 0;
   for (const id of Object.keys(LAYOUTS)) for (const [n, d] of Object.entries(SAMPLES)) for (const w of [20, 30, 60, 80, 120, 200]) {
+    const steps = LAYOUTS[id].steps ?? FIT_STEPS, labels = steps.map(([, label]) => label);
     const r = go(d, id, w), at = `${id}/${n}/${w}`;
     const idx = r.dropped.filter((x) => x !== 'the end of the line').map((x) => labels.indexOf(x));
     assert.ok(idx.every((i) => i >= 0) && idx.every((v, i) => !i || v > idx[i - 1]), at);
@@ -140,7 +140,7 @@ test('steps run in order and are all tried before a cut', () => {
       cuts++;
       const ctx = makeCtx(d, { ...DEFAULTS, layout: id }, term(w));
       let allTried = false;
-      const probe = fit((x, c) => { allTried ||= FIT_STEPS.every(([f]) => c.fit[f]); return LAYOUTS[id](x, c); }, d, ctx, w);
+      const probe = fit(Object.assign((x, c) => { allTried ||= steps.every(([f]) => c.fit[f]); return LAYOUTS[id](x, c); }, LAYOUTS[id]), d, ctx, w);
       assert.ok(allTried, at);
       assert.equal(probe.dropped.at(-1), 'the end of the line', at);
     }
@@ -232,4 +232,17 @@ test('the shared weekly reset time stays on the line while Weekly says when it r
     const t = draw(w);
     if (/out ~/.test(t) && t.includes('Fable')) assert.match(t, /resets /, `${w}: ${t}`);
   }
+});
+
+test('a layout can bring its own steps and squeezes', () => {
+  const own = Object.assign((d, c) => (c.fit.short ? 'abcd' : 'abcdef') + (c.fit.gone ? '' : '  xyz'), { steps: [['short', 'the long word'], ['gone', 'the tail']], squeezes: ['short'] });
+  const at = (w) => fit(own, SAMPLES.busy, makeCtx(SAMPLES.busy, DEFAULTS, term(w)), w);
+  assert.equal(at(11).text, 'abcdef  xyz'); assert.deepEqual(at(11).dropped, []);
+  assert.equal(at(9).text, 'abcd  xyz'); assert.deepEqual(at(9).dropped, ['the long word']);
+  assert.equal(at(8).text, 'abcdef'); assert.deepEqual(at(8).dropped, ['the tail']); // the squeeze is undone once the tail is gone
+});
+
+test('the cut keeps a one-column mark with its number', () => {
+  const marks = Object.assign(() => 'SES 88%» ►2:44p  WK 95%» ►9:48p', { steps: [] });
+  assert.equal(strip(fit(marks, SAMPLES.busy, makeCtx(SAMPLES.busy, DEFAULTS, term(26)), 26).text), 'SES 88%» ►2:44p  WK 95%» …');
 });

@@ -75,3 +75,12 @@ export const LABELS = {
 export const EFFORT = {
   low: [1, 'low'], medium: [2, 'medium'], high: [3, 'high'], xhigh: [4, 'extra high'], max: [5, 'max'],
 };
+
+// ---------- The Fuse layout's words ----------
+// clock() without the space and the M: "2:44p", "Sat 7:20p".
+export const shortClock = (t, now) => clock(t, now).replace(/ ([AP])M/, (_, x) => x.toLowerCase());
+// Points ahead of (+) or behind (-) an even pace: 88% used with 58% of the time gone is +30.
+export const paceOf = (a) => Math.round(a.used - a.elapsed * 100);
+// Never wider than three columns: "+30", "-4", and "+99" for anything past it.
+export const paceFigure = (d) => (d < 0 ? '-' : '+') + Math.min(99, Math.abs(d));
+export const SHORT_LABELS = { memory: 'Mem', session: 'Ses', week: 'Wk', fable: 'Fab', budget: 'Bud' };

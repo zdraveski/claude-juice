@@ -4,6 +4,14 @@ This page lists what changed in each version of juice, newest first.
 
 To update, type `/plugin`, update juice, then restart Claude Code.
 
+## 1.6.0 (2026-11-27)
+
+[Changes since 1.5.8](https://github.com/zdraveski/claude-juice/compare/v1.5.8...v1.6.0)
+
+### Added
+
+- A seventh layout, Fuse. Type `/juice set layout=fuse`, or pick it in the customizer. It shows when a limit runs out and how long you then wait, instead of how full it is: `SESSION 88%!! ━━╳┄┄┄┄┄┄○ ►2:44p ○4:25p` burns until 2:44, then waits until the refill at 4:25. Capitals mean red, a capital first letter means amber, lowercase means fine, so it reads without colour. The [guide](docs/guide.md#reading-the-fuse-layout) explains every mark.
+
 ## 1.5.8 (2026-11-25)
 
 [Changes since 1.5.7](https://github.com/zdraveski/claude-juice/compare/v1.5.7...v1.5.8)

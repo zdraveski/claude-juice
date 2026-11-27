@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { vis, cut, strip, fg } from '../plugin/src/render/ansi.js';
 
 // Every glyph juice draws, with the columns terminals give it, written by hand so a Node Unicode update can't move one.
-const ONE = '·•…─━│┣┫┿╋▀▁▂▃▅▆█▉▊▋▌▍▎▏░▕■▪▰▱▸▹◆○●◑◔◕♡♥✓⠂⡀⣀⣄⣤⣦⣶⣷⣿';
+const ONE = '╳┄►›»·•…─━│┣┫┿╋▀▁▂▃▅▆█▉▊▋▌▍▎▏░▕■▪▰▱▸▹◆○●◑◔◕♡♥✓⠂⡀⣀⣄⣤⣦⣶⣷⣿';
 const WIDE = { '日': 2, '✅': 2, '🙂': 2, '♥️': 2, '▪️': 2, '️': 0 };
 
 test('widths: every glyph juice draws has its pinned column count', () => {
@@ -61,4 +61,14 @@ test('text that already fits is never segmented, even with an emoji or an accent
     const { cut, strip, fg } = await import(${JSON.stringify(url)});
     process.stdout.write(strip(cut(fg('#ffffff', '☀️ +12°C café 👍🏽'), 40)));`;
   assert.equal(execFileSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' }), '☀️ +12°C café 👍🏽');
+});
+
+// The glyphs the Fuse layout brought are built from code points (String.fromCharCode), so src/ stays free of them.
+test('widths: the Fuse layout\'s new glyphs are never typed raw in src/', () => {
+  const NEW = '╳┄►›»';
+  for (const f of readdirSync(new URL('../plugin/src', import.meta.url), { recursive: true, withFileTypes: true })) {
+    if (!f.isFile() || !f.name.endsWith('.js')) continue;
+    const text = readFileSync(join(f.parentPath, f.name), 'utf8');
+    for (const ch of NEW) assert.ok(!text.includes(ch), `${f.name} holds a raw U+${ch.codePointAt(0).toString(16)}`);
+  }
 });

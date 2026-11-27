@@ -2,12 +2,12 @@
 import { PRESETS, NEUTRAL } from './render/palette.js';
 import { contrast } from './render/ansi.js';
 import { LABELS } from './render/words.js';
-export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank'];
+export const LAYOUT_IDS = ['bar', 'segments', 'focus', 'panel', 'pills', 'tank', 'fuse'];
 // The layouts that draw the battery style; the others keep their own shapes.
 export const STYLE_LAYOUTS = ['bar', 'focus'];
 // What each choice is called, on the customizer's buttons and in juice's own messages (one name per id in CHOICES).
 export const NAMES = {
-  layout: { bar: 'Status bar', segments: 'Classic segments', focus: 'Tightest first', panel: 'Panel', pills: 'Capsules', tank: 'Fuel tank' },
+  layout: { bar: 'Status bar', segments: 'Classic segments', focus: 'Tightest first', panel: 'Panel', pills: 'Capsules', tank: 'Fuel tank', fuse: 'Fuse' },
   order: { yours: 'As above', urgent: 'Needs you first', fullest: 'Fullest first' },
   cost: { auto: 'Auto', on: 'On', off: 'Off' },
   ends: { auto: 'Automatic', round: 'Rounded', plain: 'Plain' },
