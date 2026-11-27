@@ -17,6 +17,7 @@ const LAYOUT_NOTES = {
   panel: 'One row each, everything spelled out',
   pills: 'Rounded capsules that fill with colour when they need you',
   tank: 'Shows what is left, like a fuel gauge',
+  fuse: 'When each limit runs out, and how long the wait is',
 };
 // Battery names as the panel layout spells them, so the page and the line never disagree.
 const SHOW = {
@@ -75,6 +76,10 @@ $('presets').innerHTML = Object.entries(PRESETS).map(([id, p]) =>
 $('custom').innerHTML = COLOR_NAMES.map((t, i) => `<label>${t}<input type="color" data-custom="${i}"><span class="ratio" data-ratio="${i}"></span></label>`).join('');
 $('details').innerHTML = DETAILS.map(([k, t, d]) => `<div class="drow"><div><div class="t">${t}</div><div class="d" data-hint="${k}">${d}</div></div>${segHtml(k, opts(k), t)}</div>`).join('');
 
+// The Fuse layout says some things with a glyph alone; give a screen reader the words before the glyphs are dropped.
+const FUSE_WORDS = [[/%»/g, '%!!'], [/%›/g, '%!'], [/►/g, ' runs out '], [/○(?=[\dA-Z])/g, ' refills '],
+  [/ ([+-])(\d+)(?= |$)/gm, (_, sign, n) => ` ${n} points ${sign === '+' ? 'ahead of' : 'behind'} an even pace`]];
+
 // The preview alone. Hovering a card redraws only this, since nothing chosen has changed.
 function preview() {
   const fixed = s.terminal !== 'auto'; // so the Dark/Light switch says why it does nothing
@@ -83,7 +88,7 @@ function preview() {
   const { text, dropped, columns: cols, term: shown, previewing, blank } = previewOf(s, view);
   $('out').innerHTML = ansiToHtml(text, NEUTRAL[shown].fg);
   // The glyph bars read as noise to a screen reader, so name the preview by its words only.
-  $('out').setAttribute('aria-label', text.replace(/\x1b\[[0-9;]*m/g, '').replace(/\s+│\s+/g, ', ').replace(/[^\p{L}\p{N}%!:.,$\-+\/~ \n]/gu, ' ').split('\n').map((l) => l.replace(/\s+/g, ' ').replace(/ ,/g, ',').trim()).join('. '));
+  $('out').setAttribute('aria-label', FUSE_WORDS.reduce((t, [a, b]) => t.replace(a, b), text.replace(/\x1b\[[0-9;]*m/g, '')).replace(/\s+│\s+/g, ', ').replace(/[^\p{L}\p{N}%!:.,$\-+\/~ \n]/gu, ' ').split('\n').map((l) => l.replace(/\s+/g, ' ').replace(/ ,/g, ',').trim()).join('. '));
   $('win').classList.toggle('light', shown === 'light');
   $('win').style.maxWidth = view.width === 'wide' ? '100%' : `calc(${cols}ch * 13.5 / 15 + 40px)`;
   $('cols').textContent = view.width === 'wide' ? '' : `${cols} columns`;

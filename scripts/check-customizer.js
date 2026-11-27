@@ -66,10 +66,10 @@ test('a screen reader hears each card by its name, not the whole preview drawn i
   assert.equal(await page.locator('.thumb:not([aria-hidden=true]), .chips:not([aria-hidden=true])').count(), 0);
 });
 
-test('loads with no errors: 15 looks, 6 layouts, 14 colour sets plus your own', async () => {
+test('loads with no errors: 15 looks, 7 layouts, 14 colour sets plus your own', async () => {
   const { page, errors } = await open();
   assert.equal(await page.locator('[data-look]').count(), 15);
-  assert.equal(await page.locator('[data-layout]').count(), 6);
+  assert.equal(await page.locator('[data-layout]').count(), 7);
   assert.equal(await page.locator('[data-preset]').count(), 15);
   assert.deepEqual(errors, []);
 });
@@ -172,6 +172,21 @@ test('a screen reader hears the live preview as words, and they follow every red
   const before = await name();
   await page.click('[data-view=state] [data-v=trouble]');
   assert.notEqual(await name(), before);
+});
+
+test('the Fuse layout: its card, and a screen reader hears what its glyphs say', async () => {
+  const { page } = await open();
+  await page.click('#popts summary');
+  await page.click('[data-layout=fuse]');
+  assert.equal(await page.getAttribute('[data-layout=fuse]', 'aria-pressed'), 'true');
+  assert.match(await page.textContent('[data-layout=fuse]'), /Fuse.*runs out/s);
+  await page.click('[data-view=width] [data-v=wide]');
+  await page.click('[data-view=state] [data-v=trouble]');
+  const name = await page.getAttribute('#out', 'aria-label');
+  // GitHub's runners are on UTC, where every clock time says so ("2:44p UTC").
+  assert.match(name, /SESSION 88%!! runs out 2:44p( UTC)? refills 4:25p/);
+  assert.match(name, /WEEKLY 95%!! runs out 9:48p/);
+  assert.doesNotMatch(name, /[━╳┄○►›»◆│]/u);
 });
 
 test('each Copy button says what it copies', async () => {
