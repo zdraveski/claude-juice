@@ -237,7 +237,7 @@ In a narrow window juice makes room one step at a time. Whatever it frees gets u
 
 Only in a very small window is the end of the line cut.
 
-The Fuse layout has its own order. The refill time, the effort word and the cost's word go first. Then names shorten (`MEM 91%»`) and the pace marks go. Then the effort level and the model go, then the limits that are fine, then the amber ones. The fuse and the run-out times go last, and the cost after them.
+The Fuse layout has its own order. Badges, the refill time, the effort word and the cost's word go first, and the fuse gets shorter. Then names shorten (`MEM 91%»`) and the pace marks go. Then the effort level and the model go, then the limits that are fine, then the amber ones. Then the fuse goes, then the run-out times and pace figures, and the cost goes last.
 
 </details>
 
