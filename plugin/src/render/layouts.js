@@ -116,7 +116,7 @@ const barPicture = (ctx, i) => (isForm(ctx)
 const FUSE_STEPS = [['badges', 'badges'], ['noRefills', 'the refill time'], ['noEffortWord', 'the effort word'], ['shortCost', 'the cost word'],
   ['small', 'the fuse length'], ['shortWords', 'limit names'], ['noGauges', 'pace marks'], ['noEffort', 'the effort level'],
   ['noModel', 'the model name'], ['onlyTrouble', 'batteries that are fine'], ['onlyRed', 'batteries going a bit fast'],
-  ['bare', 'the fuse'], ['noNotes', 'run-out times'], ['noCost', 'cost']];
+  ['bare', 'the fuse'], ['noNotes', 'run-out times and pace figures'], ['noCost', 'cost']];
 // Urgency by letter case, so it reads with no colour: SESSION is red, Weekly is amber, fable is fine.
 const VOICE = { crit: (w) => bold(w.toUpperCase()), warn: (w) => w, ok: (w) => w.toLowerCase() };
 const NARROW_MARK = { ok: '', warn: FUSE.fast, crit: FUSE.faster };
