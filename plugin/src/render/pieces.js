@@ -181,3 +181,35 @@ export function form(ctx, pct, level, small, elapsed) {
   const [widths, draw] = FORMS[ctx.style];
   return draw(ctx, tone(ctx, level), Math.max(0, Math.min(100, climb(ctx, pct || 0, level))) / 100, widths[small ? 1 : 0], paced(ctx, level, elapsed));
 }
+
+// ---------- The Fuse layout's shapes ----------
+// Built from code points, never typed: src/ holds none of the glyphs new to juice as raw characters.
+const G = String.fromCharCode;
+export const FUSE = { burn: G(0x2501), out: G(0x2573), dry: G(0x2504), refill: G(0x25cb), tick: G(0x2502), you: G(0x25c6), at: G(0x25ba), fast: G(0x203a), faster: G(0xbb) };
+
+// A level's colour, readable on the terminal's background (4.5:1) even when the person picked a faint one.
+// The Terminal set is left alone: it is only hues for to16(), and can promise no contrast.
+export const ink = (ctx, level) => (ctx.settings.colors === 'terminal' ? tone(ctx, level) : readable(tone(ctx, level), ctx.P.bg));
+
+// The time from now to a refill, w cells: burning, the run-out, the dry wait, the refill.
+// out: how far along the run-out is (0 to 1; 0 = used up; null = it lasts). also: [share, colour] of another
+// limit that runs out during the wait. One burning cell and one dry cell always show, so no part is ever lost.
+export function fuseTrack(ctx, w, c, out = null, also = null) {
+  const { P } = ctx, end = w - 1, refill = fg(ink(ctx, 'ok'), FUSE.refill);
+  if (out === null) return fg(c, FUSE.burn.repeat(end)) + refill;
+  const x = out <= 0 ? 0 : Math.min(end - 2, Math.max(1, Math.round(out * end)));
+  const dry = Array(end - x - 1).fill(fg(P.mute, FUSE.dry));
+  if (also) dry[Math.min(dry.length - 1, Math.max(0, Math.round(also[0] * end) - x - 1))] = fg(also[1], bold(FUSE.out));
+  return fg(c, FUSE.burn.repeat(x) + bold(FUSE.out)) + dry.join('') + refill;
+}
+
+// Where you are against an even pace: the clock stands still, you run ahead of it or lag behind. One cell is
+// PACE_STEP points; three cells at most. A red limit never looks calm: it is drawn ahead, by two cells or more.
+const PACE_STEP = 8;
+export function paceGauge(ctx, delta, level, c) {
+  const { P } = ctx, red = level === 'crit', d = red ? Math.max(delta, 0) : delta;
+  const n = Math.max(red ? 2 : 0, Math.min(3, Math.round(Math.abs(d) / PACE_STEP)));
+  if (!n) return fg(c, FUSE.you);
+  return d > 0 || red ? fg(P.sub, FUSE.tick) + fg(c, FUSE.burn.repeat(n - 1) + FUSE.you)
+    : fg(c, FUSE.you) + fg(P.mute, FUSE.dry.repeat(n - 1)) + fg(P.sub, FUSE.tick);
+}

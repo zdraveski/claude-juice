@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fg, vis, inkOn, contrast, mix, to256, to16 } from '../plugin/src/render/ansi.js';
 import { DEFAULTS, PRESET_IDS, BATTERY_IDS, FORM_IDS } from '../plugin/src/schema.js';
-import { PRESETS, NEUTRAL, palette, makeCtx } from '../plugin/src/render/palette.js';
-import { battery, batteryPct, batterySeg, batteryLow, ramp, chip, form, CLIMB_MS } from '../plugin/src/render/pieces.js';
+import { PRESETS, NEUTRAL, palette, makeCtx, tone } from '../plugin/src/render/palette.js';
+import { battery, batteryPct, batterySeg, batteryLow, ramp, chip, form, CLIMB_MS, fuseTrack, paceGauge, ink, FUSE } from '../plugin/src/render/pieces.js';
 import { EFFORT } from '../plugin/src/render/words.js';
 import { SAMPLES, withAccount } from '../plugin/src/samples.js';
 import { refreshFor } from '../plugin/src/setup.js';
@@ -548,4 +548,40 @@ test('batterySeg: with the terminal colour set, an unlit segment differs from th
     // 16 colours put the unlit colour and the casing in one slot, so only the glyph can tell lit from unlit.
     assert.equal(strip(to16(batterySeg(ctx, 20, 'ok'), theme === 'dark')).replace(/[ ■]/g, ''), '▊░░░░', theme);
   }
+});
+
+const fuseCtx = (set = {}, theme = 'dark') => makeCtx(SAMPLES.busy, { ...DEFAULTS, ...set }, { theme, ends: 'plain', colorDepth: 'truecolor' });
+
+test('fuseTrack: burning, the run-out, the dry wait, the refill, always w cells', () => {
+  const c = '#ff7f86', f = (...a) => strip(fuseTrack(fuseCtx(), ...a));
+  assert.equal(f(10, c, 0.191), '━━╳┄┄┄┄┄┄○');
+  assert.equal(f(6, c, 0.191), '━╳┄┄┄○');
+  assert.equal(f(10, c), '━━━━━━━━━○'); // it lasts
+  assert.equal(f(10, c, 0), '╳┄┄┄┄┄┄┄┄○'); // used up
+  assert.equal(f(10, c, 0.01), '━╳┄┄┄┄┄┄┄○'); // one burning cell always shows
+  assert.equal(f(10, c, 0.99), '━━━━━━━╳┄○'); // and one dry cell
+  // A second run-out sits in the dry wait, at its own place, never on the first mark or the refill.
+  assert.equal(f(10, c, 0.191, [0.66, c]), '━━╳┄┄┄╳┄┄○');
+  assert.equal(f(10, c, 0.191, [0.2, c]), '━━╳╳┄┄┄┄┄○');
+  assert.equal(f(10, c, 0.191, [0.99, c]), '━━╳┄┄┄┄┄╳○');
+  for (const w of [6, 10]) for (let o = 0; o <= 1; o += 0.01) assert.equal(vis(f(w, c, o, [o + 0.1, c])), w, `${w} at ${o}`);
+});
+
+test('paceGauge: the clock stands still, you run ahead or lag; a red limit never looks calm', () => {
+  const g = (d, level = 'ok') => strip(paceGauge(fuseCtx(), d, level, '#7fd8a0'));
+  assert.deepEqual([0, 3, -3].map((d) => g(d)), ['◆', '◆', '◆']);
+  assert.deepEqual([4, 11, 12, 19, 20, 60].map((d) => g(d)), ['│◆', '│◆', '│━◆', '│━◆', '│━━◆', '│━━◆']);
+  assert.deepEqual([-4, -12, -20, -60].map((d) => g(d)), ['◆│', '◆┄│', '◆┄┄│', '◆┄┄│']);
+  assert.deepEqual([-30, 0, 10, 20].map((d) => g(d, 'crit')), ['│━◆', '│━◆', '│━◆', '│━━◆']);
+});
+
+test('ink: a faint colour of your own is made readable; the Terminal set is left alone', () => {
+  const faint = { dark: { plentyLeft: '#333333', goingFast: '#333333', almostEmpty: '#333333', accent: '#333333' }, light: { plentyLeft: '#eeeeee', goingFast: '#eeeeee', almostEmpty: '#eeeeee', accent: '#eeeeee' } };
+  for (const theme of ['dark', 'light']) { const x = fuseCtx({ colors: faint }, theme); assert.ok(contrast(ink(x, 'crit'), x.P.bg) >= 4.5, theme); }
+  assert.equal(ink(fuseCtx(), 'crit'), tone(fuseCtx(), 'crit')); // one that already reads is unchanged
+  assert.equal(ink(fuseCtx({ colors: 'terminal' }), 'crit'), tone(fuseCtx({ colors: 'terminal' }), 'crit'));
+});
+
+test('the Fuse glyphs are one column each', () => {
+  for (const [name, ch] of Object.entries(FUSE)) assert.equal(vis(ch), 1, name);
 });
