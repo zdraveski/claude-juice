@@ -71,7 +71,7 @@ const sets = (theme) => box(theme, `.row{display:grid;grid-template-columns:440p
 const FUSE_ROWS = [['quiet', 'Calm: every limit is fine'], ['busy', 'Busy: Weekly is going a bit fast'], ['trouble', 'In trouble: Session runs out at 2:44 and refills at 4:25']];
 const fuse = (theme) => box(theme, `.row{padding:12px 28px}.cap{color:var(--sub);margin-bottom:6px}`,
   'The Fuse layout', 'Type <span class="code">/juice set layout=fuse</span> in Claude Code',
-  FUSE_ROWS.map(([id, cap]) => `<div class="row"><div class="cap">${cap}</div>${term(line(SAMPLES[id], { layout: 'fuse' }, 400, theme).html)}</div>`).join(''));
+  FUSE_ROWS.map(([id, cap]) => `<div class="row"><div class="cap">${cap}</div>${term(line(SAMPLES[id], { layout: 'fuse', show: ['memory', 'session', 'fable', 'week'] }, 400, theme).html)}</div>`).join(''));
 
 const br = await browser();
 for (const theme of THEMES) {
