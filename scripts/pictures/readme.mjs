@@ -1,8 +1,8 @@
-// Draws docs/images/anatomy-*.png, colours-*.png, looks-*.png and colour-sets-*.png with juice's own renderer, each for
+// Draws docs/images/anatomy-*.png, colours-*.png, looks-*.png, colour-sets-*.png and fuse-*.png with juice's own renderer, each for
 // GitHub's dark and light themes, in the same GitHub box as the hero.
 // Run: node scripts/pictures/readme.mjs (needs Playwright installed globally, npm i -g playwright, ffmpeg and the network, for Google Fonts).
 import { browser, shoot } from './shot.mjs';
-import { busy, LOOKS, PRESETS, NEUTRAL, THEMES, line, head, page } from './common.mjs';
+import { busy, LOOKS, PRESETS, NEUTRAL, SAMPLES, THEMES, line, head, page } from './common.mjs';
 
 const W = 1280, TALL = 4000;
 const withLimit = (d, id, used) => ({ ...d, limits: { ...d.limits, [id]: { ...d.limits[id], used } } });
@@ -67,11 +67,18 @@ const sets = (theme) => box(theme, `.row{display:grid;grid-template-columns:440p
 `<div class="row cols"><span>Set</span><span>Plenty left</span><span>Going fast !</span><span>Nearly out !!</span></div>`
 + Object.entries(PRESETS).map(([id, p]) => `<div class="row"><div><span class="name">${p.name}</span><span class="sub">${p.note}</span></div>${LEVELS.map((d) => term(`<div class="ln">${pill(line(d, { colors: id, show: ['session'], refills: 'warnings' }, 400, theme).html)}</div>`)).join('')}</div>`).join(''));
 
+// ---------- 5. The Fuse layout: calm, busy and in trouble ----------
+const FUSE_ROWS = [['quiet', 'Calm: every limit is fine'], ['busy', 'Busy: Weekly is going a bit fast'], ['trouble', 'In trouble: Session runs out at 2:44 and refills at 4:25']];
+const fuse = (theme) => box(theme, `.row{padding:12px 28px}.cap{color:var(--sub);margin-bottom:6px}`,
+  'The Fuse layout', 'Type <span class="code">/juice set layout=fuse</span> in Claude Code',
+  FUSE_ROWS.map(([id, cap]) => `<div class="row"><div class="cap">${cap}</div>${term(line(SAMPLES[id], { layout: 'fuse' }, 400, theme).html)}</div>`).join(''));
+
 const br = await browser();
 for (const theme of THEMES) {
   await shoot(br, `anatomy-${theme}`, anatomy(theme));
   await shoot(br, `colours-${theme}`, colours(theme));
   await shoot(br, `looks-${theme}`, looks(theme));
   await shoot(br, `colour-sets-${theme}`, sets(theme));
+  await shoot(br, `fuse-${theme}`, fuse(theme));
 }
 await br.close();

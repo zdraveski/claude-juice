@@ -239,6 +239,8 @@ const first = install('first');
     lineOk(x, `look ${id}`, [/Session/, /\d+%/]); // Just the basics shows two batteries
   }
   juiceIn(x, ['set', 'look=juice']); // Sand (the last look) set its own battery; any other look undoes it
+  juiceIn(x, ['set', 'layout=fuse']); // the one layout with its own narrow-window steps
+  lineOk(x, 'layout=fuse', [/session/i, /\d+%/]);
   for (const kv of ['layout=panel', 'colors=ocean', 'ends=plain', 'battery=outline', 'terminal=light', 'refills=warnings', 'cost=off', 'show=model,session,week', 'order=urgent']) {
     const said = lines(juiceIn(x, ['set', kv]));
     assert.equal(said[0], `Changed: ${kv.split('=')[0]}`, kv);

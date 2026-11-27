@@ -10,7 +10,7 @@ How to read juice, and every way to change how it looks. New here? [Install juic
 - Green is fine, amber with ! is going fast, red with !! is nearly out.
 - To change anything, type `/juice` and say what you want. [Commands](commands.md) lists them all.
 
-[The batteries](#what-the-batteries-mean) · [Looks](#ready-made-looks) · [Layouts](#six-layouts) · [Colours](#colour-sets) · [Battery style](#battery-style) · [Change how it looks](#change-how-it-looks) · [How the numbers are worked out](#how-the-numbers-and-colours-are-worked-out) · [Motion and refresh](#motion-and-refresh) · [By system](#by-system)
+[The batteries](#what-the-batteries-mean) · [Looks](#ready-made-looks) · [Layouts](#seven-layouts) · [Colours](#colour-sets) · [Battery style](#battery-style) · [Change how it looks](#change-how-it-looks) · [How the numbers are worked out](#how-the-numbers-and-colours-are-worked-out) · [Motion and refresh](#motion-and-refresh) · [By system](#by-system)
 
 ## What the batteries mean
 
@@ -97,7 +97,7 @@ Type `/juice look 7` to switch to number 7. `/juice looks` prints all 15.
 
 </details>
 
-## Six layouts
+## Seven layouts
 
 A look and a layout are different things. A look picks a layout and more. Spotlight, for example, is a look that uses the Tightest first layout.
 
@@ -109,8 +109,28 @@ A look and a layout are different things. A look picks a layout and more. Spotli
 | Panel | Each battery gets its own row, with the most detail. | Everything |
 | Capsules | Each battery is a rounded capsule. A fine one stays dark; one that needs you fills with its colour, and only that one says its times. | Capsule |
 | Fuel tank | Shows what is left instead of what is used, like a fuel gauge: the bar empties as you work. | Road trip |
+| Fuse | Shows when each limit runs out and how long you then wait, instead of how full it is. | No look uses it: type `/juice set layout=fuse` |
 
 The batteries keep the order you chose. To let them move instead, type `/juice put the one that needs me first` (red, then amber, then fine) or `/juice put the fullest first`. `/juice keep my order` puts them back.
+
+### Reading the Fuse layout
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="images/fuse-light.png">
+  <img src="images/fuse-dark.png" alt="The Fuse layout three times: calm, busy, and in trouble. In trouble, Session is at 88% and its fuse burns until it runs out at 2:44, then waits until it refills at 4:25; Weekly is at 95% and runs out at 9:48.">
+</picture>
+
+`SESSION 88%!! ━━╳┄┄┄┄┄┄○ ►2:44p ○4:25p` reads as a fuse burning down:
+
+- `━` is what you still have, `╳` is where it runs out, `┄` is the wait, and `○` is where it refills.
+- `►2:44p` is when it runs out. `○4:25p` is when it refills.
+- Only the limit that needs you most gets the fuse, and only that one says its refill time. The reset-times setting changes nothing here.
+- On the other limits, `│` is an even pace and `◆` is you. `│━◆` means you are ahead of it, and `◆┄│` means you are behind it.
+- Capitals mean red, a capital first letter means amber, and lowercase means fine, so it reads without colour.
+- An amber limit's `+10` or `-4` is how many points you are ahead of or behind an even pace. Amber with a minus means it is on track to end close to full.
+- Memory and Budget have no pace, so they show only a name and a number.
+
+It needs a font that has `╳`, `┄` and `━`. The old Windows console fonts (Courier New, Lucida Console) don't have them.
 
 ## Colour sets
 
@@ -216,6 +236,8 @@ In a narrow window juice makes room one step at a time. Whatever it frees gets u
 6. Last goes a red battery's words ("out ~2:44 PM"), so a red battery itself is the last thing to go.
 
 Only in a very small window is the end of the line cut.
+
+The Fuse layout has its own order. The refill time, the effort word and the cost's word go first. Then names shorten (`MEM 91%»`) and the pace marks go. Then the effort level and the model go, then the limits that are fine, then the amber ones. The fuse and the run-out times go last, and the cost after them.
 
 </details>
 

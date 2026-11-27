@@ -23,4 +23,6 @@ ask(2, 'Rounded ends: do the batteries have round ends (not boxes or question ma
 ask(3, 'Plain ends: does this look clean?', line({ theme: 'dark', ends: 'plain' }));
 ask(4, 'Light-theme colours: with a light terminal background, is this easy to read?', line({ theme: 'light', ends: 'round' }));
 ask(5, '256 colours (used when juice can\'t tell): does this still look right?', line({ theme: 'dark', ends: 'plain', colorDepth: '256' }));
-console.log('\nAnswer like: 1 yes, 2 yes, 3 yes, 4 yes, 5 yes');
+const fuse = (columns) => render(SAMPLES.trouble, { ...DEFAULTS, show: [...SHOW_IDS], layout: 'fuse' }, { columns, colorDepth: 'truecolor', theme: 'dark', ends: 'plain' }).text;
+ask(6, 'The Fuse layout: is every mark a clean single sign (a cross, dashes, a ring, arrows), with no boxes or question marks?', `${fuse(200)}\n   ${fuse(60)}`);
+console.log('\nAnswer like: 1 yes, 2 yes, 3 yes, 4 yes, 5 yes, 6 yes');

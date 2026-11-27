@@ -29,7 +29,7 @@ Each row is one `key=value` for `/juice set`. The default is first.
 
 | Key | Values | Example |
 |:---|:---|:---|
-| `layout` | `bar` (default), `segments`, `focus`, `panel`, `pills`, `tank` | `/juice set layout=pills` |
+| `layout` | `bar` (default), `segments`, `focus`, `panel`, `pills`, `tank`, `fuse` | `/juice set layout=pills` |
 | `show` | A comma list, in order, from `model`, `effort`, `memory`, `session`, `fable`, `week`, `budget` | `/juice set show=model,session,week` |
 | `order` | `yours` (default), `urgent`, `fullest` | `/juice set order=urgent` |
 | `cost` | `auto` (default), `on`, `off` | `/juice set cost=off` |
@@ -46,7 +46,7 @@ Each row is one `key=value` for `/juice set`. The default is first.
 Notes:
 
 - `look` sets layout, show, order, colors, cost, refills and ends in one go. `look=sand` also sets `battery=sand`, and any other look puts `battery=sand` back to `glossy`. Put other keys after it. See the [guide](guide.md#ready-made-looks).
-- `layout` names: `pills` is Capsules, `tank` is Fuel tank, `focus` is Tightest first, `segments` is Classic segments.
+- `layout` names: `pills` is Capsules, `tank` is Fuel tank, `focus` is Tightest first, `segments` is Classic segments, `fuse` is Fuse.
 - `show` uses `week` for Weekly.
 - The setting is spelled `colors`. The text elsewhere says colours.
 - `colors` of your own: `dark:#rrggbb,#rrggbb,#rrggbb,#rrggbb/light:#rrggbb,#rrggbb,#rrggbb,#rrggbb`. The four colours are plenty left, going fast, almost empty, accent. juice saves what you type and warns when one is hard to read.
