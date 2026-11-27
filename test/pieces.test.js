@@ -564,6 +564,7 @@ test('fuseTrack: burning, the run-out, the dry wait, the refill, always w cells'
   assert.equal(f(10, c, 0.191, [0.66, c]), '━━╳┄┄┄╳┄┄○');
   assert.equal(f(10, c, 0.191, [0.2, c]), '━━╳╳┄┄┄┄┄○');
   assert.equal(f(10, c, 0.191, [0.99, c]), '━━╳┄┄┄┄┄╳○');
+  assert.equal(f(6, c, 0.5, [0.7, c]), '━━━╳┄○'); // a lone dry cell is never covered by the second mark
   for (const w of [6, 10]) for (let o = 0; o <= 1; o += 0.01) assert.equal(vis(f(w, c, o, [o + 0.1, c])), w, `${w} at ${o}`);
 });
 

@@ -199,7 +199,7 @@ export function fuseTrack(ctx, w, c, out = null, also = null) {
   if (out === null) return fg(c, FUSE.burn.repeat(end)) + refill;
   const x = out <= 0 ? 0 : Math.min(end - 2, Math.max(1, Math.round(out * end)));
   const dry = Array(end - x - 1).fill(fg(P.mute, FUSE.dry));
-  if (also) dry[Math.min(dry.length - 1, Math.max(0, Math.round(also[0] * end) - x - 1))] = fg(also[1], bold(FUSE.out));
+  if (also && dry.length > 1) dry[Math.min(dry.length - 1, Math.max(0, Math.round(also[0] * end) - x - 1))] = fg(also[1], bold(FUSE.out));
   return fg(c, FUSE.burn.repeat(x) + bold(FUSE.out)) + dry.join('') + refill;
 }
 
